@@ -26,3 +26,22 @@ Thumbs.db
 # Temporales
 *.tmp
 *.temp
+
+# Gradle
+.gradle/
+build/
+out/
+*.class
+*.log
+
+# IntelliJ / VSCode / IDE
+.idea/
+.vscode/
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Node.js
+node_modules/
+dist/
