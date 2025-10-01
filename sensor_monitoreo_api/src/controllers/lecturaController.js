@@ -1,0 +1,390 @@
+// src/controllers/lecturaController.js - Controlador para gestión de lecturas ambientales
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+const lecturaController = {
+  // Crear nueva lectura (Endpoint principal para ESP32)
+  crear: async (req, res) => {
+    try {
+      const {
+        id_sensor,
+        temperatura,
+        humedad,
+        co2_nivel,
+        co_nivel,
+        latitud,
+        longitud,
+        altitud,
+        zona
+      } = req.body;
+
+      // Validar campos requeridos
+      if (!id_sensor) {
+        return res.status(400).json({
+          success: false,
+          message: 'Campo requerido: id_sensor'
+        });
+      }
+
+      // Verificar que el sensor existe
+      const sensor = await prisma.sensores.findUnique({
+        where: { id_sensor }
+      });
+
+      if (!sensor) {
+        return res.status(404).json({
+          success: false,
+          message: `Sensor ${id_sensor} no encontrado`
+        });
+      }
+
+      // Crear la lectura
+      const nuevaLectura = await prisma.lecturas.create({
+        data: {
+          id_sensor,
+          lectura_datetime: new Date(),
+          temperatura: temperatura ? parseFloat(temperatura) : null,
+          humedad: humedad ? parseFloat(humedad) : null,
+          co2_nivel: co2_nivel ? parseInt(co2_nivel) : null,
+          co_nivel: co_nivel ? parseFloat(co_nivel) : null,
+          latitud: latitud ? parseFloat(latitud) : null,
+          longitud: longitud ? parseFloat(longitud) : null,
+          altitud: altitud ? parseFloat(altitud) : null,
+          zona: zona || sensor.zona
+        }
+      });
+
+      // Actualizar último visto del sensor
+      await prisma.sensores.update({
+        where: { id_sensor },
+        data: { last_seen: new Date() }
+      });
+
+      // Verificar umbrales y crear alertas si es necesario
+      await verificarUmbrales(id_sensor, {
+        temperatura,
+        humedad,
+        co2_nivel,
+        co_nivel
+      });
+
+      res.status(201).json({
+        success: true,
+        message: 'Lectura guardada exitosamente',
+        data: {
+          id_lectura: nuevaLectura.id_lectura,
+          timestamp: nuevaLectura.lectura_datetime
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al crear lectura:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  },
+
+  // Obtener todas las lecturas con filtros
+  obtenerTodas: async (req, res) => {
+    try {
+      const {
+        sensor_id,
+        fecha_inicio,
+        fecha_fin,
+        zona,
+        limite = 100,
+        pagina = 1
+      } = req.query;
+
+      const skip = (parseInt(pagina) - 1) * parseInt(limite);
+
+      const filtros = {
+        ...(sensor_id && { id_sensor: sensor_id }),
+        ...(zona && { zona }),
+        ...(fecha_inicio && fecha_fin && {
+          lectura_datetime: {
+            gte: new Date(fecha_inicio),
+            lte: new Date(fecha_fin)
+          }
+        })
+      };
+
+      const [lecturas, total] = await Promise.all([
+        prisma.lecturas.findMany({
+          where: filtros,
+          include: {
+            sensor: {
+              select: {
+                nombre_sensor: true,
+                zona: true,
+                is_movil: true
+              }
+            }
+          },
+          orderBy: {
+            lectura_datetime: 'desc'
+          },
+          skip,
+          take: parseInt(limite)
+        }),
+        prisma.lecturas.count({ where: filtros })
+      ]);
+
+      res.status(200).json({
+        success: true,
+        message: 'Lecturas obtenidas exitosamente',
+        data: lecturas,
+        pagination: {
+          total,
+          pagina: parseInt(pagina),
+          limite: parseInt(limite),
+          total_paginas: Math.ceil(total / parseInt(limite))
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al obtener lecturas:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  },
+
+  // Obtener lecturas de un sensor específico
+  obtenerPorSensor: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { limite = 50 } = req.query;
+
+      const lecturas = await prisma.lecturas.findMany({
+        where: { id_sensor: id },
+        include: {
+          sensor: {
+            select: {
+              nombre_sensor: true,
+              zona: true,
+              is_movil: true
+            }
+          }
+        },
+        orderBy: {
+          lectura_datetime: 'desc'
+        },
+        take: parseInt(limite)
+      });
+
+      if (lecturas.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: `No se encontraron lecturas para el sensor ${id}`
+        });
+      }
+
+      res.status(200).json({
+        success: true,
+        message: 'Lecturas del sensor obtenidas exitosamente',
+        data: lecturas,
+        total: lecturas.length
+      });
+
+    } catch (error) {
+      console.error('Error al obtener lecturas del sensor:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  },
+
+  // Obtener últimas lecturas de todos los sensores
+  // Obtener últimas N lecturas de todos los sensores
+obtenerUltimas: async (req, res) => {
+  try {
+    const limite = parseInt(req.query.limite) || 100; // ✅ Límite dinámico
+
+    const lecturas = await prisma.lecturas.findMany({
+      include: {
+        sensor: {
+          select: {
+            id_sensor: true,
+            nombre_sensor: true,
+            zona: true,
+            is_movil: true,
+            estado: true
+          }
+        }
+      },
+      orderBy: {
+        lectura_datetime: 'desc'
+      },
+      take: limite
+    });
+
+    // Transformar datos para mantener compatibilidad con el frontend
+    const lecturasFormateadas = lecturas.map(lectura => ({
+      id_sensor: lectura.id_sensor,
+      nombre_sensor: lectura.sensor.nombre_sensor,
+      zona: lectura.zona || lectura.sensor.zona,
+      is_movil: lectura.sensor.is_movil,
+      estado: lectura.sensor.estado,
+      lectura_datetime: lectura.lectura_datetime,
+      temperatura: lectura.temperatura,
+      humedad: lectura.humedad,
+      co2_nivel: lectura.co2_nivel,
+      co_nivel: lectura.co_nivel,
+      latitud: lectura.latitud,
+      longitud: lectura.longitud,
+      altitud: lectura.altitud
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: 'Últimas lecturas obtenidas exitosamente',
+      data: lecturasFormateadas,
+      total: lecturasFormateadas.length
+    });
+
+  } catch (error) {
+    console.error('Error al obtener últimas lecturas:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error interno del servidor',
+      error: error.message
+    });
+  }
+},
+  // Obtener estadísticas de un sensor
+  obtenerEstadisticas: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { dias = 7 } = req.query;
+
+      const fechaInicio = new Date();
+      fechaInicio.setDate(fechaInicio.getDate() - parseInt(dias));
+
+      const estadisticas = await prisma.lecturas.aggregate({
+        where: {
+          id_sensor: id,
+          lectura_datetime: {
+            gte: fechaInicio
+          }
+        },
+        _avg: {
+          temperatura: true,
+          humedad: true,
+          co2_nivel: true,
+          co_nivel: true
+        },
+        _max: {
+          temperatura: true,
+          humedad: true,
+          co2_nivel: true,
+          co_nivel: true
+        },
+        _min: {
+          temperatura: true,
+          humedad: true,
+          co2_nivel: true,
+          co_nivel: true
+        },
+        _count: true
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Estadísticas obtenidas exitosamente',
+        data: {
+          periodo_dias: parseInt(dias),
+          total_lecturas: estadisticas._count,
+          promedios: estadisticas._avg,
+          maximos: estadisticas._max,
+          minimos: estadisticas._min
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al obtener estadísticas:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  }
+};
+
+// Función auxiliar para verificar umbrales
+async function verificarUmbrales(id_sensor, valores) {
+  try {
+    const umbrales = await prisma.sensor_umbral.findMany({
+      where: {
+        id_sensor,
+        alerta_habilitar: true
+      }
+    });
+
+    for (const umbral of umbrales) {
+      let valor_actual = null;
+      let parametro_display = umbral.parametro_nombre;
+
+      switch (umbral.parametro_nombre.toLowerCase()) {
+        case 'temperatura':
+          valor_actual = valores.temperatura;
+          break;
+        case 'humedad':
+          valor_actual = valores.humedad;
+          break;
+        case 'co2':
+          valor_actual = valores.co2_nivel;
+          break;
+        case 'co':
+          valor_actual = valores.co_nivel;
+          break;
+      }
+
+      if (valor_actual !== null) {
+        const valor_num = parseFloat(valor_actual);
+        let crear_alerta = false;
+        let tipo_alerta = '';
+        let valor_umbral = null;
+        let gravedad = 'Medio';
+
+        if (umbral.max_umbral && valor_num > parseFloat(umbral.max_umbral)) {
+          crear_alerta = true;
+          tipo_alerta = `high_${umbral.parametro_nombre.toLowerCase()}`;
+          valor_umbral = parseFloat(umbral.max_umbral);
+          gravedad = valor_num > (parseFloat(umbral.max_umbral) * 1.5) ? 'Critico' : 'Alto';
+        } else if (umbral.min_umbral && valor_num < parseFloat(umbral.min_umbral)) {
+          crear_alerta = true;
+          tipo_alerta = `low_${umbral.parametro_nombre.toLowerCase()}`;
+          valor_umbral = parseFloat(umbral.min_umbral);
+          gravedad = 'Medio';
+        }
+
+        if (crear_alerta) {
+          await prisma.alertas.create({
+            data: {
+              id_sensor,
+              alerta_tipo: tipo_alerta,
+              parametro_nombre: parametro_display,
+              umbral_valor: valor_umbral,
+              actual_valor: valor_num,
+              mensaje: `${parametro_display} fuera de rango: ${valor_num} (umbral: ${valor_umbral})`,
+              gravedad
+            }
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error al verificar umbrales:', error);
+  }
+}
+
+module.exports = lecturaController;

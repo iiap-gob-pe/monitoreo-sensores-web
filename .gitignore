@@ -1,0 +1,28 @@
+# Backend
+sensor_monitoreo_api/node_modules/
+sensor_monitoreo_api/.env
+sensor_monitoreo_api/dist/
+sensor_monitoreo_api/prisma/migrations/dev/
+
+# Frontend  
+environmental-monitoring-web/node_modules/
+environmental-monitoring-web/.env.local
+environmental-monitoring-web/.env
+environmental-monitoring-web/build/
+environmental-monitoring-web/dist/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Sistema
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Temporales
+*.tmp
+*.temp

@@ -1,0 +1,78 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model sensores {
+  id_sensor         String          @id @db.VarChar(50)
+  nombre_sensor     String          @db.VarChar(100)
+  zona              String          @db.VarChar(20)
+  is_movil          Boolean?        @default(false)
+  description       String?
+  installation_date DateTime?       @default(dbgenerated("CURRENT_DATE")) @db.Date
+  created_at        DateTime?       @default(now()) @db.Timestamp(6)
+  last_seen         DateTime?       @db.Timestamp(6)
+  estado            String?         @default("Activo") @db.VarChar(20)
+  alertas           alertas[]
+  lecturas          lecturas[]
+  sensor_umbral     sensor_umbral[]
+
+  @@map("sensores")
+}
+
+model lecturas {
+  id_lectura       Int       @id @default(autoincrement())
+  id_sensor        String?   @db.VarChar(50)
+  lectura_datetime DateTime  @db.Timestamp(6)
+  temperatura      Decimal?  @db.Decimal(5, 2)
+  humedad          Decimal?  @db.Decimal(5, 2)
+  co2_nivel        Int?
+  co_nivel         Decimal?  @db.Decimal(6, 2)
+  latitud          Decimal?  @db.Decimal(10, 8)
+  longitud         Decimal?  @db.Decimal(11, 8)
+  altitud          Decimal?  @db.Decimal(8, 2)
+  zona             String?   @db.VarChar(20)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  sensor           sensores? @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([lectura_datetime(sort: Desc)], map: "idx_lecturas_lectura_datetime")
+  @@index([id_sensor, lectura_datetime(sort: Desc)], map: "idx_lecturas_sensor_lectura_datetime")
+  @@map("lecturas")
+}
+
+model alertas {
+  id_alerta        Int       @id @default(autoincrement())
+  id_sensor        String?   @db.VarChar(50)
+  alerta_tipo      String    @db.VarChar(50)
+  parametro_nombre String?   @db.VarChar(30)
+  umbral_valor     Decimal?  @db.Decimal(10, 2)
+  actual_valor     Decimal?  @db.Decimal(10, 2)
+  mensaje          String
+  gravedad         String?   @default("Medio") @db.VarChar(20)
+  se_activo_at     DateTime? @default(now()) @db.Timestamp(6)
+  resuelto_at      DateTime? @db.Timestamp(6)
+  is_resolved      Boolean?  @default(false)
+  sensor           sensores? @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([id_sensor, se_activo_at(sort: Desc)], map: "idx_alertas_sensor_se_activo_at")
+  @@map("alertas")
+}
+
+model sensor_umbral {
+  id_sensor_umbral Int       @id @default(autoincrement())
+  id_sensor        String?   @db.VarChar(50)
+  parametro_nombre String    @db.VarChar(30)
+  min_umbral       Decimal?  @db.Decimal(10, 2)
+  max_umbral       Decimal?  @db.Decimal(10, 2)
+  alerta_habilitar Boolean?  @default(true)
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  updated_at       DateTime? @default(now()) @updatedAt @db.Timestamp(6)
+  sensor           sensores? @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_sensor, parametro_nombre])
+  @@map("sensor_umbral")
+}
