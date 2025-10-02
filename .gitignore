@@ -28,6 +28,7 @@ Thumbs.db
 *.temp
 
 # Gradle
+*.gradle
 .gradle/
 build/
 out/
