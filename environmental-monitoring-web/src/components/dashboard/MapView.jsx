@@ -1,8 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Polygon } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { MapPinIcon, ArrowPathIcon, FireIcon, CloudIcon, ExclamationTriangleIcon, MapIcon } from '@heroicons/react/24/outline';
+import { MapPinIcon, ArrowPathIcon, FireIcon, CloudIcon, ExclamationTriangleIcon, MapIcon, ClockIcon } from '@heroicons/react/24/outline';
+import { PlayIcon, PauseIcon, BackwardIcon, ForwardIcon } from '@heroicons/react/24/solid';
+import Slider from 'rc-slider';
+import 'rc-slider/assets/index.css';
 
 // Fix del icono de Leaflet en React
 delete L.Icon.Default.prototype._getIconUrl;
@@ -25,7 +28,7 @@ const createCustomIcon = (color) => {
 const fijoIcon = createCustomIcon('#3B82F6');
 const movilIcon = createCustomIcon('#8B5CF6');
 
-// Definir zonas con polígonos (coordenadas de ejemplo para Iquitos)
+// Definir zonas con polígonos
 const zonasPoligonos = {
   urbana: {
     nombre: 'Zona Urbana',
@@ -58,6 +61,16 @@ export default function MapView({ lecturas, lecturasUnicas }) {
   const [recorridos, setRecorridos] = useState({});
   const center = [-3.7491, -73.2538];
 
+  // Estados para mapa temporal
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [velocidad, setVelocidad] = useState(1);
+  const [rangoTemporal, setRangoTemporal] = useState(24); // horas
+  const [timestampActual, setTimestampActual] = useState(0);
+  const [timestamps, setTimestamps] = useState([]);
+  const [lecturasTemporales, setLecturasTemporales] = useState([]);
+  const intervalRef = useRef(null);
+
+  // Calcular recorridos de sensores móviles
   useEffect(() => {
     if (tipoMapa === 'recorridos' && lecturas.length > 0) {
       const recorridosPorSensor = {};
@@ -85,7 +98,100 @@ export default function MapView({ lecturas, lecturasUnicas }) {
     }
   }, [tipoMapa, lecturas]);
 
-  // Funciones de color por temperatura
+  // Preparar datos temporales
+  useEffect(() => {
+    if (tipoMapa === 'temporal' && lecturas.length > 0) {
+      // Ordenar lecturas por timestamp
+      const lecturasOrdenadas = [...lecturas].sort((a, b) => 
+        new Date(a.lectura_datetime) - new Date(b.lectura_datetime)
+      );
+
+      // Filtrar por rango temporal
+      const ahora = new Date();
+      const inicioRango = new Date(ahora.getTime() - rangoTemporal * 60 * 60 * 1000);
+      
+      const lecturasFiltradas = lecturasOrdenadas.filter(l => 
+        new Date(l.lectura_datetime) >= inicioRango
+      );
+
+      // Extraer timestamps únicos
+      const timestampsUnicos = [...new Set(
+        lecturasFiltradas.map(l => new Date(l.lectura_datetime).getTime())
+      )].sort((a, b) => a - b);
+
+      setTimestamps(timestampsUnicos);
+      setTimestampActual(timestampsUnicos.length - 1); // Empezar en el más reciente
+      setLecturasTemporales(lecturasFiltradas);
+    }
+  }, [tipoMapa, lecturas, rangoTemporal]);
+
+  // Control de reproducción
+  useEffect(() => {
+    if (isPlaying && timestamps.length > 0) {
+      intervalRef.current = setInterval(() => {
+        setTimestampActual(prev => {
+          if (prev >= timestamps.length - 1) {
+            setIsPlaying(false);
+            return timestamps.length - 1;
+          }
+          return prev + 1;
+        });
+      }, 1000 / velocidad); // Velocidad ajustable
+    } else {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isPlaying, velocidad, timestamps.length]);
+
+  // Obtener lecturas para el timestamp actual
+  const getLecturasEnTimestamp = () => {
+    if (timestamps.length === 0 || timestampActual < 0) return [];
+    
+    const timestampSeleccionado = timestamps[timestampActual];
+    
+    // Obtener la última lectura de cada sensor hasta este timestamp
+    const lecturasHastaAhora = lecturasTemporales.filter(l => 
+      new Date(l.lectura_datetime).getTime() <= timestampSeleccionado
+    );
+
+    const ultimasPorSensor = {};
+    lecturasHastaAhora.forEach(lectura => {
+      const sensorId = lectura.id_sensor;
+      if (!ultimasPorSensor[sensorId] || 
+          new Date(lectura.lectura_datetime) > new Date(ultimasPorSensor[sensorId].lectura_datetime)) {
+        ultimasPorSensor[sensorId] = lectura;
+      }
+    });
+
+    return Object.values(ultimasPorSensor);
+  };
+
+  // Obtener estelas (trail) de movimiento
+  const getEstelaMovimiento = (sensorId, minutosAtras = 30) => {
+    if (timestamps.length === 0) return [];
+    
+    const timestampSeleccionado = timestamps[timestampActual];
+    const timestampInicio = timestampSeleccionado - (minutosAtras * 60 * 1000);
+    
+    return lecturasTemporales
+      .filter(l => 
+        l.id_sensor === sensorId &&
+        new Date(l.lectura_datetime).getTime() >= timestampInicio &&
+        new Date(l.lectura_datetime).getTime() <= timestampSeleccionado &&
+        l.latitud && l.longitud
+      )
+      .sort((a, b) => new Date(a.lectura_datetime) - new Date(b.lectura_datetime))
+      .map(l => [l.latitud, l.longitud]);
+  };
+
+  // Funciones de color
   const getColorByTemp = (temp) => {
     if (!temp) return '#808080';
     if (temp < 18) return '#3B82F6';
@@ -100,7 +206,6 @@ export default function MapView({ lecturas, lecturasUnicas }) {
     return 50 + (temp * 10);
   };
 
-  // Funciones de color por CO2
   const getColorByCO2 = (co2) => {
     if (!co2) return '#808080';
     if (co2 < 600) return '#10B981';
@@ -115,7 +220,6 @@ export default function MapView({ lecturas, lecturasUnicas }) {
     return 50 + (co2 * 0.05);
   };
 
-  // Funciones de color por CO
   const getColorByCO = (co) => {
     if (!co) return '#808080';
     if (co < 4) return '#10B981';
@@ -138,14 +242,29 @@ export default function MapView({ lecturas, lecturasUnicas }) {
     { id: 'calor-temp', nombre: 'Temp', icono: FireIcon, descripcion: 'Mapa de calor por temperatura' },
     { id: 'calor-co2', nombre: 'CO₂', icono: CloudIcon, descripcion: 'Mapa de calor por dióxido de carbono' },
     { id: 'calor-co', nombre: 'CO', icono: ExclamationTriangleIcon, descripcion: 'Mapa de calor por monóxido de carbono' },
-    { id: 'zonas', nombre: 'Zonas', icono: MapIcon, descripcion: 'Delimitación de zonas urbanas y rurales' }
+    { id: 'zonas', nombre: 'Zonas', icono: MapIcon, descripcion: 'Delimitación de zonas urbanas y rurales' },
+    { id: 'temporal', nombre: 'Temporal', icono: ClockIcon, descripcion: 'Evolución histórica con línea de tiempo' }
   ];
 
-  // Contar sensores por zona
   const contarSensoresPorZona = () => {
     const urbanos = lecturasUnicas.filter(l => l.zona === 'Urbana').length;
     const rurales = lecturasUnicas.filter(l => l.zona === 'Rural').length;
     return { urbanos, rurales };
+  };
+
+  // Obtener estadísticas del momento actual (para mapa temporal)
+  const getEstadisticasTemporales = () => {
+    const lecturasActuales = getLecturasEnTimestamp();
+    if (lecturasActuales.length === 0) return { sensores: 0, tempPromedio: 0, sensoresMoviles: 0 };
+
+    const tempPromedio = lecturasActuales.reduce((sum, l) => sum + (parseFloat(l.temperatura) || 0), 0) / lecturasActuales.length;
+    const sensoresMoviles = lecturasActuales.filter(l => l.is_movil).length;
+
+    return {
+      sensores: lecturasActuales.length,
+      tempPromedio: tempPromedio.toFixed(1),
+      sensoresMoviles
+    };
   };
 
   return (
@@ -178,6 +297,124 @@ export default function MapView({ lecturas, lecturasUnicas }) {
           {tiposMapa.find(t => t.id === tipoMapa)?.descripcion}
         </p>
       </div>
+
+      {/* Controles de Mapa Temporal */}
+      {tipoMapa === 'temporal' && timestamps.length > 0 && (
+        <div className="mb-4 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200">
+          {/* Información del momento actual */}
+          <div className="text-center mb-4">
+            <div className="text-2xl font-bold text-gray-800">
+              {new Date(timestamps[timestampActual]).toLocaleDateString('es-PE', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+              })}
+            </div>
+            <div className="text-xl text-gray-600">
+              {new Date(timestamps[timestampActual]).toLocaleTimeString('es-PE', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                second: '2-digit'
+              })}
+            </div>
+          </div>
+
+          {/* Controles de reproducción */}
+          <div className="flex items-center justify-center space-x-4 mb-4">
+            <button
+              onClick={() => setTimestampActual(Math.max(0, timestampActual - 10))}
+              className="p-2 bg-white rounded-lg shadow hover:bg-gray-50 transition"
+              title="Retroceder 10 pasos"
+            >
+              <BackwardIcon className="w-5 h-5 text-gray-700" />
+            </button>
+
+            <button
+              onClick={() => setIsPlaying(!isPlaying)}
+              className="p-3 bg-primary text-white rounded-lg shadow-md hover:bg-primary-dark transition"
+              title={isPlaying ? 'Pausar' : 'Reproducir'}
+            >
+              {isPlaying ? (
+                <PauseIcon className="w-6 h-6" />
+              ) : (
+                <PlayIcon className="w-6 h-6" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setTimestampActual(Math.min(timestamps.length - 1, timestampActual + 10))}
+              className="p-2 bg-white rounded-lg shadow hover:bg-gray-50 transition"
+              title="Avanzar 10 pasos"
+            >
+              <ForwardIcon className="w-5 h-5 text-gray-700" />
+            </button>
+
+            <select
+              value={velocidad}
+              onChange={(e) => setVelocidad(Number(e.target.value))}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+            >
+              <option value={0.5}>0.5x</option>
+              <option value={1}>1x</option>
+              <option value={2}>2x</option>
+              <option value={4}>4x</option>
+            </select>
+
+            <select
+              value={rangoTemporal}
+              onChange={(e) => setRangoTemporal(Number(e.target.value))}
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm"
+            >
+              <option value={6}>Últimas 6 horas</option>
+              <option value={12}>Últimas 12 horas</option>
+              <option value={24}>Últimas 24 horas</option>
+              <option value={48}>Últimos 2 días</option>
+              <option value={168}>Última semana</option>
+            </select>
+          </div>
+
+          {/* Slider de tiempo */}
+          <div className="px-4">
+            <Slider
+              min={0}
+              max={timestamps.length - 1}
+              value={timestampActual}
+              onChange={(value) => setTimestampActual(value)}
+              railStyle={{ backgroundColor: '#E5E7EB', height: 8 }}
+              trackStyle={{ backgroundColor: '#8B5CF6', height: 8 }}
+              handleStyle={{
+                borderColor: '#8B5CF6',
+                height: 20,
+                width: 20,
+                marginTop: -6,
+                backgroundColor: '#8B5CF6'
+              }}
+            />
+            <div className="flex justify-between text-xs text-gray-500 mt-2">
+              <span>{new Date(timestamps[0]).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+              <span>Progreso: {timestampActual + 1} / {timestamps.length}</span>
+              <span>{new Date(timestamps[timestamps.length - 1]).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          </div>
+
+          {/* Estadísticas del momento */}
+          <div className="mt-4 flex justify-center space-x-6 text-sm">
+            <div className="text-center">
+              <div className="text-2xl font-bold text-primary">{getEstadisticasTemporales().sensores}</div>
+              <div className="text-gray-600">Sensores activos</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-orange-500">{getEstadisticasTemporales().tempPromedio}°C</div>
+              <div className="text-gray-600">Temp. promedio</div>
+            </div>
+            <div className="text-center">
+              <div className="text-2xl font-bold text-purple-500">{getEstadisticasTemporales().sensoresMoviles}</div>
+              <div className="text-gray-600">En movimiento</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="h-96 rounded-lg overflow-hidden border border-gray-200">
         <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
@@ -450,7 +687,6 @@ export default function MapView({ lecturas, lecturasUnicas }) {
           {/* MAPA DE ZONAS */}
           {tipoMapa === 'zonas' && (
             <>
-              {/* Polígono Zona Urbana */}
               <Polygon
                 positions={zonasPoligonos.urbana.coordenadas}
                 pathOptions={{
@@ -471,7 +707,6 @@ export default function MapView({ lecturas, lecturasUnicas }) {
                 </Popup>
               </Polygon>
 
-              {/* Polígono Zona Rural */}
               <Polygon
                 positions={zonasPoligonos.rural.coordenadas}
                 pathOptions={{
@@ -492,7 +727,6 @@ export default function MapView({ lecturas, lecturasUnicas }) {
                 </Popup>
               </Polygon>
 
-              {/* Marcadores de sensores sobre las zonas */}
               {lecturasUnicas.map((lectura, index) => {
                 if (lectura.latitud && lectura.longitud) {
                   const icon = lectura.is_movil ? movilIcon : fijoIcon;
@@ -523,6 +757,78 @@ export default function MapView({ lecturas, lecturasUnicas }) {
               })}
             </>
           )}
+
+          {/* MAPA TEMPORAL */}
+          {tipoMapa === 'temporal' && getLecturasEnTimestamp().map((lectura, index) => {
+            if (lectura.latitud && lectura.longitud) {
+              const icon = lectura.is_movil ? movilIcon : fijoIcon;
+              const estela = lectura.is_movil ? getEstelaMovimiento(lectura.id_sensor) : [];
+              
+              return (
+                <div key={`temporal-${index}`}>
+                  {/* Estela de movimiento para sensores móviles */}
+                  {estela.length > 1 && (
+                    <Polyline
+                      positions={estela}
+                      pathOptions={{
+                        color: '#8B5CF6',
+                        weight: 2,
+                        opacity: 0.5,
+                        dashArray: '5, 10'
+                      }}
+                    />
+                  )}
+
+                  {/* Marcador del sensor */}
+                  <Marker 
+                    position={[lectura.latitud, lectura.longitud]}
+                    icon={icon}
+                  >
+                    <Popup>
+                      <div className="p-2 min-w-[200px]">
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="font-bold text-lg">{lectura.id_sensor}</h3>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${
+                            lectura.is_movil ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'
+                          }`}>
+                            {lectura.is_movil ? 'Móvil' : 'Fijo'}
+                          </span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <p className="flex justify-between">
+                            <span className="text-gray-600">Zona:</span>
+                            <span className="font-medium">{lectura.zona}</span>
+                          </p>
+                          <p className="flex justify-between">
+                            <span className="text-gray-600">Temperatura:</span>
+                            <span className="font-medium">{lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}</span>
+                          </p>
+                          <p className="flex justify-between">
+                            <span className="text-gray-600">Humedad:</span>
+                            <span className="font-medium">{lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}</span>
+                          </p>
+                          <p className="flex justify-between">
+                            <span className="text-gray-600">CO₂:</span>
+                            <span className="font-medium">{lectura.co2_nivel ? `${lectura.co2_nivel} ppm` : 'N/A'}</span>
+                          </p>
+                          <p className="flex justify-between">
+                            <span className="text-gray-600">CO:</span>
+                            <span className="font-medium">{lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}</span>
+                          </p>
+                          <p className="text-xs text-gray-500 mt-2 pt-2 border-t">
+                            {lectura.lectura_datetime 
+                              ? new Date(lectura.lectura_datetime).toLocaleString('es-PE')
+                              : 'Sin fecha'}
+                          </p>
+                        </div>
+                      </div>
+                    </Popup>
+                  </Marker>
+                </div>
+              );
+            }
+            return null;
+          })}
         </MapContainer>
       </div>
 
@@ -657,6 +963,15 @@ export default function MapView({ lecturas, lecturasUnicas }) {
             </div>
           </div>
         )}
+
+        {tipoMapa === 'temporal' && (
+          <div className="text-center text-sm text-gray-600">
+            <p className="font-medium">Visualización Histórica</p>
+            <p className="text-xs mt-1">
+              Usa los controles para navegar por el tiempo. Las líneas punteadas muestran el movimiento reciente de sensores móviles.
+            </p>
+          </div>
+        )}
       </div>
 
       <div className="mt-2 text-center text-xs text-gray-500">
@@ -666,6 +981,7 @@ export default function MapView({ lecturas, lecturasUnicas }) {
         {tipoMapa === 'calor-co2' && `${lecturasUnicas.filter(l => l.latitud && l.longitud && l.co2_nivel).length} puntos de CO₂`}
         {tipoMapa === 'calor-co' && `${lecturasUnicas.filter(l => l.latitud && l.longitud && l.co_nivel).length} puntos de CO`}
         {tipoMapa === 'zonas' && `${lecturasUnicas.length} sensores distribuidos en ${Object.keys(zonasPoligonos).length} zonas`}
+        {tipoMapa === 'temporal' && timestamps.length > 0 && `Mostrando ${getLecturasEnTimestamp().length} sensores en este momento`}
       </div>
     </div>
   );
