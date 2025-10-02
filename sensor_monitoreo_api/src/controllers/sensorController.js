@@ -9,26 +9,13 @@ const sensorController = {
       const sensores = await prisma.sensores.findMany({
         orderBy: {
           created_at: 'desc'
-        },
-        include: {
-          _count: {
-            select: {
-              lecturas: true,
-              alertas: {
-                where: {
-                  is_resolved: false
-                }
-              }
-            }
-          }
         }
       });
 
       res.status(200).json({
         success: true,
         message: 'Sensores obtenidos exitosamente',
-        data: sensores,
-        total: sensores.length
+        data: sensores
       });
     } catch (error) {
       console.error('Error al obtener sensores:', error);
@@ -40,39 +27,19 @@ const sensorController = {
     }
   },
 
-
-
-
-
-
   // Obtener sensor por ID
   obtenerPorId: async (req, res) => {
     try {
       const { id } = req.params;
-      
+
       const sensor = await prisma.sensores.findUnique({
-        where: {
-          id_sensor: id
-        },
-        include: {
-          sensor_umbral: true,
-          _count: {
-            select: {
-              lecturas: true,
-              alertas: {
-                where: {
-                  is_resolved: false
-                }
-              }
-            }
-          }
-        }
+        where: { id_sensor: id }
       });
 
-      if (!sensor) {                                                    
+      if (!sensor) {
         return res.status(404).json({
           success: false,
-          message: `Sensor con ID ${id} no encontrado`
+          message: `Sensor ${id} no encontrado`
         });
       }
 
@@ -94,25 +61,23 @@ const sensorController = {
   // Crear nuevo sensor
   crear: async (req, res) => {
     try {
-      const { id_sensor, nombre_sensor, zona, is_movil, description } = req.body;
+      const {
+        id_sensor,
+        nombre_sensor,
+        zona,
+        is_movil,
+        description
+      } = req.body;
 
       // Validar campos requeridos
-      if (!id_sensor || !nombre_sensor || !zona) {
+      if (!id_sensor || !nombre_sensor) {
         return res.status(400).json({
           success: false,
-          message: 'Campos requeridos: id_sensor, nombre_sensor, zona'
+          message: 'Campos requeridos: id_sensor, nombre_sensor'
         });
       }
 
-      // Validar zona
-      if (!['Urbana', 'Rural'].includes(zona)) {
-        return res.status(400).json({
-          success: false,
-          message: 'La zona debe ser "Urbana" o "Rural"'
-        });
-      }
-
-      // Verificar si ya existe un sensor con ese ID
+      // Verificar que el sensor no exista
       const sensorExistente = await prisma.sensores.findUnique({
         where: { id_sensor }
       });
@@ -120,38 +85,20 @@ const sensorController = {
       if (sensorExistente) {
         return res.status(409).json({
           success: false,
-          message: `Ya existe un sensor con ID ${id_sensor}`
+          message: `El sensor ${id_sensor} ya existe`
         });
       }
 
+      // Crear el sensor
       const nuevoSensor = await prisma.sensores.create({
         data: {
           id_sensor,
           nombre_sensor,
-          zona,
+          zona: zona || 'Urbana',
           is_movil: is_movil || false,
-          description
+          description: description || null,
+          estado: 'Inactivo'
         }
-      });
-
-      // Crear umbrales por defecto
-      const umbralesDefault = zona === 'Urbana' ? [
-        { parametro_nombre: 'Temperatura', min_umbral: 5.0, max_umbral: 35.0 },
-        { parametro_nombre: 'Humedad', min_umbral: 20.0, max_umbral: 80.0 },
-        { parametro_nombre: 'co2', min_umbral: 300.0, max_umbral: 1000.0 },
-        { parametro_nombre: 'co', min_umbral: 0.0, max_umbral: 9.0 }
-      ] : [
-        { parametro_nombre: 'Temperatura', min_umbral: 0.0, max_umbral: 40.0 },
-        { parametro_nombre: 'Humedad', min_umbral: 10.0, max_umbral: 90.0 },
-        { parametro_nombre: 'co2', min_umbral: 300.0, max_umbral: 800.0 },
-        { parametro_nombre: 'co', min_umbral: 0.0, max_umbral: 5.0 }
-      ];
-
-      await prisma.sensor_umbral.createMany({
-        data: umbralesDefault.map(umbral => ({
-          id_sensor,
-          ...umbral
-        }))
       });
 
       res.status(201).json({
@@ -173,27 +120,36 @@ const sensorController = {
   actualizar: async (req, res) => {
     try {
       const { id } = req.params;
-      const { nombre_sensor, zona, is_movil, description, estado } = req.body;
+      const {
+        nombre_sensor,
+        zona,
+        is_movil,
+        description,
+        estado
+      } = req.body;
 
-      const sensor = await prisma.sensores.findUnique({
+      // Verificar que el sensor existe
+      const sensorExistente = await prisma.sensores.findUnique({
         where: { id_sensor: id }
       });
 
-      if (!sensor) {
+      if (!sensorExistente) {
         return res.status(404).json({
           success: false,
-          message: `Sensor con ID ${id} no encontrado`
+          message: `Sensor ${id} no encontrado`
         });
       }
 
+      // Actualizar el sensor
       const sensorActualizado = await prisma.sensores.update({
         where: { id_sensor: id },
         data: {
           ...(nombre_sensor && { nombre_sensor }),
           ...(zona && { zona }),
-          ...(typeof is_movil !== 'undefined' && { is_movil }),
-          ...(description && { description }),
-          ...(estado && { estado })
+          ...(is_movil !== undefined && { is_movil }),
+          ...(description !== undefined && { description }),
+          ...(estado && { estado }),
+          updated_at: new Date()
         }
       });
 
@@ -202,11 +158,8 @@ const sensorController = {
         message: 'Sensor actualizado exitosamente',
         data: sensorActualizado
       });
-
-
     } catch (error) {
       console.error('Error al actualizar sensor:', error);
-
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
@@ -220,17 +173,37 @@ const sensorController = {
     try {
       const { id } = req.params;
 
-      const sensor = await prisma.sensores.findUnique({
+      // Verificar que el sensor existe
+      const sensorExistente = await prisma.sensores.findUnique({
         where: { id_sensor: id }
       });
 
-      if (!sensor) {
+      if (!sensorExistente) {
         return res.status(404).json({
           success: false,
-          message: `Sensor con ID ${id} no encontrado`
+          message: `Sensor ${id} no encontrado`
         });
       }
 
+      // Verificar si el sensor tiene lecturas recientes (últimas 24 horas)
+      const hace24Horas = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const lecturasRecientes = await prisma.lecturas.count({
+        where: {
+          id_sensor: id,
+          lectura_datetime: {
+            gte: hace24Horas
+          }
+        }
+      });
+
+      if (lecturasRecientes > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'No se puede eliminar el sensor porque tiene lecturas recientes (últimas 24 horas). Desactívalo en su lugar.'
+        });
+      }
+
+      // Eliminar sensor (las lecturas y alertas se eliminarán en cascada si está configurado en Prisma)
       await prisma.sensores.delete({
         where: { id_sensor: id }
       });
@@ -241,33 +214,6 @@ const sensorController = {
       });
     } catch (error) {
       console.error('Error al eliminar sensor:', error);
-
-      res.status(500).json({
-        success: false,
-        message: 'Error interno del servidor',
-        error: error.message
-      });
-    }
-  },
-
-
-  
-  // Actualizar último visto (para ESP32)
-  actualizarUltimoVisto: async (req, res) => {
-    try {
-      const { id } = req.params;
-
-      await prisma.sensores.update({
-        where: { id_sensor: id },
-        data: { last_seen: new Date() }
-      });
-
-      res.status(200).json({
-        success: true,
-        message: 'Último visto actualizado'
-      });
-    } catch (error) {
-      console.error('Error al actualizar último visto:', error);
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
