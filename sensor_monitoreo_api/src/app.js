@@ -40,6 +40,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use('/api/sensores', sensoresRoutes);
 app.use('/api/lecturas', lecturasRoutes);
 app.use('/api/alertas', alertasRoutes);
+app.use('/api/umbrales', require('./routes/umbrales'));
 
 // Ruta de salud del servidor
 app.get('/api/health', (req, res) => {

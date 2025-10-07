@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { Cog6ToothIcon } from '@heroicons/react/24/outline';
 
 export default function Navbar() {
   return (
@@ -32,8 +33,18 @@ export default function Navbar() {
             </Link>
           </div>
 
-          {/* User section */}
+          {/* User section + Config */}
           <div className="flex items-center space-x-4">
+            {/* Botón de Configuración */}
+            <Link 
+              to="/configuracion"
+              className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg transition-all duration-200"
+              title="Configuración"
+            >
+              <Cog6ToothIcon className="w-6 h-6" />
+            </Link>
+
+            {/* Avatar de usuario */}
             <div className="w-9 h-9 bg-gray-200 rounded-full flex items-center justify-center">
               <span className="text-sm font-medium text-gray-600">U</span>
             </div>
