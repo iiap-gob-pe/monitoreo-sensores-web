@@ -25,7 +25,7 @@ export default function Dashboard() {
   const fetchData = async () => {
   try {
     const [lecturasRes, alertasRes, sensoresRes] = await Promise.all([
-      lecturasAPI.getUltimas(1000), // Se puede pedir el número de lecturas
+      lecturasAPI.getUltimas(10000), // Se puede pedir el número de lecturas
       alertasAPI.getActivas(),
       sensoresAPI.getAll(),
     ]);
