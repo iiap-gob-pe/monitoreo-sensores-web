@@ -416,7 +416,7 @@ export default function MapView({ lecturas, lecturasUnicas }) {
         </div>
       )}
 
-      <div className="h-96 rounded-lg overflow-hidden border border-gray-200">
+      <div className="h-[500px] rounded-lg overflow-hidden border border-gray-200">
         <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
