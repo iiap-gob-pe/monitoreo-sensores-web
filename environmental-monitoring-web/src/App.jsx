@@ -5,6 +5,7 @@ import Sensores from './pages/Sensores';
 import Alertas from "./pages/Alertas"; 
 import Reportes from "./pages/Reportes";
 import Configuracion from "./pages/Configuracion";
+import Lecturas from './pages/Lecturas';
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
           <Route path="/alertas" element={<Alertas />} />
           <Route path="/reportes" element={<Reportes />} /> 
           <Route path="/configuracion" element={<Configuracion />} />
+          <Route path="lecturas" element={<Lecturas/>}/>
           {/* Agregar más rutas aquí */}
         </Routes>
       </Layout>

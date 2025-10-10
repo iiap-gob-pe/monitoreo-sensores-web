@@ -202,63 +202,63 @@ const lecturaController = {
     }
   },
 
-  // Obtener últimas lecturas de todos los sensores
   // Obtener últimas N lecturas de todos los sensores
-obtenerUltimas: async (req, res) => {
-  try {
-    const limite = parseInt(req.query.limite) || 100; // ✅ Límite dinámico
+  obtenerUltimas: async (req, res) => {
+    try {
+      const limite = parseInt(req.query.limite) || 100;
 
-    const lecturas = await prisma.lecturas.findMany({
-      include: {
-        sensor: {
-          select: {
-            id_sensor: true,
-            nombre_sensor: true,
-            zona: true,
-            is_movil: true,
-            estado: true
+      const lecturas = await prisma.lecturas.findMany({
+        include: {
+          sensor: {
+            select: {
+              id_sensor: true,
+              nombre_sensor: true,
+              zona: true,
+              is_movil: true,
+              estado: true
+            }
           }
-        }
-      },
-      orderBy: {
-        lectura_datetime: 'desc'
-      },
-      take: limite
-    });
+        },
+        orderBy: {
+          lectura_datetime: 'desc'
+        },
+        take: limite
+      });
 
-    // Transformar datos para mantener compatibilidad con el frontend
-    const lecturasFormateadas = lecturas.map(lectura => ({
-      id_sensor: lectura.id_sensor,
-      nombre_sensor: lectura.sensor.nombre_sensor,
-      zona: lectura.zona || lectura.sensor.zona,
-      is_movil: lectura.sensor.is_movil,
-      estado: lectura.sensor.estado,
-      lectura_datetime: lectura.lectura_datetime,
-      temperatura: lectura.temperatura,
-      humedad: lectura.humedad,
-      co2_nivel: lectura.co2_nivel,
-      co_nivel: lectura.co_nivel,
-      latitud: lectura.latitud,
-      longitud: lectura.longitud,
-      altitud: lectura.altitud
-    }));
+      // Transformar datos para mantener compatibilidad con el frontend
+      const lecturasFormateadas = lecturas.map(lectura => ({
+        id_sensor: lectura.id_sensor,
+        nombre_sensor: lectura.sensor.nombre_sensor,
+        zona: lectura.zona || lectura.sensor.zona,
+        is_movil: lectura.sensor.is_movil,
+        estado: lectura.sensor.estado,
+        lectura_datetime: lectura.lectura_datetime,
+        temperatura: lectura.temperatura,
+        humedad: lectura.humedad,
+        co2_nivel: lectura.co2_nivel,
+        co_nivel: lectura.co_nivel,
+        latitud: lectura.latitud,
+        longitud: lectura.longitud,
+        altitud: lectura.altitud
+      }));
 
-    res.status(200).json({
-      success: true,
-      message: 'Últimas lecturas obtenidas exitosamente',
-      data: lecturasFormateadas,
-      total: lecturasFormateadas.length
-    });
+      res.status(200).json({
+        success: true,
+        message: 'Últimas lecturas obtenidas exitosamente',
+        data: lecturasFormateadas,
+        total: lecturasFormateadas.length
+      });
 
-  } catch (error) {
-    console.error('Error al obtener últimas lecturas:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error interno del servidor',
-      error: error.message
-    });
-  }
-},
+    } catch (error) {
+      console.error('Error al obtener últimas lecturas:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  },
+
   // Obtener estadísticas de un sensor
   obtenerEstadisticas: async (req, res) => {
     try {
@@ -314,6 +314,132 @@ obtenerUltimas: async (req, res) => {
         success: false,
         message: 'Error interno del servidor',
         error: error.message
+      });
+    }
+  },
+
+  // Obtener lecturas con filtros avanzados y paginación (usando Prisma)
+  obtenerLecturasAvanzado: async (req, res) => {
+    try {
+      const {
+        sensor_id,
+        parametro,
+        fecha_inicio,
+        fecha_fin,
+        tipo_entorno,
+        page = 1,
+        limit = 50,
+        sort_by = 'lectura_datetime',
+        sort_order = 'DESC'
+      } = req.query;
+
+      // Construir filtros dinámicamente
+      const filtros = {};
+
+      if (sensor_id) {
+        filtros.id_sensor = sensor_id;
+      }
+
+      if (fecha_inicio && fecha_fin) {
+        filtros.lectura_datetime = {
+          gte: new Date(fecha_inicio),
+          lte: new Date(fecha_fin)
+        };
+      } else if (fecha_inicio) {
+        filtros.lectura_datetime = {
+          gte: new Date(fecha_inicio)
+        };
+      } else if (fecha_fin) {
+        filtros.lectura_datetime = {
+          lte: new Date(fecha_fin)
+        };
+      }
+
+      // Filtro por parámetro específico
+      if (parametro) {
+        switch(parametro) {
+          case 'temperatura':
+            filtros.temperatura = { not: null };
+            break;
+          case 'humedad':
+            filtros.humedad = { not: null };
+            break;
+          case 'co2':
+            filtros.co2_nivel = { not: null };
+            break;
+          case 'co':
+            filtros.co_nivel = { not: null };
+            break;
+        }
+      }
+
+      // Filtro por zona (tipo_entorno)
+      if (tipo_entorno) {
+        filtros.zona = tipo_entorno;
+      }
+
+      // Determinar ordenamiento
+      const validSortColumns = ['lectura_datetime', 'temperatura', 'humedad', 'co2_nivel', 'co_nivel', 'id_sensor'];
+      const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'lectura_datetime';
+      const order = sort_order.toUpperCase() === 'ASC' ? 'asc' : 'desc';
+
+      // Obtener total de registros y lecturas paginadas
+      const [total, lecturas] = await Promise.all([
+        prisma.lecturas.count({ where: filtros }),
+        prisma.lecturas.findMany({
+          where: filtros,
+          include: {
+            sensor: {
+              select: {
+                nombre_sensor: true,
+                zona: true,
+                is_movil: true,
+                estado: true
+              }
+            }
+          },
+          orderBy: {
+            [sortColumn]: order
+          },
+          skip: (parseInt(page) - 1) * parseInt(limit),
+          take: parseInt(limit)
+        })
+      ]);
+
+      // Formatear datos para compatibilidad con frontend
+      const lecturasFormateadas = lecturas.map(lectura => ({
+        id_lectura: lectura.id_lectura,
+        sensor_id: lectura.id_sensor,
+        ubicacion: lectura.sensor.nombre_sensor,
+        tipo_entorno: lectura.zona || lectura.sensor.zona,
+        sensor_estado: lectura.sensor.estado,
+        lectura_datetime: lectura.lectura_datetime,
+        temperatura: lectura.temperatura,
+        humedad: lectura.humedad,
+        co2_nivel: lectura.co2_nivel,
+        co_nivel: lectura.co_nivel,
+        latitud: lectura.latitud,
+        longitud: lectura.longitud,
+        altitud: lectura.altitud
+      }));
+
+      res.json({
+        success: true,
+        data: lecturasFormateadas,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: total,
+          totalPages: Math.ceil(total / parseInt(limit))
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al obtener lecturas avanzado:', error);
+      res.status(500).json({ 
+        success: false,
+        message: 'Error al obtener lecturas',
+        error: error.message 
       });
     }
   }
@@ -387,4 +513,5 @@ async function verificarUmbrales(id_sensor, valores) {
   }
 }
 
+// ✅ EXPORTACIÓN CORRECTA
 module.exports = lecturaController;

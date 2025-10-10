@@ -31,6 +31,9 @@ export default function Navbar() {
             <Link to="/reportes" className="text-gray-700 hover:text-primary transition-colors font-medium">
               Reportes
             </Link>
+            <Link to="/lecturas" className="text-gray-700 hover:text-primary transition-colors font-medium">
+              Lecturas
+            </Link>
           </div>
 
           {/* User section + Config */}
