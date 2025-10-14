@@ -839,14 +839,14 @@ export default function Reportes() {
 
       {/* Tarjetas de Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary">
+        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div>
             <p className="text-sm font-medium text-gray-600">Total de Lecturas</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{estadisticas.totalLecturas}</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500">
+        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-orange-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div>
             <p className="text-sm font-medium text-gray-600">Temp. Promedio</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{estadisticas.promedioTemp}°C</p>
@@ -856,14 +856,14 @@ export default function Reportes() {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
+        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div>
             <p className="text-sm font-medium text-gray-600">Humedad Promedio</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{estadisticas.promedioHumedad}%</p>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500">
+        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-red-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div>
             <p className="text-sm font-medium text-gray-600">Total de Alertas</p>
             <p className="text-3xl font-bold text-gray-900 mt-2">{estadisticas.totalAlertas}</p>
