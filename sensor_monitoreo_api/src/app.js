@@ -9,6 +9,8 @@ require('dotenv').config();
 const sensoresRoutes = require('./routes/sensores');
 const lecturasRoutes = require('./routes/lecturas');
 const alertasRoutes = require('./routes/alertas');
+const authRoutes = require('./routes/auth');
+const usuariosRoutes = require('./routes/usuarios');
  
 
 
@@ -41,6 +43,10 @@ app.use('/api/sensores', sensoresRoutes);
 app.use('/api/lecturas', lecturasRoutes);
 app.use('/api/alertas', alertasRoutes);
 app.use('/api/umbrales', require('./routes/umbrales'));
+
+// Registrar rutas de autenticación
+app.use('/api/auth', authRoutes);
+app.use('/api/usuarios', usuariosRoutes);
 
 // Ruta de salud del servidor
 app.get('/api/health', (req, res) => {
@@ -116,7 +122,11 @@ app.use('*', (req, res) => {
       'GET /api/health',
       'GET /api/sensores',
       'GET /api/lecturas',
-      'GET /api/alertas'
+      'GET /api/alertas',
+      'GET /api/umbrales',
+      'POST /api/auth/login',           // ✅ NUEVO
+      'GET /api/auth/verificar',        // ✅ NUEVO
+      'POST /api/usuarios'              // Nuevo
     ]
   });
 });
