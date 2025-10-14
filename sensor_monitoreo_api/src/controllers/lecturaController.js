@@ -91,7 +91,7 @@ const lecturaController = {
   obtenerTodas: async (req, res) => {
     try {
       const {
-        sensor_id,
+        id_sensor,
         fecha_inicio,
         fecha_fin,
         zona,
@@ -102,7 +102,7 @@ const lecturaController = {
       const skip = (parseInt(pagina) - 1) * parseInt(limite);
 
       const filtros = {
-        ...(sensor_id && { id_sensor: sensor_id }),
+        ...(id_sensor && { id_sensor: id_sensor }),
         ...(zona && { zona }),
         ...(fecha_inicio && fecha_fin && {
           lectura_datetime: {
@@ -319,25 +319,155 @@ const lecturaController = {
   },
 
   // Obtener lecturas con filtros avanzados y paginación (usando Prisma)
-  obtenerLecturasAvanzado: async (req, res) => {
+    obtenerLecturasAvanzado: async (req, res) => {
+      try {
+        const {
+          id_sensor,
+          parametro,
+          fecha_inicio,
+          fecha_fin,
+          tipo_sensor,      // ✅ Nuevo: móvil o estacionario
+          page = 1,
+          limit = 50,
+          sort_by = 'lectura_datetime',
+          sort_order = 'DESC'
+        } = req.query;
+
+        // Construir filtros dinámicamente
+        const filtros = {};
+
+        if (id_sensor) {
+          filtros.id_sensor = id_sensor;
+        }
+
+        if (fecha_inicio && fecha_fin) {
+          filtros.lectura_datetime = {
+            gte: new Date(fecha_inicio),
+            lte: new Date(fecha_fin)
+          };
+        } else if (fecha_inicio) {
+          filtros.lectura_datetime = {
+            gte: new Date(fecha_inicio)
+          };
+        } else if (fecha_fin) {
+          filtros.lectura_datetime = {
+            lte: new Date(fecha_fin)
+          };
+        }
+
+        // ✅ Filtro por parámetro específico
+        if (parametro) {
+          switch(parametro.toLowerCase()) {
+            case 'temperatura':
+              filtros.temperatura = { not: null };
+              break;
+            case 'humedad':
+              filtros.humedad = { not: null };
+              break;
+            case 'co2':
+              filtros.co2_nivel = { not: null };
+              break;
+            case 'co':
+              filtros.co_nivel = { not: null };
+              break;
+          }
+        }
+
+        // ✅ Filtro por tipo de sensor (móvil o estacionario)
+        const sensorWhere = {};
+        if (tipo_sensor !== undefined && tipo_sensor !== '') {
+          sensorWhere.is_movil = tipo_sensor === 'movil';
+        }
+
+        // Determinar ordenamiento
+        const validSortColumns = ['lectura_datetime', 'temperatura', 'humedad', 'co2_nivel', 'co_nivel', 'id_sensor'];
+        const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'lectura_datetime';
+        const order = sort_order.toUpperCase() === 'ASC' ? 'asc' : 'desc';
+
+        // ✅ Construir where completo
+        const whereClause = {
+          ...filtros,
+          ...(Object.keys(sensorWhere).length > 0 && { sensor: sensorWhere })
+        };
+
+        // Obtener total de registros y lecturas paginadas
+        const [total, lecturas] = await Promise.all([
+          prisma.lecturas.count({ where: whereClause }),
+          prisma.lecturas.findMany({
+            where: whereClause,
+            include: {
+              sensor: {
+                select: {
+                  nombre_sensor: true,
+                  zona: true,
+                  is_movil: true,
+                  estado: true
+                }
+              }
+            },
+            orderBy: {
+              [sortColumn]: order
+            },
+            skip: (parseInt(page) - 1) * parseInt(limit),
+            take: parseInt(limit)
+          })
+        ]);
+
+        // Formatear datos para compatibilidad con frontend
+        const lecturasFormateadas = lecturas.map(lectura => ({
+          id_lectura: lectura.id_lectura,
+          sensor_id: lectura.id_sensor,
+          nombre_sensor: lectura.sensor.nombre_sensor,
+          is_movil: lectura.sensor.is_movil,
+          tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Estacionario',
+          sensor_estado: lectura.sensor.estado,
+          lectura_datetime: lectura.lectura_datetime,
+          temperatura: lectura.temperatura,
+          humedad: lectura.humedad,
+          co2_nivel: lectura.co2_nivel,
+          co_nivel: lectura.co_nivel,
+          latitud: lectura.latitud,
+          longitud: lectura.longitud,
+          altitud: lectura.altitud
+        }));
+
+        res.json({
+          success: true,
+          data: lecturasFormateadas,
+          pagination: {
+            page: parseInt(page),
+            limit: parseInt(limit),
+            total: total,
+            totalPages: Math.ceil(total / parseInt(limit))
+          }
+        });
+
+      } catch (error) {
+        console.error('Error al obtener lecturas avanzado:', error);
+        res.status(500).json({ 
+          success: false,
+          message: 'Error al obtener lecturas',
+          error: error.message 
+        });
+      }
+  },
+
+  //Obtención de todas las lecturas sin paginación
+    obtenerParaExportar: async (req, res) => {
     try {
       const {
-        sensor_id,
+        id_sensor,
         parametro,
         fecha_inicio,
         fecha_fin,
-        tipo_entorno,
-        page = 1,
-        limit = 50,
-        sort_by = 'lectura_datetime',
-        sort_order = 'DESC'
+        tipo_sensor
       } = req.query;
 
-      // Construir filtros dinámicamente
+      // Construir filtros
       const filtros = {};
 
-      if (sensor_id) {
-        filtros.id_sensor = sensor_id;
+      if (id_sensor) {
+        filtros.id_sensor = id_sensor;
       }
 
       if (fecha_inicio && fecha_fin) {
@@ -355,9 +485,8 @@ const lecturaController = {
         };
       }
 
-      // Filtro por parámetro específico
       if (parametro) {
-        switch(parametro) {
+        switch(parametro.toLowerCase()) {
           case 'temperatura':
             filtros.temperatura = { not: null };
             break;
@@ -373,45 +502,42 @@ const lecturaController = {
         }
       }
 
-      // Filtro por zona (tipo_entorno)
-      if (tipo_entorno) {
-        filtros.zona = tipo_entorno;
+      const sensorWhere = {};
+      if (tipo_sensor !== undefined && tipo_sensor !== '') {
+        sensorWhere.is_movil = tipo_sensor === 'movil';
       }
 
-      // Determinar ordenamiento
-      const validSortColumns = ['lectura_datetime', 'temperatura', 'humedad', 'co2_nivel', 'co_nivel', 'id_sensor'];
-      const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'lectura_datetime';
-      const order = sort_order.toUpperCase() === 'ASC' ? 'asc' : 'desc';
+      const whereClause = {
+        ...filtros,
+        ...(Object.keys(sensorWhere).length > 0 && { sensor: sensorWhere })
+      };
 
-      // Obtener total de registros y lecturas paginadas
-      const [total, lecturas] = await Promise.all([
-        prisma.lecturas.count({ where: filtros }),
-        prisma.lecturas.findMany({
-          where: filtros,
-          include: {
-            sensor: {
-              select: {
-                nombre_sensor: true,
-                zona: true,
-                is_movil: true,
-                estado: true
-              }
+      // Obtener TODAS las lecturas sin límite
+      const lecturas = await prisma.lecturas.findMany({
+        where: whereClause,
+        include: {
+          sensor: {
+            select: {
+              nombre_sensor: true,
+              zona: true,
+              is_movil: true,
+              estado: true
             }
-          },
-          orderBy: {
-            [sortColumn]: order
-          },
-          skip: (parseInt(page) - 1) * parseInt(limit),
-          take: parseInt(limit)
-        })
-      ]);
+          }
+        },
+        orderBy: {
+          lectura_datetime: 'desc'
+        }
+        // Sin skip ni take - obtiene TODAS
+      });
 
-      // Formatear datos para compatibilidad con frontend
+      // Formatear datos
       const lecturasFormateadas = lecturas.map(lectura => ({
         id_lectura: lectura.id_lectura,
         sensor_id: lectura.id_sensor,
-        ubicacion: lectura.sensor.nombre_sensor,
-        tipo_entorno: lectura.zona || lectura.sensor.zona,
+        nombre_sensor: lectura.sensor.nombre_sensor,
+        is_movil: lectura.sensor.is_movil,
+        tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Estacionario',
         sensor_estado: lectura.sensor.estado,
         lectura_datetime: lectura.lectura_datetime,
         temperatura: lectura.temperatura,
@@ -426,16 +552,11 @@ const lecturaController = {
       res.json({
         success: true,
         data: lecturasFormateadas,
-        pagination: {
-          page: parseInt(page),
-          limit: parseInt(limit),
-          total: total,
-          totalPages: Math.ceil(total / parseInt(limit))
-        }
+        total: lecturasFormateadas.length
       });
 
     } catch (error) {
-      console.error('Error al obtener lecturas avanzado:', error);
+      console.error('Error al obtener lecturas para exportar:', error);
       res.status(500).json({ 
         success: false,
         message: 'Error al obtener lecturas',

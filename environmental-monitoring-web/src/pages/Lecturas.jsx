@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { lecturasAPI, sensoresAPI } from '../services/api';
 
 export default function Lecturas() {
   // Estados
@@ -10,11 +9,11 @@ export default function Lecturas() {
   
   // Estados de filtros
   const [filtros, setFiltros] = useState({
-    sensor_id: '',
+    id_sensor: '',
     parametro: '',
     fecha_inicio: '',
     fecha_fin: '',
-    tipo_entorno: '',
+    tipo_sensor: '',
     page: 1,
     limit: 50,
     sort_by: 'lectura_datetime',
@@ -36,10 +35,19 @@ export default function Lecturas() {
   useEffect(() => {
     const fetchSensores = async () => {
       try {
-        const data = await sensoresAPI.getAll();
-        setSensores(data);
+        const response = await fetch('http://localhost:3000/api/sensores');
+        const data = await response.json();
+        
+        if (data.success && Array.isArray(data.data)) {
+          setSensores(data.data);
+        } else if (Array.isArray(data)) {
+          setSensores(data);
+        } else {
+          setSensores([]);
+        }
       } catch (err) {
         console.error('Error al cargar sensores:', err);
+        setSensores([]);
       }
     };
     fetchSensores();
@@ -54,7 +62,6 @@ export default function Lecturas() {
     setLoading(true);
     setError(null);
     try {
-      // Construir query string con filtros activos
       const params = new URLSearchParams();
       Object.keys(filtros).forEach(key => {
         if (filtros[key]) {
@@ -85,18 +92,18 @@ export default function Lecturas() {
     setFiltros(prev => ({
       ...prev,
       [name]: value,
-      page: 1 // Reset a página 1 cuando cambian filtros
+      page: 1
     }));
   };
 
   // Limpiar filtros
   const limpiarFiltros = () => {
     setFiltros({
-      sensor_id: '',
+      id_sensor: '',
       parametro: '',
       fecha_inicio: '',
       fecha_fin: '',
-      tipo_entorno: '',
+      tipo_sensor: '',
       page: 1,
       limit: 50,
       sort_by: 'lectura_datetime',
@@ -119,67 +126,381 @@ export default function Lecturas() {
   };
 
   // Exportar a CSV
-  const exportarCSV = () => {
-    const headers = ['Fecha/Hora', 'Sensor', 'Ubicación', 'Tipo Entorno', 'Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud'];
+  // ✅ Nueva función para exportar solo la página actual
+const exportarPaginaActual = () => {
+  let headers = ['Fecha/Hora', 'Sensor', 'Nombre', 'Tipo'];
+  let rows = [];
+
+  if (filtros.parametro) {
+    const parametroLabel = {
+      'temperatura': 'Temperatura (°C)',
+      'humedad': 'Humedad (%)',
+      'co2': 'CO₂ (ppm)',
+      'co': 'CO (ppm)'
+    }[filtros.parametro] || filtros.parametro;
     
-    const csvContent = [
-      headers.join(','),
-      ...lecturas.map(l => [
-        l.lectura_datetime,
+    headers.push(parametroLabel, 'Latitud', 'Longitud');
+    
+    rows = lecturas.map(l => [
+      new Date(l.lectura_datetime).toLocaleString('es-PE'),
+      l.sensor_id,
+      l.nombre_sensor || '',
+      l.tipo_sensor || '',
+      l[filtros.parametro === 'co2' ? 'co2_nivel' : filtros.parametro === 'co' ? 'co_nivel' : filtros.parametro] || '',
+      l.latitud || '',
+      l.longitud || ''
+    ]);
+  } else {
+    headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
+    
+    rows = lecturas.map(l => [
+      new Date(l.lectura_datetime).toLocaleString('es-PE'),
+      l.sensor_id,
+      l.nombre_sensor || '',
+      l.tipo_sensor || '',
+      l.temperatura || '',
+      l.humedad || '',
+      l.co2_nivel || '',
+      l.co_nivel || '',
+      l.latitud || '',
+      l.longitud || ''
+    ]);
+  }
+
+  const csvContent = [
+    headers.join(','),
+    ...rows.map(row => row.join(','))
+  ].join('\n');
+
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `lecturas_pagina_actual_${new Date().toISOString().split('T')[0]}.csv`;
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+
+// ✅ Nueva función para exportar TODOS los datos
+const exportarTodosDatos = async () => {
+  try {
+    // Mostrar loading
+    const exportBtn = document.getElementById('export-all-btn');
+    if (exportBtn) {
+      exportBtn.disabled = true;
+      exportBtn.textContent = '⏳ Exportando...';
+    }
+
+    // Construir params con los filtros actuales (sin page ni limit)
+    const params = new URLSearchParams();
+    if (filtros.id_sensor) params.append('id_sensor', filtros.id_sensor);
+    if (filtros.parametro) params.append('parametro', filtros.parametro);
+    if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+    if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+    if (filtros.tipo_sensor) params.append('tipo_sensor', filtros.tipo_sensor);
+
+    // Llamar al endpoint de exportación
+    const response = await fetch(`http://localhost:3000/api/lecturas/exportar?${params}`);
+    const result = await response.json();
+
+    if (!result.success) {
+      alert('Error al exportar datos');
+      return;
+    }
+
+    const todasLecturas = result.data;
+
+    // Construir CSV
+    let headers = ['Fecha/Hora', 'Sensor', 'Nombre', 'Tipo'];
+    let rows = [];
+
+    if (filtros.parametro) {
+      const parametroLabel = {
+        'temperatura': 'Temperatura (°C)',
+        'humedad': 'Humedad (%)',
+        'co2': 'CO₂ (ppm)',
+        'co': 'CO (ppm)'
+      }[filtros.parametro] || filtros.parametro;
+      
+      headers.push(parametroLabel, 'Latitud', 'Longitud');
+      
+      rows = todasLecturas.map(l => [
+        new Date(l.lectura_datetime).toLocaleString('es-PE'),
         l.sensor_id,
-        l.ubicacion || '',
-        l.tipo_entorno || '',
+        l.nombre_sensor || '',
+        l.tipo_sensor || '',
+        l[filtros.parametro === 'co2' ? 'co2_nivel' : filtros.parametro === 'co' ? 'co_nivel' : filtros.parametro] || '',
+        l.latitud || '',
+        l.longitud || ''
+      ]);
+    } else {
+      headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
+      
+      rows = todasLecturas.map(l => [
+        new Date(l.lectura_datetime).toLocaleString('es-PE'),
+        l.sensor_id,
+        l.nombre_sensor || '',
+        l.tipo_sensor || '',
         l.temperatura || '',
         l.humedad || '',
         l.co2_nivel || '',
         l.co_nivel || '',
         l.latitud || '',
         l.longitud || ''
-      ].join(','))
+      ]);
+    }
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.join(','))
     ].join('\n');
 
-    const blob = new Blob([csvContent], { type: 'text/csv' });
+    // Descargar
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lecturas_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `lecturas_completas_${todasLecturas.length}_registros_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
-  };
+    window.URL.revokeObjectURL(url);
+
+    // Mostrar mensaje de éxito
+    alert(`✅ Se exportaron ${todasLecturas.length} registros exitosamente`);
+
+  } catch (error) {
+    console.error('Error al exportar:', error);
+    alert('❌ Error al exportar los datos');
+  } finally {
+    // Restaurar botón
+    const exportBtn = document.getElementById('export-all-btn');
+    if (exportBtn) {
+      exportBtn.disabled = false;
+      exportBtn.textContent = '📥 Exportar Todos';
+    }
+  }
+};
 
   // Obtener color según valor de parámetro
-    const getColorAlerta = (valor, parametro) => {
-        if (!valor) return 'text-gray-400';
-        // Ejemplo: colorear según rangos (ajusta según tus umbrales)
-        
-        const valorNum = parseFloat(valor);
-        
-        switch(parametro) {
-            case 'temperatura':
-            if (valorNum > 35) return 'text-red-600 font-bold';
-            if (valorNum > 30) return 'text-orange-600';
-            if (valorNum < 10) return 'text-blue-600';
-            return 'text-green-600';
-            
-            case 'humedad':
-            if (valorNum > 80) return 'text-red-600 font-bold';
-            if (valorNum < 30) return 'text-orange-600';
-            return 'text-green-600';
-            
-            case 'co2':
-            if (valorNum > 1000) return 'text-red-600 font-bold';
-            if (valorNum > 800) return 'text-orange-600';
-            return 'text-green-600';
-            
-            case 'co':
-            if (valorNum > 50) return 'text-red-600 font-bold';
-            if (valorNum > 30) return 'text-orange-600';
-            return 'text-green-600';
-            
-            default:
-            return 'text-gray-900';
-        }
-    };
+  const getColorAlerta = (valor, parametro) => {
+    if (!valor) return 'text-gray-400';
+    const valorNum = parseFloat(valor);
+    
+    switch(parametro) {
+      case 'temperatura':
+        if (valorNum > 35) return 'text-red-600 font-bold';
+        if (valorNum > 30) return 'text-orange-600';
+        if (valorNum < 10) return 'text-blue-600';
+        return 'text-green-600';
+      case 'humedad':
+        if (valorNum > 80) return 'text-red-600 font-bold';
+        if (valorNum < 30) return 'text-orange-600';
+        return 'text-green-600';
+      case 'co2':
+        if (valorNum > 1000) return 'text-red-600 font-bold';
+        if (valorNum > 800) return 'text-orange-600';
+        return 'text-green-600';
+      case 'co':
+        if (valorNum > 50) return 'text-red-600 font-bold';
+        if (valorNum > 30) return 'text-orange-600';
+        return 'text-green-600';
+      default:
+        return 'text-gray-900';
+    }
+  };
 
+  // ✅ Función para renderizar columnas según parámetro seleccionado
+  const renderColumnasTabla = () => {
+    if (filtros.parametro) {
+      const parametroInfo = {
+        'temperatura': { label: 'Temperatura', unidad: '°C', campo: 'temperatura' },
+        'humedad': { label: 'Humedad', unidad: '%', campo: 'humedad' },
+        'co2': { label: 'CO₂', unidad: 'ppm', campo: 'co2_nivel' },
+        'co': { label: 'CO', unidad: 'ppm', campo: 'co_nivel' }
+      };
+
+      const info = parametroInfo[filtros.parametro];
+
+      return (
+        <>
+          <th 
+            onClick={() => cambiarOrden('lectura_datetime')}
+            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+          >
+            Fecha/Hora {filtros.sort_by === 'lectura_datetime' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+          </th>
+          <th 
+            onClick={() => cambiarOrden('id_sensor')}
+            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+          >
+            Sensor {filtros.sort_by === 'id_sensor' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Nombre / Tipo
+          </th>
+          <th 
+            onClick={() => cambiarOrden(info.campo)}
+            className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+          >
+            {info.label} ({info.unidad}) {filtros.sort_by === info.campo && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+          </th>
+          <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+            Coordenadas
+          </th>
+        </>
+      );
+    }
+
+    // Vista completa sin filtro de parámetro
+    return (
+      <>
+        <th 
+          onClick={() => cambiarOrden('lectura_datetime')}
+          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+        >
+          Fecha/Hora {filtros.sort_by === 'lectura_datetime' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+        </th>
+        <th 
+          onClick={() => cambiarOrden('id_sensor')}
+          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+        >
+          Sensor {filtros.sort_by === 'id_sensor' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Nombre / Tipo
+        </th>
+        <th 
+          onClick={() => cambiarOrden('temperatura')}
+          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+        >
+          Temp. {filtros.sort_by === 'temperatura' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+        </th>
+        <th 
+          onClick={() => cambiarOrden('humedad')}
+          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+        >
+          Humedad {filtros.sort_by === 'humedad' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+        </th>
+        <th 
+          onClick={() => cambiarOrden('co2_nivel')}
+          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+        >
+          CO₂ {filtros.sort_by === 'co2_nivel' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+        </th>
+        <th 
+          onClick={() => cambiarOrden('co_nivel')}
+          className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+        >
+          CO {filtros.sort_by === 'co_nivel' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
+        </th>
+        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+          Coordenadas
+        </th>
+      </>
+    );
+  };
+
+  // ✅ Función para renderizar filas según parámetro seleccionado
+  const renderFilasTabla = (lectura) => {
+    if (filtros.parametro) {
+      const parametroInfo = {
+        'temperatura': { campo: 'temperatura', unidad: '°C', decimales: 1 },
+        'humedad': { campo: 'humedad', unidad: '%', decimales: 1 },
+        'co2': { campo: 'co2_nivel', unidad: ' ppm', decimales: 0 },
+        'co': { campo: 'co_nivel', unidad: ' ppm', decimales: 1 }
+      };
+
+      const info = parametroInfo[filtros.parametro];
+      const valor = lectura[info.campo];
+
+      return (
+        <>
+          <td className="px-4 py-3 whitespace-nowrap text-sm">
+            <div className="text-gray-900">
+              {new Date(lectura.lectura_datetime).toLocaleDateString('es-PE')}
+            </div>
+            <div className="text-gray-500 text-xs">
+              {new Date(lectura.lectura_datetime).toLocaleTimeString('es-PE')}
+            </div>
+          </td>
+          <td className="px-4 py-3 whitespace-nowrap">
+            <div className="text-sm font-medium text-gray-900">{lectura.sensor_id}</div>
+          </td>
+          <td className="px-4 py-3 whitespace-nowrap text-sm">
+            <div className="text-gray-900">{lectura.nombre_sensor || 'N/A'}</div>
+            <div className="text-xs">
+              <span className={`px-2 py-1 rounded ${
+                lectura.is_movil 
+                  ? 'bg-purple-100 text-purple-800' 
+                  : 'bg-gray-100 text-gray-800'
+              }`}>
+                {lectura.tipo_sensor}
+              </span>
+            </div>
+          </td>
+          <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(valor, filtros.parametro)}`}>
+            {valor ? `${parseFloat(valor).toFixed(info.decimales)}${info.unidad}` : 'N/A'}
+          </td>
+          <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+            {lectura.latitud && lectura.longitud ? (
+              <div>
+                <div>{parseFloat(lectura.latitud).toFixed(4)}°</div>
+                <div>{parseFloat(lectura.longitud).toFixed(4)}°</div>
+              </div>
+            ) : 'N/A'}
+          </td>
+        </>
+      );
+    }
+
+    // Vista completa
+    return (
+      <>
+        <td className="px-4 py-3 whitespace-nowrap text-sm">
+          <div className="text-gray-900">
+            {new Date(lectura.lectura_datetime).toLocaleDateString('es-PE')}
+          </div>
+          <div className="text-gray-500 text-xs">
+            {new Date(lectura.lectura_datetime).toLocaleTimeString('es-PE')}
+          </div>
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap">
+          <div className="text-sm font-medium text-gray-900">{lectura.sensor_id}</div>
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-sm">
+          <div className="text-gray-900">{lectura.nombre_sensor || 'N/A'}</div>
+          <div className="text-xs">
+            <span className={`px-2 py-1 rounded ${
+              lectura.is_movil 
+                ? 'bg-purple-100 text-purple-800' 
+                : 'bg-gray-100 text-gray-800'
+            }`}>
+              {lectura.tipo_sensor}
+            </span>
+          </div>
+        </td>
+        <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.temperatura, 'temperatura')}`}>
+          {lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}
+        </td>
+        <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.humedad, 'humedad')}`}>
+          {lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}
+        </td>
+        <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.co2_nivel, 'co2')}`}>
+          {lectura.co2_nivel ? `${lectura.co2_nivel} ppm` : 'N/A'}
+        </td>
+        <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.co_nivel, 'co')}`}>
+          {lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}
+        </td>
+        <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+          {lectura.latitud && lectura.longitud ? (
+            <div>
+              <div>{parseFloat(lectura.latitud).toFixed(4)}°</div>
+              <div>{parseFloat(lectura.longitud).toFixed(4)}°</div>
+            </div>
+          ) : 'N/A'}
+        </td>
+      </>
+    );
+  };
 
   if (loading && lecturas.length === 0) {
     return (
@@ -197,20 +518,34 @@ export default function Lecturas() {
           <h1 className="text-3xl font-bold text-gray-900">Historial de Lecturas</h1>
           <p className="mt-1 text-sm text-gray-500">
             {pagination.total} registros encontrados
+            {filtros.parametro && (
+              <span className="ml-2 text-blue-600">
+                • Filtrando por: {filtros.parametro.toUpperCase()}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-3">
           <button
-            onClick={() => setVistaActual(vistaActual === 'tabla' ? 'tarjetas' : 'tabla')}
-            className="px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+            onClick={exportarPaginaActual}
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            title="Exportar solo los datos visibles en esta página"
           >
-            {vistaActual === 'tabla' ? '📇 Tarjetas' : '📊 Tabla'}
+            📄 Exportar Página
+            <span className="text-xs bg-blue-500 px-2 py-0.5 rounded">
+              {lecturas.length}
+            </span>
           </button>
           <button
-            onClick={exportarCSV}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            id="export-all-btn"
+            onClick={exportarTodosDatos}
+            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+            title="Exportar TODOS los datos (puede tardar si hay muchos registros)"
           >
-            📥 Exportar CSV
+            📥 Exportar Todos
+            <span className="text-xs bg-green-500 px-2 py-0.5 rounded">
+              {pagination.total}
+            </span>
           </button>
         </div>
       </div>
@@ -234,17 +569,21 @@ export default function Lecturas() {
               Sensor
             </label>
             <select
-              name="sensor_id"
-              value={filtros.sensor_id}
+              name="id_sensor"
+              value={filtros.id_sensor}
               onChange={handleFiltroChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todos los sensores</option>
-              {sensores.map(sensor => (
-                <option key={sensor.sensor_id} value={sensor.sensor_id}>
-                  {sensor.sensor_id} - {sensor.ubicacion}
-                </option>
-              ))}
+              {Array.isArray(sensores) && sensores.length > 0 ? (
+                sensores.map(sensor => (
+                  <option key={sensor.id_sensor} value={sensor.id_sensor}>
+                    {sensor.id_sensor} - {sensor.nombre_sensor}
+                  </option>
+                ))
+              ) : (
+                <option key="no-sensores" disabled>No hay sensores disponibles</option>
+              )}
             </select>
           </div>
 
@@ -267,20 +606,20 @@ export default function Lecturas() {
             </select>
           </div>
 
-          {/* Filtro de Tipo de Entorno */}
+          {/* Filtro de Tipo de Sensor */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Tipo de Entorno
+              Tipo de Sensor
             </label>
             <select
-              name="tipo_entorno"
-              value={filtros.tipo_entorno}
+              name="tipo_sensor"
+              value={filtros.tipo_sensor}
               onChange={handleFiltroChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
               <option value="">Todos</option>
-              <option value="urbano">Urbano</option>
-              <option value="rural">Rural</option>
+              <option value="movil">Móvil</option>
+              <option value="estacionario">Estacionario</option>
             </select>
           </div>
 
@@ -333,175 +672,51 @@ export default function Lecturas() {
 
         {/* Contador de filtros activos */}
         <div className="mt-4 text-sm text-gray-600">
-          {Object.values(filtros).filter(v => v && v !== 1 && v !== 50 && v !== 'lectura_datetime' && v !== 'DESC').length > 0 && (
+          {Object.entries(filtros).filter(([key, value]) => 
+            value && !['page', 'limit', 'sort_by', 'sort_order'].includes(key)
+          ).length > 0 && (
             <span>
-              ✓ {Object.values(filtros).filter(v => v && v !== 1 && v !== 50 && v !== 'lectura_datetime' && v !== 'DESC').length} filtro(s) activo(s)
+              ✓ {Object.entries(filtros).filter(([key, value]) => 
+                value && !['page', 'limit', 'sort_by', 'sort_order'].includes(key)
+              ).length} filtro(s) activo(s)
             </span>
           )}
         </div>
       </div>
 
-      {/* Contenido: Tabla o Tarjetas */}
+      {/* Contenido: Tabla */}
       {error && (
         <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700">
           {error}
         </div>
       )}
 
-      {vistaActual === 'tabla' ? (
-        /* VISTA DE TABLA */
-        <div className="bg-white rounded-lg shadow overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
+      <div className="bg-white rounded-lg shadow overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                {renderColumnasTabla()}
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {lecturas.length === 0 ? (
                 <tr>
-                  <th 
-                    onClick={() => cambiarOrden('lectura_datetime')}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    Fecha/Hora {filtros.sort_by === 'lectura_datetime' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
-                  </th>
-                  <th 
-                    onClick={() => cambiarOrden('sensor_id')}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    Sensor {filtros.sort_by === 'sensor_id' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Ubicación
-                  </th>
-                  <th 
-                    onClick={() => cambiarOrden('temperatura')}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    Temp. {filtros.sort_by === 'temperatura' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
-                  </th>
-                  <th 
-                    onClick={() => cambiarOrden('humedad')}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    Humedad {filtros.sort_by === 'humedad' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
-                  </th>
-                  <th 
-                    onClick={() => cambiarOrden('co2_nivel')}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    CO₂ {filtros.sort_by === 'co2_nivel' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
-                  </th>
-                  <th 
-                    onClick={() => cambiarOrden('co_nivel')}
-                    className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
-                  >
-                    CO {filtros.sort_by === 'co_nivel' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Coordenadas
-                  </th>
+                  <td colSpan={filtros.parametro ? "5" : "8"} className="px-4 py-8 text-center text-gray-500">
+                    No hay lecturas que coincidan con los filtros seleccionados
+                  </td>
                 </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {lecturas.length === 0 ? (
-                  <tr>
-                    <td colSpan="8" className="px-4 py-8 text-center text-gray-500">
-                      No hay lecturas que coincidan con los filtros seleccionados
-                    </td>
+              ) : (
+                lecturas.map((lectura) => (
+                  <tr key={lectura.id_lectura} className="hover:bg-gray-50">
+                    {renderFilasTabla(lectura)}
                   </tr>
-                ) : (
-                  lecturas.map((lectura) => (
-                    <tr key={lectura.id_lectura} className="hover:bg-gray-50">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm">
-                        <div className="text-gray-900">
-                          {new Date(lectura.lectura_datetime).toLocaleDateString('es-PE')}
-                        </div>
-                        <div className="text-gray-500 text-xs">
-                          {new Date(lectura.lectura_datetime).toLocaleTimeString('es-PE')}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{lectura.sensor_id}</div>
-                        <div className="text-xs text-gray-500">{lectura.tipo_entorno}</div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
-                        {lectura.ubicacion || 'N/A'}
-                      </td>
-                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.temperatura, 'temperatura')}`}>
-                        {lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}
-                      </td>
-                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.humedad, 'humedad')}`}>
-                        {lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}
-                      </td>
-                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.co2_nivel, 'co2')}`}>
-                        {lectura.co2_nivel ? `${lectura.co2_nivel} ppm` : 'N/A'}
-                      </td>
-                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${getColorAlerta(lectura.co_nivel, 'co')}`}>
-                        {lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                        {lectura.latitud && lectura.longitud ? (
-                          <div>
-                            <div>{parseFloat(lectura.latitud).toFixed(4)}°</div>
-                            <div>{parseFloat(lectura.longitud).toFixed(4)}°</div>
-                          </div>
-                        ) : 'N/A'}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
-      ) : (
-        /* VISTA DE TARJETAS */
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {lecturas.length === 0 ? (
-            <div className="col-span-full text-center py-8 text-gray-500">
-              No hay lecturas que coincidan con los filtros seleccionados
-            </div>
-          ) : (
-            lecturas.map((lectura) => (
-              <div key={lectura.id_lectura} className="bg-white rounded-lg shadow p-5 hover:shadow-lg transition-shadow">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="font-semibold text-gray-900">{lectura.sensor_id}</h3>
-                    <p className="text-sm text-gray-500">{lectura.ubicacion}</p>
-                  </div>
-                  <span className={`px-2 py-1 text-xs rounded ${
-                    lectura.tipo_entorno === 'urbano' 
-                      ? 'bg-blue-100 text-blue-800' 
-                      : 'bg-green-100 text-green-800'
-                  }`}>
-                    {lectura.tipo_entorno}
-                  </span>
-                </div>
-
-                <div className="space-y-2 mb-3">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">🌡️ Temperatura:</span>
-                    <span className="text-sm font-medium">{lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">💧 Humedad:</span>
-                    <span className="text-sm font-medium">{lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">🌫️ CO₂:</span>
-                    <span className="text-sm font-medium">{lectura.co2_nivel ? `${lectura.co2_nivel} ppm` : 'N/A'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">☁️ CO:</span>
-                    <span className="text-sm font-medium">{lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}</span>
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-500 border-t pt-2">
-                  📅 {new Date(lectura.lectura_datetime).toLocaleString('es-PE')}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      </div>
 
       {/* Paginación */}
       {pagination.totalPages > 1 && (
@@ -545,7 +760,6 @@ export default function Lecturas() {
                 {/* Números de página */}
                 {[...Array(pagination.totalPages)].map((_, index) => {
                   const pageNum = index + 1;
-                  // Mostrar solo algunas páginas alrededor de la actual
                   if (
                     pageNum === 1 ||
                     pageNum === pagination.totalPages ||
@@ -559,7 +773,8 @@ export default function Lecturas() {
                           pageNum === pagination.page
                             ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}>
+                        }`}
+                      >
                         {pageNum}
                       </button>
                     );

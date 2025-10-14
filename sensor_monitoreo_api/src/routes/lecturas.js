@@ -10,6 +10,7 @@ router.get('/ultimas', lecturaController.obtenerUltimas);          // GET /api/l
 router.get('/sensor/:id', lecturaController.obtenerPorSensor);     // GET /api/lecturas/sensor/:id
 router.get('/estadisticas/:id', lecturaController.obtenerEstadisticas); // GET /api/lecturas/estadisticas/:id
 router.get('/avanzado', lecturaController.obtenerLecturasAvanzado);     
+router.get('/exportar', lecturaController.obtenerParaExportar); 
 
 
 module.exports = router;
