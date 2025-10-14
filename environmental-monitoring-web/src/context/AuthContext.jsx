@@ -17,7 +17,6 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Cargar usuario del localStorage al iniciar
   useEffect(() => {
     const tokenGuardado = localStorage.getItem('token');
     const usuarioGuardado = localStorage.getItem('usuario');
@@ -26,7 +25,6 @@ export const AuthProvider = ({ children }) => {
       try {
         const decoded = jwtDecode(tokenGuardado);
         
-        // Verificar si el token expiró
         if (decoded.exp * 1000 < Date.now()) {
           logout();
         } else {
@@ -57,11 +55,9 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Error al iniciar sesión');
       }
 
-      // Guardar en localStorage
       localStorage.setItem('token', data.token);
       localStorage.setItem('usuario', JSON.stringify(data.usuario));
 
-      // Actualizar estado
       setToken(data.token);
       setUsuario(data.usuario);
 
@@ -88,7 +84,6 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al hacer logout:', error);
     } finally {
-      // Limpiar estado y localStorage
       localStorage.removeItem('token');
       localStorage.removeItem('usuario');
       setToken(null);
@@ -104,6 +99,32 @@ export const AuthProvider = ({ children }) => {
     return usuario?.rol === 'analista';
   };
 
+  // ✅ Nuevas funciones de permisos granulares
+  const permisos = {
+    // Sensores
+    verSensores: () => true, // Todos pueden ver
+    crearSensor: () => isAdmin(),
+    editarSensor: () => isAdmin(),
+    eliminarSensor: () => isAdmin(),
+    
+    // Lecturas
+    verLecturas: () => true,
+    exportarDatos: () => true,
+    exportarTodosDatos: () => true, // Todos pueden exportar
+    
+    // Alertas
+    verAlertas: () => true,
+    resolverAlertas: () => isAdmin(),
+    
+    // Configuración
+    configurarUmbrales: () => isAdmin(),
+    gestionarUsuarios: () => isAdmin(),
+    
+    // Reportes
+    verReportes: () => true,
+    generarReportes: () => true
+  };
+
   const value = {
     usuario,
     token,
@@ -112,7 +133,8 @@ export const AuthProvider = ({ children }) => {
     logout,
     isAdmin,
     isAnalista,
-    isAuthenticated: !!token
+    isAuthenticated: !!token,
+    permisos // ✅ Exportar permisos
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

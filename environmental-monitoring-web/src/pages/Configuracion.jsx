@@ -9,13 +9,14 @@ import {
   ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import ConfiguracionUmbrales from '../components/configuracion/ConfiguracionUmbrales';
+import GestionUsuarios from '../components/configuracion/GestionUsuarios';
 
 export default function Configuracion() {
   const [tabActivo, setTabActivo] = useState('umbrales');
 
   const tabs = [
     { id: 'umbrales', nombre: 'Umbrales de Alertas', icono: BellAlertIcon, disponible: true },
-    { id: 'usuarios', nombre: 'Gestión de Usuarios', icono: UserGroupIcon, disponible: false },
+    { id: 'usuarios', nombre: 'Gestión de Usuarios', icono: UserGroupIcon, disponible: true },
     { id: 'notificaciones', nombre: 'Notificaciones', icono: BellAlertIcon, disponible: false },
     { id: 'sistema', nombre: 'Preferencias del Sistema', icono: GlobeAltIcon, disponible: false },
     { id: 'exportacion', nombre: 'Exportación Automática', icono: ArrowDownTrayIcon, disponible: false }
@@ -71,13 +72,7 @@ export default function Configuracion() {
       <div>
         {tabActivo === 'umbrales' && <ConfiguracionUmbrales />}
         
-        {tabActivo === 'usuarios' && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <UserGroupIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Gestión de Usuarios</h3>
-            <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
-          </div>
-        )}
+        {tabActivo === 'usuarios' && <GestionUsuarios/>}
 
         {tabActivo === 'notificaciones' && (
           <div className="bg-white rounded-xl shadow-sm p-12 text-center">

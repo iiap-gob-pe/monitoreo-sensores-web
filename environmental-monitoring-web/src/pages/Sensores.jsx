@@ -1,13 +1,15 @@
 // src/pages/Sensores.jsx
 import { useState, useEffect } from 'react';
 import { sensoresAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext'; // ✅ Importar
 import { 
   MagnifyingGlassIcon,
   PlusIcon,
   PencilIcon,
   TrashIcon,
   EyeIcon,
-  FunnelIcon
+  FunnelIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { 
   ServerIcon,
@@ -17,6 +19,7 @@ import {
 } from '@heroicons/react/24/solid';
 
 export default function Sensores() {
+  const { permisos, usuario } = useAuth(); // ✅ Obtener permisos y usuario
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busqueda, setBusqueda] = useState('');
@@ -24,7 +27,7 @@ export default function Sensores() {
   const [filtroZona, setFiltroZona] = useState('todos');
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [modalAbierto, setModalAbierto] = useState(false);
-  const [modalTipo, setModalTipo] = useState(''); // 'crear', 'editar', 'ver', 'eliminar'
+  const [modalTipo, setModalTipo] = useState('');
   const [sensorSeleccionado, setSensorSeleccionado] = useState(null);
 
   useEffect(() => {
@@ -86,6 +89,12 @@ export default function Sensores() {
   };
 
   const handleEliminar = async (sensor) => {
+    // ✅ Verificar permisos antes de eliminar
+    if (!permisos.eliminarSensor()) {
+      alert('No tienes permisos para eliminar sensores');
+      return;
+    }
+
     if (window.confirm(`¿Estás seguro de eliminar el sensor ${sensor.id_sensor}?`)) {
       try {
         await sensoresAPI.delete(sensor.id_sensor);
@@ -114,15 +123,28 @@ export default function Sensores() {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Sensores</h1>
           <p className="mt-1 text-sm text-gray-600">
             Administra y monitorea todos tus dispositivos de sensores ambientales
+            {/* ✅ Mostrar rol y modo de visualización */}
+            <span className="ml-2 text-xs text-gray-400">
+              (Vista como {usuario?.rol})
+            </span>
           </p>
         </div>
-        <button
-          onClick={() => abrirModal('crear')}
-          className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md"
-        >
-          <PlusIcon className="w-5 h-5" />
-          <span>Agregar Sensor</span>
-        </button>
+        
+        {/* ✅ Botón Agregar solo para admin */}
+        {permisos.crearSensor() ? (
+          <button
+            onClick={() => abrirModal('crear')}
+            className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md"
+          >
+            <PlusIcon className="w-5 h-5" />
+            <span>Agregar Sensor</span>
+          </button>
+        ) : (
+          <div className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg">
+            <LockClosedIcon className="w-5 h-5" />
+            <span className="text-sm">Solo Lectura</span>
+          </div>
+        )}
       </div>
 
       {/* Tarjetas de Estadísticas */}
@@ -175,6 +197,18 @@ export default function Sensores() {
           </div>
         </div>
       </div>
+
+      {/* ✅ Banner de permisos para analistas */}
+      {!permisos.crearSensor() && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <LockClosedIcon className="w-5 h-5 text-blue-600 mr-2" />
+            <p className="text-sm text-blue-800">
+              <strong>Modo de solo lectura:</strong> Como analista, puedes ver todos los sensores pero no puedes crear, editar o eliminar.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Filtros y Búsqueda */}
       <div className="bg-white rounded-xl shadow-sm p-6">
@@ -322,6 +356,7 @@ export default function Sensores() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex items-center justify-end space-x-2">
+                        {/* ✅ Ver detalles - Todos pueden */}
                         <button
                           onClick={() => abrirModal('ver', sensor)}
                           className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition"
@@ -329,20 +364,44 @@ export default function Sensores() {
                         >
                           <EyeIcon className="w-5 h-5" />
                         </button>
-                        <button
-                          onClick={() => abrirModal('editar', sensor)}
-                          className="text-yellow-600 hover:text-yellow-900 p-1 rounded hover:bg-yellow-50 transition"
-                          title="Editar"
-                        >
-                          <PencilIcon className="w-5 h-5" />
-                        </button>
-                        <button
-                          onClick={() => handleEliminar(sensor)}
-                          className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition"
-                          title="Eliminar"
-                        >
-                          <TrashIcon className="w-5 h-5" />
-                        </button>
+                        
+                        {/* ✅ Editar - Solo admin */}
+                        {permisos.editarSensor() ? (
+                          <button
+                            onClick={() => abrirModal('editar', sensor)}
+                            className="text-yellow-600 hover:text-yellow-900 p-1 rounded hover:bg-yellow-50 transition"
+                            title="Editar"
+                          >
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="text-gray-300 p-1 rounded cursor-not-allowed"
+                            title="Sin permisos para editar"
+                          >
+                            <PencilIcon className="w-5 h-5" />
+                          </button>
+                        )}
+                        
+                        {/* ✅ Eliminar - Solo admin */}
+                        {permisos.eliminarSensor() ? (
+                          <button
+                            onClick={() => handleEliminar(sensor)}
+                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition"
+                            title="Eliminar"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="text-gray-300 p-1 rounded cursor-not-allowed"
+                            title="Sin permisos para eliminar"
+                          >
+                            <TrashIcon className="w-5 h-5" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -360,14 +419,14 @@ export default function Sensores() {
       </div>
 
       {/* Modales */}
-      {modalAbierto && modalTipo === 'crear' && (
+      {modalAbierto && modalTipo === 'crear' && permisos.crearSensor() && (
         <ModalCrearSensor 
           onClose={cerrarModal} 
           onSuccess={cargarSensores} 
         />
       )}
       
-      {modalAbierto && modalTipo === 'editar' && sensorSeleccionado && (
+      {modalAbierto && modalTipo === 'editar' && sensorSeleccionado && permisos.editarSensor() && (
         <ModalEditarSensor 
           sensor={sensorSeleccionado}
           onClose={cerrarModal} 
@@ -385,7 +444,7 @@ export default function Sensores() {
   );
 }
 
-// Componente Modal Crear Sensor
+// Componente Modal Crear Sensor (sin cambios, ya está bien)
 function ModalCrearSensor({ onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     id_sensor: '',
@@ -511,7 +570,9 @@ function ModalCrearSensor({ onClose, onSuccess }) {
   );
 }
 
-// Componente Modal Editar Sensor
+// Los componentes ModalEditarSensor y ModalVerSensor quedan igual, no necesitan cambios
+// (El resto del código es idéntico al original)
+
 function ModalEditarSensor({ sensor, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
     nombre_sensor: sensor.nombre_sensor || '',
@@ -621,7 +682,6 @@ function ModalEditarSensor({ sensor, onClose, onSuccess }) {
   );
 }
 
-// Componente Modal Ver Detalles
 function ModalVerSensor({ sensor, onClose }) {
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">

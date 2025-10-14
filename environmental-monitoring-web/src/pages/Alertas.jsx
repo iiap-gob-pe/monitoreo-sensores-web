@@ -1,11 +1,13 @@
 // src/pages/Alertas.jsx
 import { useState, useEffect } from 'react';
 import { alertasAPI, sensoresAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext'; // ✅ Importar
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
   CheckCircleIcon,
-  XMarkIcon
+  XMarkIcon,
+  LockClosedIcon
 } from '@heroicons/react/24/outline';
 import { 
   ExclamationTriangleIcon,
@@ -15,6 +17,7 @@ import {
 } from '@heroicons/react/24/solid';
 
 export default function Alertas() {
+  const { permisos, usuario } = useAuth(); // ✅ Obtener permisos y usuario
   const [alertas, setAlertas] = useState([]);
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -80,6 +83,12 @@ export default function Alertas() {
   };
 
   const handleResolverAlerta = async (alerta) => {
+    // ✅ Verificar permisos antes de resolver
+    if (!permisos.resolverAlertas()) {
+      alert('No tienes permisos para resolver alertas. Solo los administradores pueden realizar esta acción.');
+      return;
+    }
+
     if (window.confirm(`¿Marcar como resuelta la alerta: ${alerta.mensaje}?`)) {
       try {
         await alertasAPI.resolver(alerta.id_alerta);
@@ -136,9 +145,25 @@ export default function Alertas() {
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Alertas</h1>
           <p className="mt-1 text-sm text-gray-600">
             Monitorea y gestiona alertas generadas por los sensores ambientales
+            {/* ✅ Mostrar rol del usuario */}
+            <span className="ml-2 text-xs text-gray-400">
+              (Vista como {usuario?.rol})
+            </span>
           </p>
         </div>
       </div>
+
+      {/* ✅ Banner de permisos para analistas */}
+      {!permisos.resolverAlertas() && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <LockClosedIcon className="w-5 h-5 text-blue-600 mr-2" />
+            <p className="text-sm text-blue-800">
+              <strong>Permisos limitados:</strong> Como analista, puedes ver todas las alertas pero solo los administradores pueden marcarlas como resueltas.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Tarjetas de Estadísticas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -336,20 +361,34 @@ export default function Alertas() {
 
                     {/* Acciones */}
                     <div className="flex items-center space-x-2 ml-4">
+                      {/* ✅ Ver detalles - Todos pueden */}
                       <button
                         onClick={() => abrirDetalles(alerta)}
                         className="px-3 py-2 text-sm text-blue-600 hover:bg-blue-50 rounded-lg transition"
                       >
                         Ver detalles
                       </button>
+                      
+                      {/* ✅ Resolver - Solo admin */}
                       {!alerta.is_resolved && (
-                        <button
-                          onClick={() => handleResolverAlerta(alerta)}
-                          className="px-3 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg transition flex items-center space-x-1"
-                        >
-                          <CheckCircleIcon className="w-4 h-4" />
-                          <span>Resolver</span>
-                        </button>
+                        permisos.resolverAlertas() ? (
+                          <button
+                            onClick={() => handleResolverAlerta(alerta)}
+                            className="px-3 py-2 text-sm text-white bg-green-600 hover:bg-green-700 rounded-lg transition flex items-center space-x-1"
+                          >
+                            <CheckCircleIcon className="w-4 h-4" />
+                            <span>Resolver</span>
+                          </button>
+                        ) : (
+                          <button
+                            disabled
+                            className="px-3 py-2 text-sm text-gray-400 bg-gray-100 rounded-lg cursor-not-allowed flex items-center space-x-1"
+                            title="Solo administradores pueden resolver alertas"
+                          >
+                            <LockClosedIcon className="w-4 h-4" />
+                            <span>Resolver</span>
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
@@ -371,6 +410,7 @@ export default function Alertas() {
           sensor={sensores.find(s => s.id_sensor === alertaSeleccionada.id_sensor)}
           onClose={cerrarModal}
           onResolver={handleResolverAlerta}
+          puedeResolver={permisos.resolverAlertas()} // ✅ Pasar permiso al modal
         />
       )}
     </div>
@@ -378,7 +418,7 @@ export default function Alertas() {
 }
 
 // Componente Modal Detalles de Alerta
-function ModalDetallesAlerta({ alerta, sensor, onClose, onResolver }) {
+function ModalDetallesAlerta({ alerta, sensor, onClose, onResolver, puedeResolver }) { // ✅ Recibir permiso
   const getGravedadColor = (gravedad) => {
     switch(gravedad) {
       case 'Critico': return 'bg-red-100 text-red-800';
@@ -534,23 +574,34 @@ function ModalDetallesAlerta({ alerta, sensor, onClose, onResolver }) {
             </div>
           </div>
 
-          {/* Acciones */}
+          {/* ✅ Acciones con permisos */}
           <div className="mt-6 flex space-x-3">
             {!alerta.is_resolved && (
-              <button
-                onClick={() => {
-                  onResolver(alerta);
-                  onClose();
-                }}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center space-x-2"
-              >
-                <CheckCircleIcon className="w-5 h-5" />
-                <span>Marcar como Resuelta</span>
-              </button>
+              puedeResolver ? (
+                <button
+                  onClick={() => {
+                    onResolver(alerta);
+                    onClose();
+                  }}
+                  className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center justify-center space-x-2"
+                >
+                  <CheckCircleIcon className="w-5 h-5" />
+                  <span>Marcar como Resuelta</span>
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-400 rounded-lg cursor-not-allowed flex items-center justify-center space-x-2"
+                  title="Solo administradores pueden resolver alertas"
+                >
+                  <LockClosedIcon className="w-5 h-5" />
+                  <span>Solo Admin puede Resolver</span>
+                </button>
+              )
             )}
             <button
               onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+              className={`${!alerta.is_resolved && puedeResolver ? 'flex-1' : 'w-full'} px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition`}
             >
               Cerrar
             </button>
