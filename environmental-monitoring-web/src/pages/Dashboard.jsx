@@ -1,55 +1,71 @@
 import { useState, useEffect } from 'react';
 import { lecturasAPI, alertasAPI, sensoresAPI } from '../services/api';
+import { usePreferencias } from '../hooks/usePreferencias'; // ✅ Importar hook
 import { 
   ServerIcon, 
   ExclamationTriangleIcon, 
   FireIcon, 
-  CheckCircleIcon
+  CheckCircleIcon,
+  ClockIcon
 } from '@heroicons/react/24/outline';
 import MapView from '../components/dashboard/MapView';
 
 export default function Dashboard() {
+  const { preferencias, formatearFechaHora, formatearFecha, formatearHora } = usePreferencias(); // ✅ Usar hook
   const [lecturas, setLecturas] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [limite, setLimite] = useState(5);
   const [tipoFiltro, setTipoFiltro] = useState('todos');
+  const [ultimaActualizacion, setUltimaActualizacion] = useState(null); // ✅ Tracking de actualización
 
+  // ✅ Cargar datos inicial
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
   }, []);
 
-  const fetchData = async () => {
-  try {
-    const [lecturasRes, alertasRes, sensoresRes] = await Promise.all([
-      lecturasAPI.getUltimas(10000), // Se puede pedir el número de lecturas
-      alertasAPI.getActivas(),
-      sensoresAPI.getAll(),
-    ]);
-    
-    setLecturas(lecturasRes.data.data || []);
-    setAlertas(alertasRes.data.data || []);
-    setSensores(sensoresRes.data.data || []);
-  } catch (error) {
-    console.error('Error fetching data:', error);
-  } finally {
-    setLoading(false);
-  }
-};
+  // ✅ Auto-refresh según preferencias
+  useEffect(() => {
+    if (preferencias.intervaloActualizacion > 0) {
+      const interval = setInterval(() => {
+        fetchData();
+        console.log(`🔄 Dashboard actualizado automáticamente (cada ${preferencias.intervaloActualizacion}s)`);
+      }, preferencias.intervaloActualizacion * 1000);
 
-  // Calcular lecturas filtradas DESPUÉS de tener los datos
+      return () => clearInterval(interval);
+    }
+  }, [preferencias.intervaloActualizacion]);
+
+  const fetchData = async () => {
+    try {
+      const [lecturasRes, alertasRes, sensoresRes] = await Promise.all([
+        lecturasAPI.getUltimas(10000),
+        alertasAPI.getActivas(),
+        sensoresAPI.getAll(),
+      ]);
+      
+      setLecturas(lecturasRes.data.data || []);
+      setAlertas(alertasRes.data.data || []);
+      setSensores(sensoresRes.data.data || []);
+      setUltimaActualizacion(new Date()); // ✅ Registrar actualización
+    } catch (error) {
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Calcular lecturas filtradas
   const lecturasFiltradas = lecturas
-  .filter(lectura => {
-    if (tipoFiltro === 'todos') return true;
-    const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
-    if (tipoFiltro === 'movil') return sensor?.is_movil === true;
-    if (tipoFiltro === 'fijo') return sensor?.is_movil === false;
-    return true;
-  })
-  .slice(0, limite);
+    .filter(lectura => {
+      if (tipoFiltro === 'todos') return true;
+      const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
+      if (tipoFiltro === 'movil') return sensor?.is_movil === true;
+      if (tipoFiltro === 'fijo') return sensor?.is_movil === false;
+      return true;
+    })
+    .slice(0, limite);
 
   // Obtener la ultima lectura de cada sensor para el mapa
   const lecturasUnicasPorSensor = [];
@@ -60,7 +76,7 @@ export default function Dashboard() {
       sensoresVistos.add(lectura.id_sensor);
       lecturasUnicasPorSensor.push(lectura);
     }
-}
+  }
 
   if (loading) {
     return (
@@ -94,11 +110,25 @@ export default function Dashboard() {
         </p>
       </div>
 
-      {/* Indicador de actualización */}
+      {/* ✅ Indicador de actualización mejorado */}
       <div className="flex justify-center">
-        <div className="inline-flex items-center space-x-2 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-200">
+        <div className="inline-flex items-center space-x-3 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-200">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-gray-600">Actualizando datos cada 30 segundos</span>
+          <span className="text-sm text-gray-600">
+            {preferencias.intervaloActualizacion > 0 
+              ? `Actualizando cada ${preferencias.intervaloActualizacion} segundos`
+              : 'Actualización automática desactivada'
+            }
+          </span>
+          {ultimaActualizacion && (
+            <>
+              <span className="text-gray-300">|</span>
+              <div className="flex items-center space-x-1 text-xs text-gray-500">
+                <ClockIcon className="w-3 h-3" />
+                <span>Última actualización: {formatearHora(ultimaActualizacion)}</span>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -165,12 +195,13 @@ export default function Dashboard() {
         </div>
       </div>
         
-      
-      {/* Mapa */}
-      <MapView 
-      lecturas={lecturas} 
-      lecturasUnicas={lecturasUnicasPorSensor} 
-      />
+      {/* ✅ Mapa - Solo mostrar si está habilitado en preferencias */}
+      {preferencias.mostrarGraficos && (
+        <MapView 
+          lecturas={lecturas} 
+          lecturasUnicas={lecturasUnicasPorSensor} 
+        />
+      )}
 
       {/* Últimas Lecturas con Filtros */}
       <div className="bg-white rounded-xl shadow-sm p-6">
@@ -204,7 +235,8 @@ export default function Dashboard() {
                 <option value={5}>Últimos 5</option>
                 <option value={10}>Últimos 10</option>
                 <option value={20}>Últimos 20</option>
-                <option value={30}>Últimos 30</option>
+                <option value={50}>Últimos 50</option>
+                <option value={100}>Últimos 100</option>
               </select>
             </div>
           </div>
@@ -282,14 +314,15 @@ export default function Dashboard() {
                         ) : 'N/A'}
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
+                        {/* ✅ Usar formato de fecha personalizado */}
                         <div className="text-sm text-gray-900">
                           {lectura.lectura_datetime 
-                            ? new Date(lectura.lectura_datetime).toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit' }) 
+                            ? formatearFecha(lectura.lectura_datetime)
                             : 'N/A'}
                         </div>
                         <div className="text-xs text-gray-500">
                           {lectura.lectura_datetime 
-                            ? new Date(lectura.lectura_datetime).toLocaleTimeString('es-PE', { hour: '2-digit', minute: '2-digit' }) 
+                            ? formatearHora(lectura.lectura_datetime)
                             : 'N/A'}
                         </div>
                       </td>

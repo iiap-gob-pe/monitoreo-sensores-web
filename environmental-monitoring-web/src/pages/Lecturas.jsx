@@ -1,13 +1,17 @@
 import { useState, useEffect } from 'react';
+import { usePreferencias } from '../hooks/usePreferencias';
 
 export default function Lecturas() {
+  const { preferencias, formatearFechaHora, formatearFecha, formatearHora } = usePreferencias();
+  
   // Estados
   const [lecturas, setLecturas] = useState([]);
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [preferenciasCargadas, setPreferenciasCargadas] = useState(false);
   
-  // Estados de filtros
+  // ✅ Estados de filtros - Inicializar con valor por defecto
   const [filtros, setFiltros] = useState({
     id_sensor: '',
     parametro: '',
@@ -15,7 +19,7 @@ export default function Lecturas() {
     fecha_fin: '',
     tipo_sensor: '',
     page: 1,
-    limit: 50,
+    limit: 20, // Valor temporal
     sort_by: 'lectura_datetime',
     sort_order: 'DESC'
   });
@@ -23,13 +27,22 @@ export default function Lecturas() {
   // Estado de paginación
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 50,
+    limit: 20,
     total: 0,
     totalPages: 0
   });
 
-  // Vista: tabla o tarjetas
-  const [vistaActual, setVistaActual] = useState('tabla');
+  // ✅ Establecer limit inicial desde preferencias UNA SOLA VEZ
+  useEffect(() => {
+    if (preferencias.registrosPorPagina && !preferenciasCargadas) {
+      console.log('📌 Cargando preferencias:', preferencias.registrosPorPagina); // Debug
+      setFiltros(prev => ({
+        ...prev,
+        limit: preferencias.registrosPorPagina
+      }));
+      setPreferenciasCargadas(true);
+    }
+  }, [preferencias.registrosPorPagina, preferenciasCargadas]);
 
   // Cargar sensores para el filtro
   useEffect(() => {
@@ -53,10 +66,12 @@ export default function Lecturas() {
     fetchSensores();
   }, []);
 
-  // Cargar lecturas con filtros
+  // ✅ Cargar lecturas cuando cambien los filtros
   useEffect(() => {
-    fetchLecturas();
-  }, [filtros]);
+    if (preferenciasCargadas) {
+      fetchLecturas();
+    }
+  }, [filtros, preferenciasCargadas]);
 
   const fetchLecturas = async () => {
     setLoading(true);
@@ -68,6 +83,8 @@ export default function Lecturas() {
           params.append(key, filtros[key]);
         }
       });
+
+      console.log('📡 Cargando lecturas con limit:', filtros.limit); // Debug
 
       const response = await fetch(`http://localhost:3000/api/lecturas/avanzado?${params}`);
       const result = await response.json();
@@ -91,7 +108,7 @@ export default function Lecturas() {
     const { name, value } = e.target;
     setFiltros(prev => ({
       ...prev,
-      [name]: value,
+      [name]: name === 'limit' ? Number(value) : value,
       page: 1
     }));
   };
@@ -105,7 +122,7 @@ export default function Lecturas() {
       fecha_fin: '',
       tipo_sensor: '',
       page: 1,
-      limit: 50,
+      limit: preferencias.registrosPorPagina,
       sort_by: 'lectura_datetime',
       sort_order: 'DESC'
     });
@@ -125,92 +142,8 @@ export default function Lecturas() {
     }));
   };
 
-  // Exportar a CSV
-  // ✅ Nueva función para exportar solo la página actual
-const exportarPaginaActual = () => {
-  let headers = ['Fecha/Hora', 'Sensor', 'Nombre', 'Tipo'];
-  let rows = [];
-
-  if (filtros.parametro) {
-    const parametroLabel = {
-      'temperatura': 'Temperatura (°C)',
-      'humedad': 'Humedad (%)',
-      'co2': 'CO₂ (ppm)',
-      'co': 'CO (ppm)'
-    }[filtros.parametro] || filtros.parametro;
-    
-    headers.push(parametroLabel, 'Latitud', 'Longitud');
-    
-    rows = lecturas.map(l => [
-      new Date(l.lectura_datetime).toLocaleString('es-PE'),
-      l.sensor_id,
-      l.nombre_sensor || '',
-      l.tipo_sensor || '',
-      l[filtros.parametro === 'co2' ? 'co2_nivel' : filtros.parametro === 'co' ? 'co_nivel' : filtros.parametro] || '',
-      l.latitud || '',
-      l.longitud || ''
-    ]);
-  } else {
-    headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
-    
-    rows = lecturas.map(l => [
-      new Date(l.lectura_datetime).toLocaleString('es-PE'),
-      l.sensor_id,
-      l.nombre_sensor || '',
-      l.tipo_sensor || '',
-      l.temperatura || '',
-      l.humedad || '',
-      l.co2_nivel || '',
-      l.co_nivel || '',
-      l.latitud || '',
-      l.longitud || ''
-    ]);
-  }
-
-  const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.join(','))
-  ].join('\n');
-
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `lecturas_pagina_actual_${new Date().toISOString().split('T')[0]}.csv`;
-  a.click();
-  window.URL.revokeObjectURL(url);
-};
-
-// ✅ Nueva función para exportar TODOS los datos
-const exportarTodosDatos = async () => {
-  try {
-    // Mostrar loading
-    const exportBtn = document.getElementById('export-all-btn');
-    if (exportBtn) {
-      exportBtn.disabled = true;
-      exportBtn.textContent = '⏳ Exportando...';
-    }
-
-    // Construir params con los filtros actuales (sin page ni limit)
-    const params = new URLSearchParams();
-    if (filtros.id_sensor) params.append('id_sensor', filtros.id_sensor);
-    if (filtros.parametro) params.append('parametro', filtros.parametro);
-    if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
-    if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
-    if (filtros.tipo_sensor) params.append('tipo_sensor', filtros.tipo_sensor);
-
-    // Llamar al endpoint de exportación
-    const response = await fetch(`http://localhost:3000/api/lecturas/exportar?${params}`);
-    const result = await response.json();
-
-    if (!result.success) {
-      alert('Error al exportar datos');
-      return;
-    }
-
-    const todasLecturas = result.data;
-
-    // Construir CSV
+  // Exportar página actual con formato de fecha
+  const exportarPaginaActual = () => {
     let headers = ['Fecha/Hora', 'Sensor', 'Nombre', 'Tipo'];
     let rows = [];
 
@@ -224,8 +157,8 @@ const exportarTodosDatos = async () => {
       
       headers.push(parametroLabel, 'Latitud', 'Longitud');
       
-      rows = todasLecturas.map(l => [
-        new Date(l.lectura_datetime).toLocaleString('es-PE'),
+      rows = lecturas.map(l => [
+        formatearFechaHora(l.lectura_datetime),
         l.sensor_id,
         l.nombre_sensor || '',
         l.tipo_sensor || '',
@@ -236,8 +169,8 @@ const exportarTodosDatos = async () => {
     } else {
       headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
       
-      rows = todasLecturas.map(l => [
-        new Date(l.lectura_datetime).toLocaleString('es-PE'),
+      rows = lecturas.map(l => [
+        formatearFechaHora(l.lectura_datetime),
         l.sensor_id,
         l.nombre_sensor || '',
         l.tipo_sensor || '',
@@ -255,30 +188,106 @@ const exportarTodosDatos = async () => {
       ...rows.map(row => row.join(','))
     ].join('\n');
 
-    // Descargar
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lecturas_completas_${todasLecturas.length}_registros_${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `lecturas_pagina_actual_${new Date().toISOString().split('T')[0]}.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
+  };
 
-    // Mostrar mensaje de éxito
-    alert(`✅ Se exportaron ${todasLecturas.length} registros exitosamente`);
+  // Exportar todos los datos con formato de fecha
+  const exportarTodosDatos = async () => {
+    try {
+      const exportBtn = document.getElementById('export-all-btn');
+      if (exportBtn) {
+        exportBtn.disabled = true;
+        exportBtn.textContent = '⏳ Exportando...';
+      }
 
-  } catch (error) {
-    console.error('Error al exportar:', error);
-    alert('❌ Error al exportar los datos');
-  } finally {
-    // Restaurar botón
-    const exportBtn = document.getElementById('export-all-btn');
-    if (exportBtn) {
-      exportBtn.disabled = false;
-      exportBtn.textContent = '📥 Exportar Todos';
+      const params = new URLSearchParams();
+      if (filtros.id_sensor) params.append('id_sensor', filtros.id_sensor);
+      if (filtros.parametro) params.append('parametro', filtros.parametro);
+      if (filtros.fecha_inicio) params.append('fecha_inicio', filtros.fecha_inicio);
+      if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
+      if (filtros.tipo_sensor) params.append('tipo_sensor', filtros.tipo_sensor);
+
+      const response = await fetch(`http://localhost:3000/api/lecturas/exportar?${params}`);
+      const result = await response.json();
+
+      if (!result.success) {
+        alert('Error al exportar datos');
+        return;
+      }
+
+      const todasLecturas = result.data;
+
+      let headers = ['Fecha/Hora', 'Sensor', 'Nombre', 'Tipo'];
+      let rows = [];
+
+      if (filtros.parametro) {
+        const parametroLabel = {
+          'temperatura': 'Temperatura (°C)',
+          'humedad': 'Humedad (%)',
+          'co2': 'CO₂ (ppm)',
+          'co': 'CO (ppm)'
+        }[filtros.parametro] || filtros.parametro;
+        
+        headers.push(parametroLabel, 'Latitud', 'Longitud');
+        
+        rows = todasLecturas.map(l => [
+          formatearFechaHora(l.lectura_datetime),
+          l.sensor_id,
+          l.nombre_sensor || '',
+          l.tipo_sensor || '',
+          l[filtros.parametro === 'co2' ? 'co2_nivel' : filtros.parametro === 'co' ? 'co_nivel' : filtros.parametro] || '',
+          l.latitud || '',
+          l.longitud || ''
+        ]);
+      } else {
+        headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
+        
+        rows = todasLecturas.map(l => [
+          formatearFechaHora(l.lectura_datetime),
+          l.sensor_id,
+          l.nombre_sensor || '',
+          l.tipo_sensor || '',
+          l.temperatura || '',
+          l.humedad || '',
+          l.co2_nivel || '',
+          l.co_nivel || '',
+          l.latitud || '',
+          l.longitud || ''
+        ]);
+      }
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.join(','))
+      ].join('\n');
+
+      const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `lecturas_completas_${todasLecturas.length}_registros_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+
+      alert(`✅ Se exportaron ${todasLecturas.length} registros exitosamente`);
+
+    } catch (error) {
+      console.error('Error al exportar:', error);
+      alert('❌ Error al exportar los datos');
+    } finally {
+      const exportBtn = document.getElementById('export-all-btn');
+      if (exportBtn) {
+        exportBtn.disabled = false;
+        exportBtn.textContent = '📥 Exportar Todos';
+      }
     }
-  }
-};
+  };
 
   // Obtener color según valor de parámetro
   const getColorAlerta = (valor, parametro) => {
@@ -308,7 +317,7 @@ const exportarTodosDatos = async () => {
     }
   };
 
-  // ✅ Función para renderizar columnas según parámetro seleccionado
+  // Función para renderizar columnas según parámetro seleccionado
   const renderColumnasTabla = () => {
     if (filtros.parametro) {
       const parametroInfo = {
@@ -399,7 +408,7 @@ const exportarTodosDatos = async () => {
     );
   };
 
-  // ✅ Función para renderizar filas según parámetro seleccionado
+  // Función para renderizar filas con formato de fecha personalizado
   const renderFilasTabla = (lectura) => {
     if (filtros.parametro) {
       const parametroInfo = {
@@ -416,10 +425,10 @@ const exportarTodosDatos = async () => {
         <>
           <td className="px-4 py-3 whitespace-nowrap text-sm">
             <div className="text-gray-900">
-              {new Date(lectura.lectura_datetime).toLocaleDateString('es-PE')}
+              {formatearFecha(lectura.lectura_datetime)}
             </div>
             <div className="text-gray-500 text-xs">
-              {new Date(lectura.lectura_datetime).toLocaleTimeString('es-PE')}
+              {formatearHora(lectura.lectura_datetime)}
             </div>
           </td>
           <td className="px-4 py-3 whitespace-nowrap">
@@ -457,10 +466,10 @@ const exportarTodosDatos = async () => {
       <>
         <td className="px-4 py-3 whitespace-nowrap text-sm">
           <div className="text-gray-900">
-            {new Date(lectura.lectura_datetime).toLocaleDateString('es-PE')}
+            {formatearFecha(lectura.lectura_datetime)}
           </div>
           <div className="text-gray-500 text-xs">
-            {new Date(lectura.lectura_datetime).toLocaleTimeString('es-PE')}
+            {formatearHora(lectura.lectura_datetime)}
           </div>
         </td>
         <td className="px-4 py-3 whitespace-nowrap">
@@ -623,7 +632,7 @@ const exportarTodosDatos = async () => {
             </select>
           </div>
 
-          {/* Filtro de Registros por página */}
+          {/* ✅ Filtro de Registros por página */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Registros por página
@@ -634,10 +643,11 @@ const exportarTodosDatos = async () => {
               onChange={handleFiltroChange}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             >
-              <option value="25">25</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-              <option value="200">200</option>
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+              <option value={100}>100</option>
+              <option value={200}>200</option>
             </select>
           </div>
 

@@ -1,15 +1,15 @@
 // src/pages/Configuracion.jsx
-import { useState, useEffect } from 'react';
-import { sensoresAPI } from '../services/api';
+import { useState } from 'react';
 import { 
   Cog6ToothIcon,
   BellAlertIcon,
   UserGroupIcon,
-  GlobeAltIcon,
-  ArrowDownTrayIcon
+  GlobeAltIcon
 } from '@heroicons/react/24/outline';
 import ConfiguracionUmbrales from '../components/configuracion/ConfiguracionUmbrales';
 import GestionUsuarios from '../components/configuracion/GestionUsuarios';
+import PreferenciasSistema from '../components/configuracion/PreferenciasSistema'; // ✅ Nuevo
+import ConfiguracionNotificaciones from '../components/configuracion/ConfiguracionNotificaciones'; // ✅ Nuevo
 
 export default function Configuracion() {
   const [tabActivo, setTabActivo] = useState('umbrales');
@@ -17,9 +17,9 @@ export default function Configuracion() {
   const tabs = [
     { id: 'umbrales', nombre: 'Umbrales de Alertas', icono: BellAlertIcon, disponible: true },
     { id: 'usuarios', nombre: 'Gestión de Usuarios', icono: UserGroupIcon, disponible: true },
-    { id: 'notificaciones', nombre: 'Notificaciones', icono: BellAlertIcon, disponible: false },
-    { id: 'sistema', nombre: 'Preferencias del Sistema', icono: GlobeAltIcon, disponible: false },
-    { id: 'exportacion', nombre: 'Exportación Automática', icono: ArrowDownTrayIcon, disponible: false }
+    { id: 'notificaciones', nombre: 'Notificaciones', icono: BellAlertIcon, disponible: true }, // ✅ Activar
+    { id: 'sistema', nombre: 'Preferencias del Sistema', icono: GlobeAltIcon, disponible: true } // ✅ Activar
+    // ❌ Exportación Automática eliminada
   ];
 
   return (
@@ -71,32 +71,9 @@ export default function Configuracion() {
       {/* Contenido según tab activo */}
       <div>
         {tabActivo === 'umbrales' && <ConfiguracionUmbrales />}
-        
-        {tabActivo === 'usuarios' && <GestionUsuarios/>}
-
-        {tabActivo === 'notificaciones' && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <BellAlertIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Notificaciones</h3>
-            <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
-          </div>
-        )}
-
-        {tabActivo === 'sistema' && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <GlobeAltIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Preferencias del Sistema</h3>
-            <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
-          </div>
-        )}
-
-        {tabActivo === 'exportacion' && (
-          <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-            <ArrowDownTrayIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Exportación Automática</h3>
-            <p className="text-gray-600">Esta funcionalidad estará disponible próximamente</p>
-          </div>
-        )}
+        {tabActivo === 'usuarios' && <GestionUsuarios />}
+        {tabActivo === 'notificaciones' && <ConfiguracionNotificaciones />}
+        {tabActivo === 'sistema' && <PreferenciasSistema />}
       </div>
     </div>
   );
