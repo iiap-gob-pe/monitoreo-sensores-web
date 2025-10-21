@@ -9,9 +9,22 @@ export default function Lecturas() {
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [preferenciasCargadas, setPreferenciasCargadas] = useState(false);
   
-  // ✅ Estados de filtros - Inicializar con valor por defecto
+  // ✅ SOLUCIÓN: Inicializar filtros directamente desde localStorage
+  const getLimitInicial = () => {
+    try {
+      const configGuardada = localStorage.getItem('preferencias_sistema');
+      if (configGuardada) {
+        const config = JSON.parse(configGuardada);
+        return config.registrosPorPagina || 20;
+      }
+    } catch (error) {
+      console.error('Error al cargar limit inicial:', error);
+    }
+    return 20; // Fallback
+  };
+
+  // ✅ Estados de filtros - Inicializar con valor desde localStorage
   const [filtros, setFiltros] = useState({
     id_sensor: '',
     parametro: '',
@@ -19,7 +32,7 @@ export default function Lecturas() {
     fecha_fin: '',
     tipo_sensor: '',
     page: 1,
-    limit: 20, // Valor temporal
+    limit: getLimitInicial(), // ✅ Carga directamente desde localStorage
     sort_by: 'lectura_datetime',
     sort_order: 'DESC'
   });
@@ -27,22 +40,12 @@ export default function Lecturas() {
   // Estado de paginación
   const [pagination, setPagination] = useState({
     page: 1,
-    limit: 20,
+    limit: getLimitInicial(),
     total: 0,
     totalPages: 0
   });
 
-  // ✅ Establecer limit inicial desde preferencias UNA SOLA VEZ
-  useEffect(() => {
-    if (preferencias.registrosPorPagina && !preferenciasCargadas) {
-      console.log('📌 Cargando preferencias:', preferencias.registrosPorPagina); // Debug
-      setFiltros(prev => ({
-        ...prev,
-        limit: preferencias.registrosPorPagina
-      }));
-      setPreferenciasCargadas(true);
-    }
-  }, [preferencias.registrosPorPagina, preferenciasCargadas]);
+  console.log('📌 Filtros inicializados con limit:', filtros.limit); // Debug
 
   // Cargar sensores para el filtro
   useEffect(() => {
@@ -68,10 +71,9 @@ export default function Lecturas() {
 
   // ✅ Cargar lecturas cuando cambien los filtros
   useEffect(() => {
-    if (preferenciasCargadas) {
-      fetchLecturas();
-    }
-  }, [filtros, preferenciasCargadas]);
+    console.log('📡 Cargando lecturas con limit:', filtros.limit); // Debug
+    fetchLecturas();
+  }, [filtros]);
 
   const fetchLecturas = async () => {
     setLoading(true);
@@ -83,8 +85,6 @@ export default function Lecturas() {
           params.append(key, filtros[key]);
         }
       });
-
-      console.log('📡 Cargando lecturas con limit:', filtros.limit); // Debug
 
       const response = await fetch(`http://localhost:3000/api/lecturas/avanzado?${params}`);
       const result = await response.json();
@@ -113,8 +113,11 @@ export default function Lecturas() {
     }));
   };
 
-  // Limpiar filtros
+  // ✅ Limpiar filtros - Usa el valor actual de preferencias
   const limpiarFiltros = () => {
+    const limitActual = preferencias.registrosPorPagina || getLimitInicial();
+    console.log('🧹 Limpiando filtros, limit:', limitActual); // Debug
+    
     setFiltros({
       id_sensor: '',
       parametro: '',
@@ -122,7 +125,7 @@ export default function Lecturas() {
       fecha_fin: '',
       tipo_sensor: '',
       page: 1,
-      limit: preferencias.registrosPorPagina,
+      limit: limitActual,
       sort_by: 'lectura_datetime',
       sort_order: 'DESC'
     });
