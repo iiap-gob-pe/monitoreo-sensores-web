@@ -11,7 +11,7 @@ import Alertas from "./pages/Alertas";
 import Reportes from "./pages/Reportes";
 import Configuracion from "./pages/Configuracion";
 import Lecturas from './pages/Lecturas';
-// import Usuarios from './pages/Usuarios'; // Lo crearemos después
+import Perfil from './pages/Perfil';
 
 function AppContent() {
   const { isAuthenticated } = useAuth();
@@ -72,6 +72,18 @@ function AppContent() {
           </ProtectedRoute>
         } 
       />
+      
+      {/* ✅ PERFIL - Agregado con Layout y ProtectedRoute */}
+      <Route 
+        path="/perfil" 
+        element={
+          <ProtectedRoute>
+            <Layout>
+              <Perfil />
+            </Layout>
+          </ProtectedRoute>
+        } 
+      />
 
       {/* Rutas solo para admin */}
       <Route 
@@ -84,16 +96,6 @@ function AppContent() {
           </ProtectedRoute>
         } 
       />
-      {/* <Route 
-        path="/usuarios" 
-        element={
-          <ProtectedRoute requiredRole="admin">
-            <Layout>
-              <Usuarios />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      /> */}
 
       {/* Redirigir cualquier ruta no encontrada */}
       <Route 

@@ -1,6 +1,10 @@
 // src/components/layout/Navbar.jsx
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { Cog6ToothIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/outline';
+import { 
+  Cog6ToothIcon, 
+  ArrowRightOnRectangleIcon,
+  UserCircleIcon // ✅ Agregar este import
+} from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 
 export default function Navbar() {
@@ -69,6 +73,14 @@ export default function Navbar() {
             </Link>
             <Link to="/lecturas" className={linkClass('/lecturas')}>
               Lecturas
+            </Link>
+            {/* ✅ Enlace a Perfil corregido */}
+            <Link 
+              to="/perfil" 
+              className={`${linkClass('/perfil')} flex items-center space-x-2`}
+            >
+              <UserCircleIcon className="w-5 h-5" />
+              <span>Mi Perfil</span>
             </Link>
           </div>
 

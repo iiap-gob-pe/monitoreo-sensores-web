@@ -11,6 +11,7 @@ const lecturasRoutes = require('./routes/lecturas');
 const alertasRoutes = require('./routes/alertas');
 const authRoutes = require('./routes/auth');
 const usuariosRoutes = require('./routes/usuarios');
+const perfilRoutes = require('./routes/perfil');
  
 
 
@@ -43,6 +44,7 @@ app.use('/api/sensores', sensoresRoutes);
 app.use('/api/lecturas', lecturasRoutes);
 app.use('/api/alertas', alertasRoutes);
 app.use('/api/umbrales', require('./routes/umbrales'));
+app.use('/api/perfil', require ('./routes/perfil'));
 
 // Registrar rutas de autenticación
 app.use('/api/auth', authRoutes);
