@@ -95,34 +95,22 @@ export const AuthProvider = ({ children }) => {
     return usuario?.rol === 'admin';
   };
 
-  const isAnalista = () => {
-    return usuario?.rol === 'analista';
-  };
-
-  // ✅ Nuevas funciones de permisos granulares
+  // ✅ Permisos que funcionan para público Y admin
   const permisos = {
-    // Sensores
-    verSensores: () => true, // Todos pueden ver
+    // Solo admin puede modificar
     crearSensor: () => isAdmin(),
     editarSensor: () => isAdmin(),
     eliminarSensor: () => isAdmin(),
-    
-    // Lecturas
-    verLecturas: () => true,
-    exportarDatos: () => true,
-    exportarTodosDatos: () => true, // Todos pueden exportar
-    
-    // Alertas
-    verAlertas: () => true,
     resolverAlertas: () => isAdmin(),
-    
-    // Configuración
     configurarUmbrales: () => isAdmin(),
     gestionarUsuarios: () => isAdmin(),
     
-    // Reportes
+    // Todos pueden ver (público y admin)
+    verSensores: () => true,
+    verLecturas: () => true,
+    verAlertas: () => true,
     verReportes: () => true,
-    generarReportes: () => true
+    exportarDatos: () => true
   };
 
   const value = {
@@ -132,9 +120,8 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     isAdmin,
-    isAnalista,
     isAuthenticated: !!token,
-    permisos // ✅ Exportar permisos
+    permisos
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -204,7 +204,7 @@ export default function Sensores() {
           <div className="flex items-center">
             <LockClosedIcon className="w-5 h-5 text-blue-600 mr-2" />
             <p className="text-sm text-blue-800">
-              <strong>Modo de solo lectura:</strong> Como analista, puedes ver todos los sensores pero no puedes crear, editar o eliminar.
+              <strong>Modo de solo lectura:</strong> Puedes ver todos los sensores pero no puedes crear, editar o eliminar.
             </p>
           </div>
         </div>

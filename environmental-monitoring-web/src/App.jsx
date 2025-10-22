@@ -1,9 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import Layout from './components/layout/Layout';
 
-// Páginas
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Sensores from './pages/Sensores';
@@ -14,96 +13,37 @@ import Lecturas from './pages/Lecturas';
 import Perfil from './pages/Perfil';
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
-
   return (
     <Routes>
-      {/* Ruta pública - Login */}
+      {/* Login */}
       <Route path="/login" element={<Login />} />
 
-      {/* Rutas protegidas - requieren autenticación */}
-      <Route 
-        path="/" 
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Dashboard />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/sensores" 
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Sensores />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/lecturas" 
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Lecturas />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/alertas" 
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Alertas />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/reportes" 
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Reportes />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* ✅ PERFIL - Agregado con Layout y ProtectedRoute */}
-      <Route 
-        path="/perfil" 
-        element={
-          <ProtectedRoute>
-            <Layout>
-              <Perfil />
-            </Layout>
-          </ProtectedRoute>
-        } 
-      />
+      {/* ✅ Rutas PÚBLICAS - Sin autenticación */}
+      <Route path="/" element={<Layout><Dashboard /></Layout>} />
+      <Route path="/sensores" element={<Layout><Sensores /></Layout>} />
+      <Route path="/lecturas" element={<Layout><Lecturas /></Layout>} />
+      <Route path="/alertas" element={<Layout><Alertas /></Layout>} />
+      <Route path="/reportes" element={<Layout><Reportes /></Layout>} />
 
-      {/* Rutas solo para admin */}
+      {/* ✅ Rutas PROTEGIDAS - Solo Admin */}
       <Route 
         path="/configuracion" 
         element={
           <ProtectedRoute requiredRole="admin">
-            <Layout>
-              <Configuracion />
-            </Layout>
+            <Layout><Configuracion /></Layout>
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/perfil" 
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <Layout><Perfil /></Layout>
           </ProtectedRoute>
         } 
       />
 
-      {/* Redirigir cualquier ruta no encontrada */}
-      <Route 
-        path="*" 
-        element={
-          isAuthenticated ? <Navigate to="/" replace /> : <Navigate to="/login" replace />
-        } 
-      />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }

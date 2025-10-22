@@ -159,7 +159,7 @@ export default function Alertas() {
           <div className="flex items-center">
             <LockClosedIcon className="w-5 h-5 text-blue-600 mr-2" />
             <p className="text-sm text-blue-800">
-              <strong>Permisos limitados:</strong> Como analista, puedes ver todas las alertas pero solo los administradores pueden marcarlas como resueltas.
+              <strong>Permisos limitados:</strong> Puedes ver todas las alertas pero solo los administradores pueden marcarlas como resueltas.
             </p>
           </div>
         </div>

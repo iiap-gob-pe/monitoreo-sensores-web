@@ -27,7 +27,7 @@ export default function GestionUsuarios() {
     email: '',
     password: '',
     nombre_completo: '',
-    rol: 'analista',
+    rol: 'admin',
     estado: 'activo'
   });
 
@@ -73,7 +73,7 @@ export default function GestionUsuarios() {
       email: '',
       password: '',
       nombre_completo: '',
-      rol: 'analista',
+      rol: 'admin',
       estado: 'activo'
     });
     setErrors({});
@@ -462,6 +462,7 @@ export default function GestionUsuarios() {
               </div>
 
               {/* Rol */}
+              {/* Rol */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Rol *
@@ -472,11 +473,9 @@ export default function GestionUsuarios() {
                   onChange={handleInputChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                 >
-                  <option value="analista">Analista</option>
                   <option value="admin">Administrador</option>
                 </select>
               </div>
-
               {/* Estado (solo en editar) */}
               {modalMode === 'editar' && (
                 <div>
