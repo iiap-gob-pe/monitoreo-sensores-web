@@ -1,5 +1,6 @@
 // src/pages/Perfil.jsx
 import { useState, useEffect } from 'react';
+import CambiarContrasenaModal from '../components/perfil/CambiarContrasenaModal';
 import {
   UserCircleIcon,
   EnvelopeIcon,
@@ -27,6 +28,7 @@ export default function Perfil() {
     email: '',
     username: ''
   });
+  const [mostrarModalContrasena, setMostrarModalContrasena] = useState(false);
 
   useEffect(() => {
     cargarPerfil();
@@ -456,14 +458,28 @@ export default function Perfil() {
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h3 className="text-xl font-semibold text-gray-900 mb-4">Acciones Rápidas</h3>
             <div className="space-y-2">
-              <button className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
-                <KeyIcon className="w-4 h-4 text-gray-500" />
-                Cambiar Contraseña
-              </button>
+                <button 
+                    onClick={() => setMostrarModalContrasena(true)}
+                    className="w-full flex items-center gap-3 px-4 py-2 text-left text-sm font-medium text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                    >
+                    <KeyIcon className="w-4 h-4 text-gray-500" />
+                    Cambiar Contraseña
+                </button>
             </div>
           </div>
         </div>
       </div>
+        {mostrarModalContrasena && (
+            <CambiarContrasenaModal 
+                isOpen={mostrarModalContrasena}
+                onClose={() => setMostrarModalContrasena(false)}
+                userId={userId}
+                onSuccess={(mensaje) => {
+                    setMensaje({ tipo: 'success', texto: mensaje });
+                    cargarHistorial();
+                }}
+            />
+        )}
     </div>
   );
 }

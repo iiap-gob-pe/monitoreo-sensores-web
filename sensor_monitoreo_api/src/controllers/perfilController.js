@@ -182,7 +182,7 @@ const perfilController = {
   },
 
   // Cambiar contraseña
-  cambiarContrasena: async (req, res) => {
+cambiarContrasena: async (req, res) => {
     try {
       const { userId } = req.params;
       const id = parseInt(userId);
@@ -209,17 +209,30 @@ const perfilController = {
         });
       }
 
-      // TODO: En producción, validar con bcrypt
-      // const bcrypt = require('bcrypt');
-      // const validPassword = await bcrypt.compare(contrasenaActual, usuario.password_hash);
-      // if (!validPassword) {
-      //   return res.status(401).json({ success: false, message: 'Contraseña actual incorrecta' });
-      // }
+      // ✅ Validar contraseña actual con bcrypt
+      const bcrypt = require('bcryptjs');
+      const validPassword = await bcrypt.compare(contrasenaActual, usuario.password_hash);
+      
+      if (!validPassword) {
+        return res.status(401).json({ 
+          success: false, 
+          message: 'La contraseña actual es incorrecta' 
+        });
+      }
 
-      // TODO: En producción, hash con bcrypt
-      // const hashedPassword = await bcrypt.hash(contrasenaNueva, 10);
+      // ✅ Hash de la nueva contraseña
+      const hashedPassword = await bcrypt.hash(contrasenaNueva, 10);
 
-      // Por ahora, solo registrar la actividad (no cambiar contraseña real)
+      // ✅ Actualizar contraseña en la BD
+      await prisma.usuarios.update({
+        where: { id_usuario: id },
+        data: { 
+          password_hash: hashedPassword,
+          updated_at: new Date()
+        }
+      });
+
+      // Registrar en logs
       await prisma.logs_actividad.create({
         data: {
           id_usuario: id,
@@ -231,7 +244,7 @@ const perfilController = {
         }
       });
 
-      console.log('✅ Contraseña actualizada');
+      console.log('✅ Contraseña actualizada con hash bcrypt');
 
       res.json({
         success: true,
