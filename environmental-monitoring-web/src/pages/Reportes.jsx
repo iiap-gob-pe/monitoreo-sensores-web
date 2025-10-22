@@ -707,48 +707,46 @@ export default function Reportes() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Reportes y Estadísticas</h1>
-          <p className="mt-1 text-sm text-gray-600">
-            Análisis detallado de datos ambientales y tendencias
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Reportes y Estadísticas</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-600">
+            Análisis detallado de datos ambientales
           </p>
         </div>
         
-        {/* Botón de Exportar con menú desplegable */}
-        <div className="relative">
+        <div className="relative w-full sm:w-auto">
           <button 
             onClick={() => setMenuExportarAbierto(!menuExportarAbierto)}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md"
+            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md text-sm sm:text-base"
           >
-            <ArrowDownTrayIcon className="w-5 h-5" />
-            <span>Exportar Reporte</span>
-            <ChevronDownIcon className="w-4 h-4" />
+            <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+            <span>Exportar</span>
+            <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4" />
           </button>
 
-          {/* Menú desplegable */}
           {menuExportarAbierto && (
-            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+            <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
               <button
                 onClick={exportarCSV}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2"
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 text-sm"
               >
                 <span>📄</span>
-                <span>Exportar como CSV</span>
+                <span>CSV</span>
               </button>
               <button
                 onClick={exportarExcel}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t border-gray-100"
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t text-sm"
               >
                 <span>📊</span>
-                <span>Exportar como Excel</span>
+                <span>Excel</span>
               </button>
               <button
                 onClick={exportarPDF}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t border-gray-100 rounded-b-lg"
+                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t rounded-b-lg text-sm"
               >
                 <span>📑</span>
-                <span>Exportar como PDF</span>
+                <span>PDF</span>
               </button>
             </div>
           )}

@@ -525,10 +525,10 @@ export default function Lecturas() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Historial de Lecturas</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Historial de Lecturas</h1>
+          <p className="mt-1 text-xs sm:text-sm text-gray-500">
             {pagination.total} registros encontrados
             {filtros.parametro && (
               <span className="ml-2 text-blue-600">
@@ -537,13 +537,14 @@ export default function Lecturas() {
             )}
           </p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
           <button
             onClick={exportarPaginaActual}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-            title="Exportar solo los datos visibles en esta página"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm"
+            title="Exportar solo los datos visibles"
           >
-            📄 Exportar Página
+            <span className="text-xs sm:text-base">📄</span>
+            <span className="text-xs sm:text-sm">Página</span>
             <span className="text-xs bg-blue-500 px-2 py-0.5 rounded">
               {lecturas.length}
             </span>
@@ -551,10 +552,10 @@ export default function Lecturas() {
           <button
             id="export-all-btn"
             onClick={exportarTodosDatos}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-            title="Exportar TODOS los datos (puede tardar si hay muchos registros)"
+            className="w-full sm:w-auto px-3 sm:px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2 text-sm"
           >
-            📥 Exportar Todos
+            <span className="text-xs sm:text-base">📥</span>
+            <span className="text-xs sm:text-sm">Todos</span>
             <span className="text-xs bg-green-500 px-2 py-0.5 rounded">
               {pagination.total}
             </span>

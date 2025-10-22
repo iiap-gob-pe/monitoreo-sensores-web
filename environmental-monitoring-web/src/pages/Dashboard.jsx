@@ -100,32 +100,33 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      {/* Hero Section */}
       <div className="text-center">
-        <h1 className="text-4xl font-bold text-gray-900">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900">
           Monitoreo Ambiental en Tiempo Real
         </h1>
-        <p className="mt-2 text-lg text-gray-600">
+        <p className="mt-2 text-base sm:text-lg text-gray-600">
           Sistema de sensores IoT - Región Loreto, Perú
         </p>
       </div>
 
       {/* ✅ Indicador de actualización mejorado */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center space-x-3 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-200">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <span className="text-sm text-gray-600">
-            {preferencias.intervaloActualizacion > 0 
-              ? `Actualizando cada ${preferencias.intervaloActualizacion} segundos`
-              : 'Actualización automática desactivada'
-            }
-          </span>
+      <div className="flex justify-center px-4">
+        <div className="inline-flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3 px-4 py-2 bg-white rounded-full shadow-sm border border-gray-200 text-center">
+          <div className="flex items-center space-x-2">
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs sm:text-sm text-gray-600">
+              {preferencias.intervaloActualizacion > 0 
+                ? `Actualizando cada ${preferencias.intervaloActualizacion}s`
+                : 'Actualización automática desactivada'
+              }
+            </span>
+          </div>
           {ultimaActualizacion && (
             <>
-              <span className="text-gray-300">|</span>
+              <span className="hidden sm:inline text-gray-300">|</span>
               <div className="flex items-center space-x-1 text-xs text-gray-500">
                 <ClockIcon className="w-3 h-3" />
-                <span>Última actualización: {formatearHora(ultimaActualizacion)}</span>
+                <span>Última: {formatearHora(ultimaActualizacion)}</span>
               </div>
             </>
           )}
@@ -206,17 +207,15 @@ export default function Dashboard() {
       {/* Últimas Lecturas con Filtros */}
       <div className="bg-white rounded-xl shadow-sm p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 space-y-4 sm:space-y-0">
-          <h2 className="text-xl font-semibold text-gray-900">Últimas Lecturas</h2>
+          <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Últimas Lecturas</h2>
           
-          {/* Filtros */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
-            {/* Filtro por tipo */}
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-3 sm:space-y-0 sm:space-x-4 w-full sm:w-auto">
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">Tipo:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Tipo:</label>
               <select 
                 value={tipoFiltro}
                 onChange={(e) => setTipoFiltro(e.target.value)}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="flex-1 sm:flex-none px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
               >
                 <option value="todos">Todos</option>
                 <option value="movil">Móviles</option>
@@ -224,13 +223,12 @@ export default function Dashboard() {
               </select>
             </div>
 
-            {/* Filtro por cantidad */}
             <div className="flex items-center space-x-2">
-              <label className="text-sm font-medium text-gray-700">Mostrar:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap">Mostrar:</label>
               <select 
                 value={limite}
                 onChange={(e) => setLimite(Number(e.target.value))}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+                className="flex-1 sm:flex-none px-3 py-2 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary"
               >
                 <option value={5}>Últimos 5</option>
                 <option value={10}>Últimos 10</option>
@@ -249,96 +247,87 @@ export default function Dashboard() {
           </span>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sensor</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Tipo</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Zona</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Temp/Hum</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">CO2/CO</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ubicación</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha/Hora</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {lecturasFiltradas.length > 0 ? (
-                lecturasFiltradas.map((lectura, index) => {
-                  const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
-                  return (
-                    <tr key={index} className="hover:bg-gray-50 transition-colors">
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {lectura.id_sensor}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {sensor?.is_movil ? (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                            Móvil
+        <div className="overflow-x-auto -mx-4 sm:mx-0">
+          <div className="inline-block min-w-full align-middle">
+            <div className="overflow-hidden">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Sensor</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tipo</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Zona</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Temp/Hum</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">CO2/CO</th>
+                    <th className="hidden md:table-cell px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ubicación</th>
+                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Fecha/Hora</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {lecturasFiltradas.map((lectura, index) => {
+                    const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
+                    return (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
+                          {lectura.id_sensor}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                          {sensor?.is_movil ? (
+                            <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full bg-purple-100 text-purple-800">
+                              Móvil
+                            </span>
+                          ) : (
+                            <span className="inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                              Fijo
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${
+                            lectura.zona === 'Urbana' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
+                          }`}>
+                            {lectura.zona}
                           </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
-                            Fijo
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          lectura.zona === 'Urbana' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                        }`}>
-                          {lectura.zona}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
-                          {lectura.co2_nivel || 'N/A'} ppm
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                        {lectura.latitud && lectura.longitud ? (
-                          <div>
-                            <div>{parseFloat(lectura.latitud).toFixed(4)}°</div>
-                            <div>{parseFloat(lectura.longitud).toFixed(4)}°</div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">
+                            {lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}
                           </div>
-                        ) : 'N/A'}
-                      </td>
-                      <td className="px-4 py-3 whitespace-nowrap">
-                        {/* ✅ Usar formato de fecha personalizado */}
-                        <div className="text-sm text-gray-900">
-                          {lectura.lectura_datetime 
-                            ? formatearFecha(lectura.lectura_datetime)
-                            : 'N/A'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {lectura.lectura_datetime 
-                            ? formatearHora(lectura.lectura_datetime)
-                            : 'N/A'}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              ) : (
-                <tr>
-                  <td colSpan="7" className="px-4 py-8 text-center text-gray-500">
-                    No hay lecturas que coincidan con los filtros seleccionados
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                          <div className="text-[10px] sm:text-xs text-gray-500">
+                            {lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">
+                            {lectura.co2_nivel || 'N/A'} ppm
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-gray-500">
+                            {lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}
+                          </div>
+                        </td>
+                        <td className="hidden md:table-cell px-2 sm:px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+                          {lectura.latitud && lectura.longitud ? (
+                            <div>
+                              <div>{parseFloat(lectura.latitud).toFixed(4)}°</div>
+                              <div>{parseFloat(lectura.longitud).toFixed(4)}°</div>
+                            </div>
+                          ) : 'N/A'}
+                        </td>
+                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
+                          <div className="text-xs sm:text-sm text-gray-900">
+                            {lectura.lectura_datetime ? formatearFecha(lectura.lectura_datetime) : 'N/A'}
+                          </div>
+                          <div className="text-[10px] sm:text-xs text-gray-500">
+                            {lectura.lectura_datetime ? formatearHora(lectura.lectura_datetime) : 'N/A'}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div> 
       </div>
     </div>
   );
