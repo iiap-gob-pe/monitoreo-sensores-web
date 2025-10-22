@@ -1,3 +1,4 @@
+// src/components/layout/Layout.jsx
 import Navbar from './Navbar';
 import Footer from './Footer';
 
