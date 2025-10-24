@@ -104,8 +104,27 @@ model logs_actividad {
   detalles       String?
   ip_address     String?   @db.VarChar(50)
   created_at     DateTime? @default(now()) @db.Timestamp(6)
-  usuario        usuarios? @relation(fields: [id_usuario], references: [id_usuario], onDelete: SetNull, onUpdate: NoAction) // ✅ Cambiar a SetNull
+  usuario        usuarios? @relation(fields: [id_usuario], references: [id_usuario], onUpdate: NoAction)
 
   @@index([created_at], map: "idx_logs_fecha")
   @@index([id_usuario], map: "idx_logs_usuario")
+}
+
+model recorridos_guardados {
+  id_recorrido     Int       @id @default(autoincrement())
+  id_sensor        String    @db.VarChar(50)
+  nombre_recorrido String    @db.VarChar(100)
+  fecha_recorrido  DateTime  @db.Date
+  hora_inicio      DateTime  @db.Timestamp(6)
+  hora_fin         DateTime  @db.Timestamp(6)
+  total_puntos     Int
+  distancia_km     Decimal?  @db.Decimal(10, 2)
+  duracion_minutos Int?
+  puntos_geojson   Json
+  metadata         Json?
+  created_at       DateTime? @default(now()) @db.Timestamp(6)
+  usuario_creo     String?   @db.VarChar(50)
+
+  @@index([id_sensor, fecha_recorrido], map: "idx_recorridos_sensor_fecha")
+  @@map("recorridos_guardados")
 }

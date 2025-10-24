@@ -28,4 +28,22 @@ export const alertasAPI = {
   resolver: (id) => api.patch(`/alertas/${id}/resolver`)
 };
 
+// ✅ Nueva API de Recorridos
+export const recorridosAPI = {
+  obtenerPorFecha: (id_sensor, fecha) => 
+    api.get('/recorridos/fecha', { params: { id_sensor, fecha } }),
+  
+  guardar: (data) => 
+    api.post('/recorridos/guardar', data),
+  
+  listar: (params) => 
+    api.get('/recorridos/lista', { params }),
+  
+  obtenerPorId: (id) => 
+    api.get(`/recorridos/${id}`),
+  
+  eliminar: (id) => 
+    api.delete(`/recorridos/${id}`)
+};
+
 export default api;
