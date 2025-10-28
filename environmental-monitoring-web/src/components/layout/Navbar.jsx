@@ -101,13 +101,6 @@ export default function Navbar() {
           <div className="hidden md:flex items-center space-x-3">
             {isAuthenticated ? (
               <>
-                {/* Notificaciones (placeholder) */}
-                <button className="relative p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg transition-all">
-                  <BellIcon className="w-6 h-6" />
-                  {/* Badge de notificaciones */}
-                  <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-                </button>
-
                 {/* Configuración (solo admin) */}
                 {isAdmin() && (
                   <Link 
@@ -142,7 +135,7 @@ export default function Navbar() {
                         {usuario?.email}
                       </p>
                       <span className="inline-block mt-2 px-3 py-1 text-xs font-semibold rounded-full bg-purple-100 text-purple-800">
-                        👑 Administrador
+                        Administrador
                       </span>
                     </div>
                     
