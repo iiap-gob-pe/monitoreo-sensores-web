@@ -29,17 +29,26 @@ export default function Alertas() {
   const [alertaSeleccionada, setAlertaSeleccionada] = useState(null);
 
   useEffect(() => {
-    cargarDatos();
-    // Auto-actualizar cada 30 segundos
-    const interval = setInterval(cargarDatos, 30000);
-    return () => clearInterval(interval);
+    cargarDatos(true);
   }, []);
 
-  const cargarDatos = async () => {
+  // Auto-refresh SOLO si no hay filtros
+  useEffect(() => {
+    const hayFiltros = busqueda || filtroEstado !== 'activas' || 
+                      filtroGravedad !== 'todos' || filtroSensor !== 'todos';
+    
+    if (hayFiltros) return; // No actualizar si hay filtros
+    
+    const interval = setInterval(() => cargarDatos(false), 3000);
+    return () => clearInterval(interval);
+  }, [busqueda, filtroEstado, filtroGravedad, filtroSensor]);
+
+  const cargarDatos = async (mostrarLoading = true) => {
     try {
-      setLoading(true);
+      if (mostrarLoading) setLoading(true);
+      
       const [alertasRes, sensoresRes] = await Promise.all([
-        alertasAPI.getAll(),
+        alertasAPI.getAll({limite: 1000000}),
         sensoresAPI.getAll()
       ]);
       
@@ -48,7 +57,7 @@ export default function Alertas() {
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
-      setLoading(false);
+      if (mostrarLoading) setLoading(false);
     }
   };
 

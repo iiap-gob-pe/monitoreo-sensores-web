@@ -10,7 +10,7 @@ const alertaController = {
         sensor_id,
         gravedad,
         resueltas,
-        limite = 50,
+        limite = 100000,
         pagina = 1
       } = req.query;
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 const defaultPreferencias = {
   zonaHoraria: 'America/Lima',
   formatoFecha: 'DD/MM/YYYY',
-  intervaloActualizacion: 30,
+  intervaloActualizacion: 3,
   registrosPorPagina: 20,
   mostrarGraficos: true,
   animacionesGraficos: true

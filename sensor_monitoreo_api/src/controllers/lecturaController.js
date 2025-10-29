@@ -205,7 +205,7 @@ const lecturaController = {
   // Obtener últimas N lecturas de todos los sensores
   obtenerUltimas: async (req, res) => {
     try {
-      const limite = parseInt(req.query.limite) || 100;
+      const limite = parseInt(req.query.limite) || 100000;
 
       const lecturas = await prisma.lecturas.findMany({
         include: {

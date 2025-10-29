@@ -14,11 +14,18 @@ const recorridosController = {
         });
       }
 
-      const fechaInicio = new Date(fecha);
-      fechaInicio.setHours(0, 0, 0, 0);
-      
-      const fechaFin = new Date(fecha);
-      fechaFin.setHours(23, 59, 59, 999);
+      // ✅ Parsear fecha sin zona horaria
+        const [year, month, day] = fecha.split('-').map(Number);
+
+        const fechaInicio = new Date(year, month - 1, day, 0, 0, 0, 0);
+        const fechaFin = new Date(year, month - 1, day, 23, 59, 59, 999);
+
+        console.log('📅 Buscando recorrido:', {
+          id_sensor,
+          fecha,
+          fechaInicio: fechaInicio.toISOString(),
+          fechaFin: fechaFin.toISOString()
+        });
 
       const lecturas = await prisma.lecturas.findMany({
         where: {
@@ -44,6 +51,12 @@ const recorridosController = {
           altitud: true
         }
       });
+
+      // ✅ ESTE LOG DEBE ESTAR AQUÍ
+        console.log(`📍 Lecturas encontradas para ${id_sensor}: ${lecturas.length}`);
+        if (lecturas.length > 0) {
+          console.log('Primera lectura:', lecturas[0]);
+        }
 
       if (lecturas.length === 0) {
         return res.json({

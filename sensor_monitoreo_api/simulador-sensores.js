@@ -5,7 +5,7 @@ const axios = require('axios');
 
 // Configuración
 const API_URL = 'http://localhost:3000/api/lecturas';
-const INTERVALO_ENVIO = 30000; // 30 segundos en milisegundos
+const INTERVALO_ENVIO = 3000; // 30 segundos en milisegundos
 
 // Definir sensores a simular (deben existir en la base de datos)
 const SENSORES = [

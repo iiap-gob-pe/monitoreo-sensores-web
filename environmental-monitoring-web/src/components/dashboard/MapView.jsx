@@ -95,6 +95,18 @@ export default function MapView({ lecturas, lecturasUnicas }) {
     }
   }, [tipoMapa, sensorRecorrido, fechaSeleccionada]);
 
+  //Autorefrescar cada 30 secs
+  useEffect(() => {
+  if (tipoMapa === 'recorridos' && fechaSeleccionada === new Date().toISOString().split('T')[0]) {
+    const interval = setInterval(() => {
+      console.log('🔄 Actualizando recorridos en tiempo real...');
+      cargarRecorridosFecha();
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }
+}, [tipoMapa, fechaSeleccionada, sensoresMoviles]);
+
   const cargarRecorridosFecha = async () => {
     try {
       if (sensorRecorrido === 'todos') {
@@ -838,7 +850,7 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
 
         {tipoMapa === 'recorridos' && (
           <div className="text-center text-sm text-gray-600">
-            <p className="font-medium">Recorridos del {new Date(fechaSeleccionada).toLocaleDateString('es-PE')}</p>
+            <p className="font-medium">Recorridos del {fechaSeleccionada.split('-').reverse().join('/')}</p>
             <p className="text-xs mt-1">
               {sensorRecorrido === 'todos' 
                 ? `Mostrando ${Object.keys(recorridosDia).length} sensores con recorrido`

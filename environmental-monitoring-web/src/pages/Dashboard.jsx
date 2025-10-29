@@ -19,28 +19,31 @@ export default function Dashboard() {
   const [limite, setLimite] = useState(5);
   const [tipoFiltro, setTipoFiltro] = useState('todos');
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null); // ✅ Tracking de actualización
+  const [actualizandoBackground, setActualizandoBackground] = useState(false);
 
   // ✅ Cargar datos inicial
   useEffect(() => {
-    fetchData();
+    fetchData(true);
   }, []);
 
   // ✅ Auto-refresh según preferencias
   useEffect(() => {
     if (preferencias.intervaloActualizacion > 0) {
       const interval = setInterval(() => {
-        fetchData();
-        console.log(`🔄 Dashboard actualizado automáticamente (cada ${preferencias.intervaloActualizacion}s)`);
+        fetchData(false); // Sin loading en background
       }, preferencias.intervaloActualizacion * 1000);
 
       return () => clearInterval(interval);
     }
   }, [preferencias.intervaloActualizacion]);
 
-  const fetchData = async () => {
+  const fetchData = async (mostrarLoading = true) => {
     try {
+      if (mostrarLoading) setLoading(true);
+      setActualizandoBackground(!mostrarLoading);
+      
       const [lecturasRes, alertasRes, sensoresRes] = await Promise.all([
-        lecturasAPI.getUltimas(10000),
+        lecturasAPI.getUltimas(1000000),
         alertasAPI.getActivas(),
         sensoresAPI.getAll(),
       ]);
@@ -48,11 +51,12 @@ export default function Dashboard() {
       setLecturas(lecturasRes.data.data || []);
       setAlertas(alertasRes.data.data || []);
       setSensores(sensoresRes.data.data || []);
-      setUltimaActualizacion(new Date()); // ✅ Registrar actualización
+      setUltimaActualizacion(new Date());
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
-      setLoading(false);
+      if (mostrarLoading) setLoading(false);
+      setActualizandoBackground(false);
     }
   };
 
@@ -244,6 +248,7 @@ export default function Dashboard() {
         <div className="mb-4">
           <span className="text-sm text-gray-500">
             Mostrando {lecturasFiltradas.length} de {lecturas.length} lecturas
+            {lecturas.length >= 1000000 && ' (límite alcanzado)'}
           </span>
         </div>
 

@@ -71,12 +71,36 @@ export default function Lecturas() {
 
   // ✅ Cargar lecturas cuando cambien los filtros
   useEffect(() => {
-    console.log('📡 Cargando lecturas con limit:', filtros.limit); // Debug
     fetchLecturas();
   }, [filtros]);
 
+  // ✅ Auto-refresh SOLO si no hay filtros activos
+  useEffect(() => {
+    const hayFiltrosActivos = filtros.id_sensor || filtros.parametro || 
+                            filtros.fecha_inicio || filtros.fecha_fin || 
+                            filtros.tipo_sensor;
+    
+    if (hayFiltrosActivos) {
+      return; // No hacer auto-refresh si hay filtros
+    }
+    const interval = setInterval(() => {
+      fetchLecturas();
+      console.log('🔄 Lecturas actualizadas automáticamente');
+    }, 3000);
+
+    return () => clearInterval(interval);
+  }, [filtros]);
+
   const fetchLecturas = async () => {
-    setLoading(true);
+    const hayFiltrosActivos = filtros.id_sensor || filtros.parametro || 
+                            filtros.fecha_inicio || filtros.fecha_fin || 
+                            filtros.tipo_sensor;
+    
+    if (!hayFiltrosActivos) {
+      // Solo mostrar loading en carga inicial o cuando NO hay filtros
+    } else {
+      setLoading(true);
+    }
     setError(null);
     try {
       const params = new URLSearchParams();

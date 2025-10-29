@@ -48,14 +48,19 @@ export default function Reportes() {
   const [fechaFin, setFechaFin] = useState('');
 
   useEffect(() => {
-    cargarDatos();
-    const interval = setInterval(cargarDatos, 30000);
+    cargarDatos(true);
+  }, []);
+
+  useEffect(() => {
+    if (tipoReporte === 'personalizado') return; // No actualizar en modo personalizado
+    
+    const interval = setInterval(() => cargarDatos(false), 3000);
     return () => clearInterval(interval);
   }, [tipoReporte, sensorSeleccionado, fechaInicio, fechaFin]);
 
-  const cargarDatos = async () => {
+  const cargarDatos = async (mostrarLoading = true) => {
     try {
-      setLoading(true);
+      if (mostrarLoading) setLoading(true);
       
       const { inicio, fin } = calcularRangoFechas();
       
@@ -63,7 +68,7 @@ export default function Reportes() {
         ...(sensorSeleccionado !== 'todos' && { sensor_id: sensorSeleccionado }),
         ...(inicio && { fecha_inicio: inicio }),
         ...(fin && { fecha_fin: fin }),
-        limite: 1000
+        limite: 1000000
       };
 
       const [lecturasRes, sensoresRes, alertasRes] = await Promise.all([
@@ -78,7 +83,7 @@ export default function Reportes() {
     } catch (error) {
       console.error('Error al cargar datos:', error);
     } finally {
-      setLoading(false);
+      if (mostrarLoading) setLoading(false);
     }
   };
 
