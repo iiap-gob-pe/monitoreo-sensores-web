@@ -98,9 +98,7 @@ export const AuthProvider = ({ children }) => {
   // ✅ Permisos que funcionan para público Y admin
   const permisos = {
     // Solo admin puede modificar
-    crearSensor: () => isAdmin(),
     editarSensor: () => isAdmin(),
-    eliminarSensor: () => isAdmin(),
     resolverAlertas: () => isAdmin(),
     configurarUmbrales: () => isAdmin(),
     gestionarUsuarios: () => isAdmin(),

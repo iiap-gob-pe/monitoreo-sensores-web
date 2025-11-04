@@ -22,27 +22,85 @@ const lecturaController = {
       if (!id_sensor) {
         return res.status(400).json({
           success: false,
-          message: 'Campo requerido: id_sensor'
+          message: 'El campo id_sensor es obligatorio'
         });
       }
 
-      // Verificar que el sensor existe
-      const sensor = await prisma.sensores.findUnique({
+      // 🆕 PASO 1: Verificar si el sensor existe
+      let sensor = await prisma.sensores.findUnique({
         where: { id_sensor }
       });
 
+      // 🆕 PASO 2: Si no existe, AUTO-REGISTRARLO
       if (!sensor) {
-        return res.status(404).json({
-          success: false,
-          message: `Sensor ${id_sensor} no encontrado`
-        });
+        console.log(`🆕 Nuevo sensor detectado: ${id_sensor} - Iniciando auto-registro...`);
+        
+        try {
+          sensor = await prisma.sensores.create({
+            data: {
+              id_sensor: id_sensor,
+              nombre_sensor: `Sensor ${id_sensor}`,
+              zona: zona || 'Urbana',
+              is_movil: true, // Por defecto móvil, se ajustará automáticamente
+              estado: 'Activo',
+              description: 'Sensor auto-registrado al enviar primera lectura',
+              last_seen: new Date()
+            }
+          });
+          
+          console.log(`✅ Sensor ${id_sensor} registrado exitosamente`);
+        } catch (createError) {
+          console.error(`❌ Error al auto-registrar sensor ${id_sensor}:`, createError);
+          return res.status(500).json({
+            success: false,
+            message: 'Error al registrar el nuevo sensor',
+            error: createError.message
+          });
+        }
+      } else {
+        // 🔄 PASO 3: Actualizar última conexión y detectar movilidad
+        try {
+          // Obtener últimas 5 lecturas del sensor para detectar movimiento
+          const ultimasLecturas = await prisma.lecturas.findMany({
+            where: { id_sensor },
+            orderBy: { lectura_datetime: 'desc' },
+            take: 5,
+            select: { latitud: true, longitud: true }
+          });
+
+          // Determinar si es móvil basado en variación de coordenadas
+          let esMovil = sensor.is_movil; // Mantener valor actual por defecto
+          
+          if (ultimasLecturas.length >= 3 && latitud && longitud) {
+            const coordenadasUnicas = new Set(
+              ultimasLecturas
+                .filter(l => l.latitud && l.longitud)
+                .map(l => `${l.latitud.toFixed(4)},${l.longitud.toFixed(4)}`)
+            );
+            
+            // Si hay más de 1 coordenada diferente (tolerancia de 4 decimales ≈ 11 metros)
+            esMovil = coordenadasUnicas.size > 1;
+            
+            console.log(`📍 Sensor ${id_sensor}: ${esMovil ? 'Móvil' : 'Fijo'} detectado (${coordenadasUnicas.size} ubicaciones)`);
+          }
+
+          await prisma.sensores.update({
+            where: { id_sensor },
+            data: { 
+              last_seen: new Date(),
+              estado: 'Activo',
+              is_movil: esMovil // Actualizar según movimiento detectado
+            }
+          });
+        } catch (updateError) {
+          console.error(`⚠️ Error al actualizar sensor ${id_sensor}:`, updateError);
+        }
       }
 
-      // Crear la lectura
+      // 📊 PASO 4: Insertar la lectura
       const nuevaLectura = await prisma.lecturas.create({
         data: {
           id_sensor,
-          lectura_datetime: new Date(),
           temperatura: temperatura ? parseFloat(temperatura) : null,
           humedad: humedad ? parseFloat(humedad) : null,
           co2_nivel: co2_nivel ? parseInt(co2_nivel) : null,
@@ -50,38 +108,30 @@ const lecturaController = {
           latitud: latitud ? parseFloat(latitud) : null,
           longitud: longitud ? parseFloat(longitud) : null,
           altitud: altitud ? parseFloat(altitud) : null,
-          zona: zona || sensor.zona
+          zona: zona || sensor.zona || 'Urbana',
+          lectura_datetime: new Date()
         }
       });
 
-      // Actualizar último visto del sensor
-      await prisma.sensores.update({
-        where: { id_sensor },
-        data: { last_seen: new Date() }
-      });
-
-      // Verificar umbrales y crear alertas si es necesario
-      await verificarUmbrales(id_sensor, {
-        temperatura,
-        humedad,
-        co2_nivel,
-        co_nivel
-      });
-
+      // ✅ Respuesta exitosa
       res.status(201).json({
         success: true,
-        message: 'Lectura guardada exitosamente',
-        data: {
-          id_lectura: nuevaLectura.id_lectura,
-          timestamp: nuevaLectura.lectura_datetime
+        message: sensor.created_at && (new Date() - new Date(sensor.created_at)) < 5000 
+          ? 'Nuevo sensor registrado y lectura guardada' 
+          : 'Lectura registrada exitosamente',
+        data: nuevaLectura,
+        sensor_info: {
+          id: sensor.id_sensor,
+          nombre: sensor.nombre_sensor,
+          es_nuevo: sensor.created_at && (new Date() - new Date(sensor.created_at)) < 5000
         }
       });
 
     } catch (error) {
-      console.error('Error al crear lectura:', error);
+      console.error('❌ Error en lecturasController.crear:', error);
       res.status(500).json({
         success: false,
-        message: 'Error interno del servidor',
+        message: 'Error interno del servidor al procesar la lectura',
         error: error.message
       });
     }

@@ -28,6 +28,7 @@ export default function Sensores() {
   const [filtroEstado, setFiltroEstado] = useState('todos');
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modalTipo, setModalTipo] = useState('');
+  const [sensoresRecientes, setSensoresRecientes] = useState([]);
   const [sensorSeleccionado, setSensorSeleccionado] = useState(null);
 
   useEffect(() => {
@@ -38,13 +39,37 @@ export default function Sensores() {
     try {
       setLoading(true);
       const response = await sensoresAPI.getAll();
-      setSensores(response.data.data || []);
+      const todosSensores = response.data.data || [];
+      setSensores(todosSensores);
+      
+      // 🆕 Filtrar sensores detectados en las últimas 24 horas
+      const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      const recientes = todosSensores.filter(s => 
+        new Date(s.created_at) > hace24h
+      );
+      setSensoresRecientes(recientes);
+      
     } catch (error) {
       console.error('Error al cargar sensores:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  // 🆕 Función para calcular tiempo transcurrido
+const calcularTiempoDesde = (fecha) => {
+  const ahora = new Date();
+  const entonces = new Date(fecha);
+  const diffMs = ahora - entonces;
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHoras = Math.floor(diffMins / 60);
+  const diffDias = Math.floor(diffHoras / 24);
+  
+  if (diffDias > 0) return `${diffDias} día${diffDias > 1 ? 's' : ''}`;
+  if (diffHoras > 0) return `${diffHoras} hora${diffHoras > 1 ? 's' : ''}`;
+  if (diffMins > 0) return `${diffMins} minuto${diffMins > 1 ? 's' : ''}`;
+  return 'recién';
+};
 
   // Filtrar sensores
   const sensoresFiltrados = sensores.filter(sensor => {
@@ -88,21 +113,24 @@ export default function Sensores() {
     setSensorSeleccionado(null);
   };
 
-  const handleEliminar = async (sensor) => {
-    // ✅ Verificar permisos antes de eliminar
-    if (!permisos.eliminarSensor()) {
-      alert('No tienes permisos para eliminar sensores');
+  const handleDesactivar = async (sensor) => {
+    // ✅ Verificar permisos antes de desactivar
+    if (!permisos.editarSensor()) {
+      alert('No tienes permisos para cambiar el estado de sensores');
       return;
     }
 
-    if (window.confirm(`¿Estás seguro de eliminar el sensor ${sensor.id_sensor}?`)) {
+    const nuevoEstado = sensor.estado === 'Activo' ? 'Inactivo' : 'Activo';
+    const accion = nuevoEstado === 'Inactivo' ? 'desactivar' : 'activar';
+
+    if (window.confirm(`¿Estás seguro de ${accion} el sensor ${sensor.id_sensor}?`)) {
       try {
-        await sensoresAPI.delete(sensor.id_sensor);
+        await sensoresAPI.update(sensor.id_sensor, { estado: nuevoEstado });
         cargarSensores();
-        alert('Sensor eliminado exitosamente');
+        alert(`Sensor ${accion === 'desactivar' ? 'desactivado' : 'activado'} exitosamente`);
       } catch (error) {
-        console.error('Error al eliminar sensor:', error);
-        alert('Error al eliminar el sensor');
+        console.error(`Error al ${accion} sensor:`, error);
+        alert(`Error al ${accion} el sensor`);
       }
     }
   };
@@ -130,21 +158,13 @@ export default function Sensores() {
           </p>
         </div>
         
-        {/* ✅ Botón Agregar solo para admin */}
-        {permisos.crearSensor() ? (
-          <button
-            onClick={() => abrirModal('crear')}
-            className="flex items-center space-x-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md"
-          >
-            <PlusIcon className="w-5 h-5" />
-            <span>Agregar Sensor</span>
-          </button>
-        ) : (
-          <div className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-500 rounded-lg">
-            <LockClosedIcon className="w-5 h-5" />
-            <span className="text-sm">Solo Lectura</span>
+        {/* 🆕 Mensaje informativo de auto-registro */}
+          <div className="flex items-center space-x-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg border border-blue-200">
+            <ServerIcon className="w-5 h-5" />
+            <span className="text-sm font-medium">
+              Los sensores se registran automáticamente al conectarse
+            </span>
           </div>
-        )}
       </div>
 
       {/* Tarjetas de Estadísticas */}
@@ -198,14 +218,68 @@ export default function Sensores() {
         </div>
       </div>
 
-      {/* ✅ Banner de permisos para analistas */}
-      {!permisos.crearSensor() && (
+      {/* ✅ Banner de permisos*/}
+      {!permisos.editarSensor() && (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex items-center">
             <LockClosedIcon className="w-5 h-5 text-blue-600 mr-2" />
             <p className="text-sm text-blue-800">
               <strong>Modo de solo lectura:</strong> Puedes ver todos los sensores pero no puedes crear, editar o eliminar.
             </p>
+          </div>
+        </div>
+      )}
+
+      {/* 🆕 Sensores Detectados Recientemente */}
+      {sensoresRecientes.length > 0 && (
+        <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-green-500 rounded-lg">
+                <ServerIcon className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-green-900 text-lg">
+                  🆕 Sensores Detectados Recientemente
+                </h3>
+                <p className="text-sm text-green-700">
+                  {sensoresRecientes.length} sensor{sensoresRecientes.length > 1 ? 'es' : ''} conectado{sensoresRecientes.length > 1 ? 's' : ''} en las últimas 24 horas
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {sensoresRecientes.map(sensor => (
+              <div 
+                key={sensor.id_sensor} 
+                className="bg-white p-4 rounded-lg shadow-sm hover:shadow-md transition-shadow border border-green-100"
+              >
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="font-semibold text-gray-900">{sensor.id_sensor}</p>
+                    <p className="text-xs text-gray-500">{sensor.nombre_sensor}</p>
+                  </div>
+                  <span className="px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                    Nuevo
+                  </span>
+                </div>
+                
+                <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
+                  <span className="text-xs text-gray-500">
+                    🕐 Conectado hace {calcularTiempoDesde(sensor.created_at)}
+                  </span>
+                  {permisos.editarSensor() && (
+                    <button 
+                      onClick={() => abrirModal('editar', sensor)}
+                      className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline"
+                    >
+                      Configurar →
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -384,14 +458,26 @@ export default function Sensores() {
                           </button>
                         )}
                         
-                        {/* ✅ Eliminar - Solo admin */}
-                        {permisos.eliminarSensor() ? (
+                        {/* ✅ Desactivar/Activar - Solo admin */}
+                        {permisos.editarSensor() ? (
                           <button
-                            onClick={() => handleEliminar(sensor)}
-                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition"
-                            title="Eliminar"
+                            onClick={() => handleDesactivar(sensor)}
+                            className={`p-1 rounded transition ${
+                              sensor.estado === 'Activo'
+                                ? 'text-red-600 hover:text-red-900 hover:bg-red-50'
+                                : 'text-green-600 hover:text-green-900 hover:bg-green-50'
+                            }`}
+                            title={sensor.estado === 'Activo' ? 'Desactivar' : 'Activar'}
                           >
-                            <TrashIcon className="w-5 h-5" />
+                            {sensor.estado === 'Activo' ? (
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                              </svg>
+                            ) : (
+                              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                            )}
                           </button>
                         ) : (
                           <button
@@ -419,13 +505,6 @@ export default function Sensores() {
       </div>
 
       {/* Modales */}
-      {modalAbierto && modalTipo === 'crear' && permisos.crearSensor() && (
-        <ModalCrearSensor 
-          onClose={cerrarModal} 
-          onSuccess={cargarSensores} 
-        />
-      )}
-      
       {modalAbierto && modalTipo === 'editar' && sensorSeleccionado && permisos.editarSensor() && (
         <ModalEditarSensor 
           sensor={sensorSeleccionado}
@@ -444,131 +523,7 @@ export default function Sensores() {
   );
 }
 
-// Componente Modal Crear Sensor (sin cambios, ya está bien)
-function ModalCrearSensor({ onClose, onSuccess }) {
-  const [formData, setFormData] = useState({
-    id_sensor: '',
-    nombre_sensor: '',
-    zona: 'Urbana',
-    is_movil: false,
-    description: ''
-  });
-  const [guardando, setGuardando] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setGuardando(true);
-    
-    try {
-      await sensoresAPI.create(formData);
-      alert('Sensor creado exitosamente');
-      onSuccess();
-      onClose();
-    } catch (error) {
-      console.error('Error al crear sensor:', error);
-      alert('Error al crear el sensor');
-    } finally {
-      setGuardando(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="p-6">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Agregar Nuevo Sensor</h2>
-          
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                ID del Sensor *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.id_sensor}
-                onChange={(e) => setFormData({...formData, id_sensor: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="Ej: SENSOR_005"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Nombre del Sensor *
-              </label>
-              <input
-                type="text"
-                required
-                value={formData.nombre_sensor}
-                onChange={(e) => setFormData({...formData, nombre_sensor: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="Ej: Sensor Cinco"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Zona *
-              </label>
-              <select
-                value={formData.zona}
-                onChange={(e) => setFormData({...formData, zona: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-              >
-                <option value="Urbana">Urbana</option>
-                <option value="Rural">Rural</option>
-              </select>
-            </div>
-
-            <div className="flex items-center">
-              <input
-                type="checkbox"
-                id="is_movil"
-                checked={formData.is_movil}
-                onChange={(e) => setFormData({...formData, is_movil: e.target.checked})}
-                className="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
-              />
-              <label htmlFor="is_movil" className="ml-2 block text-sm text-gray-700">
-                Sensor Móvil
-              </label>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Descripción
-              </label>
-              <textarea
-                value={formData.description}
-                onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={3}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
-                placeholder="Descripción opcional del sensor"
-              />
-            </div>
-
-            <div className="flex space-x-3 pt-4">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                disabled={guardando}
-                className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition disabled:opacity-50"
-              >
-                {guardando ? 'Guardando...' : 'Crear Sensor'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // Los componentes ModalEditarSensor y ModalVerSensor quedan igual, no necesitan cambios
 // (El resto del código es idéntico al original)
