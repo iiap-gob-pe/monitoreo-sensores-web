@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle, Polygon } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import { 
@@ -34,34 +34,8 @@ const createCustomIcon = (color) => {
 const fijoIcon = createCustomIcon('#3B82F6');
 const movilIcon = createCustomIcon('#8B5CF6');
 
-const zonasPoligonos = {
-  urbana: {
-    nombre: 'Zona Urbana',
-    color: '#3B82F6',
-    fillColor: '#3B82F6',
-    coordenadas: [
-      [-3.7450, -73.2600],
-      [-3.7450, -73.2480],
-      [-3.7530, -73.2480],
-      [-3.7530, -73.2600]
-    ],
-    descripcion: 'Área urbana de Iquitos'
-  },
-  rural: {
-    nombre: 'Zona Rural',
-    color: '#10B981',
-    fillColor: '#10B981',
-    coordenadas: [
-      [-3.7200, -73.3100],
-      [-3.7200, -73.2900],
-      [-3.7400, -73.2900],
-      [-3.7400, -73.3100]
-    ],
-    descripcion: 'Área rural con vegetación'
-  }
-};
 
-export default function MapView({ lecturas, lecturasUnicas }) {
+export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
   const [tipoMapa, setTipoMapa] = useState('sensores');
   const center = [-3.7491, -73.2538];
 
@@ -77,8 +51,28 @@ export default function MapView({ lecturas, lecturasUnicas }) {
   const [modalGuardar, setModalGuardar] = useState(false);
   const [modalListado, setModalListado] = useState(false); // ✅ Nuevo modal para ver guardados
   const [nombreRecorrido, setNombreRecorrido] = useState('');
+  const [fechasConLecturas, setFechasConLecturas] = useState([]); // ✅ Fechas disponibles
+  const [fechasPorSensor, setFechasPorSensor] = useState({}); // ✅ Fechas por cada sensor
+  const [mesActual, setMesActual] = useState(new Date().getMonth());
+  const [anioActual, setAnioActual] = useState(new Date().getFullYear());
+  const [calendarioAbierto, setCalendarioAbierto] = useState(false);
+  const calendarioRef = useRef(null);
 
-  // Obtener sensores móviles
+  // Cerrar calendario al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (calendarioRef.current && !calendarioRef.current.contains(event.target)) {
+        setCalendarioAbierto(false);
+      }
+    };
+
+    if (calendarioAbierto) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [calendarioAbierto]);
+
+  // Obtener sensores móviles y fechas con lecturas
   useEffect(() => {
     const moviles = [...new Set(
       lecturas
@@ -86,7 +80,41 @@ export default function MapView({ lecturas, lecturasUnicas }) {
         .map(l => l.id_sensor)
     )];
     setSensoresMoviles(moviles);
+
+    // ✅ Calcular fechas únicas con lecturas (TODOS los sensores para mapas de calor)
+    const fechasUnicas = [...new Set(
+      lecturas
+        .filter(l => l.latitud && l.longitud && l.lectura_datetime)
+        .map(l => new Date(l.lectura_datetime).toISOString().split('T')[0])
+    )].sort().reverse(); // Más reciente primero
+
+    setFechasConLecturas(fechasUnicas);
+
+    // ✅ Calcular fechas por cada sensor (TODOS los sensores)
+    const todosSensores = [...new Set(lecturas.map(l => l.id_sensor))];
+    const fechasPorSensorObj = {};
+    todosSensores.forEach(sensorId => {
+      const fechasSensor = [...new Set(
+        lecturas
+          .filter(l => l.id_sensor === sensorId && l.latitud && l.longitud && l.lectura_datetime)
+          .map(l => new Date(l.lectura_datetime).toISOString().split('T')[0])
+      )].sort().reverse();
+      fechasPorSensorObj[sensorId] = fechasSensor;
+    });
+
+    setFechasPorSensor(fechasPorSensorObj);
   }, [lecturas]);
+
+  // ✅ Notificar al padre cuando cambien los filtros
+  useEffect(() => {
+    if (onFilterChange) {
+      onFilterChange({
+        tipoMapa,
+        fechaSeleccionada,
+        sensorRecorrido
+      });
+    }
+  }, [tipoMapa, fechaSeleccionada, sensorRecorrido, onFilterChange]);
 
   // Cargar recorrido por fecha
   useEffect(() => {
@@ -282,22 +310,46 @@ export default function MapView({ lecturas, lecturasUnicas }) {
     return 50 + (co * 15);
   };
 
+  // ✅ Función para agrupar lecturas por sensor y calcular promedios
+  const agruparLecturasPorSensor = (lecturasFiltradas, campo) => {
+    const grupos = {};
+
+    lecturasFiltradas.forEach(lectura => {
+      if (lectura.latitud && lectura.longitud && lectura[campo]) {
+        if (!grupos[lectura.id_sensor]) {
+          grupos[lectura.id_sensor] = {
+            id_sensor: lectura.id_sensor,
+            lecturas: [],
+            latitudes: [],
+            longitudes: []
+          };
+        }
+        grupos[lectura.id_sensor].lecturas.push(parseFloat(lectura[campo]));
+        grupos[lectura.id_sensor].latitudes.push(parseFloat(lectura.latitud));
+        grupos[lectura.id_sensor].longitudes.push(parseFloat(lectura.longitud));
+      }
+    });
+
+    // Calcular promedios
+    return Object.values(grupos).map(grupo => ({
+      id_sensor: grupo.id_sensor,
+      [campo]: grupo.lecturas.reduce((a, b) => a + b, 0) / grupo.lecturas.length,
+      latitud: grupo.latitudes.reduce((a, b) => a + b, 0) / grupo.latitudes.length,
+      longitud: grupo.longitudes.reduce((a, b) => a + b, 0) / grupo.longitudes.length,
+      cantidad_lecturas: grupo.lecturas.length
+    }));
+  };
+
   const coloresRecorrido = ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#F97316'];
 
   const tiposMapa = [
     { id: 'sensores', nombre: 'Sensores', icono: MapPinIcon },
-    { id: 'recorridos', nombre: 'Recorridos', icono: CalendarIcon },
-    { id: 'calor-temp', nombre: 'Temp', icono: FireIcon },
+    { id: 'recorridos', nombre: 'Lecturas Móviles', icono: CalendarIcon },
+    { id: 'calor-temp', nombre: 'Temperatura', icono: FireIcon },
     { id: 'calor-co2', nombre: 'CO₂', icono: CloudIcon },
-    { id: 'calor-co', nombre: 'CO', icono: ExclamationTriangleIcon },
-    { id: 'zonas', nombre: 'Zonas', icono: MapIcon }
+    { id: 'calor-co', nombre: 'CO', icono: ExclamationTriangleIcon }
   ];
 
-  const contarSensoresPorZona = () => {
-    const urbanos = lecturasUnicas.filter(l => l.zona === 'Urbana').length;
-    const rurales = lecturasUnicas.filter(l => l.zona === 'Rural').length;
-    return { urbanos, rurales };
-  };
 
   // ✅ Visualizar recorrido guardado en el mapa
   const visualizarRecorrido = async (recorrido) => {
@@ -449,121 +501,10 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
         </div>
       </div>
 
-      {/* ✅ Controles de Recorridos Diarios */}
-      {tipoMapa === 'recorridos' && (
-        <div className="mb-4 p-4 bg-purple-50 rounded-lg border border-purple-200">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Sensor
-              </label>
-              <select
-                value={sensorRecorrido}
-                onChange={(e) => setSensorRecorrido(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="todos">🔍 Todos los sensores</option>
-                {sensoresMoviles.map(id => (
-                  <option key={id} value={id}>{id}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha del Recorrido
-              </label>
-              <input
-                type="date"
-                value={fechaSeleccionada}
-                onChange={(e) => setFechaSeleccionada(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              />
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={() => setModalGuardar(true)}
-                disabled={Object.keys(recorridosDia).length === 0 || sensorRecorrido === 'todos'}
-                className="w-full px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2"
-                title={sensorRecorrido === 'todos' ? 'Selecciona un sensor específico' : ''}
-              >
-                <BookmarkIcon className="w-5 h-5" />
-                <span>Guardar</span>
-              </button>
-            </div>
-
-            <div className="flex items-end">
-              <button
-                onClick={() => setModalListado(true)}
-                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2"
-              >
-                <BookmarkIcon className="w-5 h-5" />
-                <span>Ver Guardados ({recorridosGuardados.length})</span>
-              </button>
-            </div>
-          </div>
-
-          {metadataRecorrido && (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm">
-              {sensorRecorrido === 'todos' ? (
-                <>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {metadataRecorrido.total_sensores}
-                    </div>
-                    <div className="text-gray-600">Sensores</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {metadataRecorrido.total_puntos}
-                    </div>
-                    <div className="text-gray-600">Puntos Total</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {metadataRecorrido.distancia_km} km
-                    </div>
-                    <div className="text-gray-600">Distancia Total</div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-2xl font-bold text-purple-600">
-                      {metadataRecorrido.total_puntos}
-                    </div>
-                    <div className="text-gray-600">Puntos</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">
-                      {metadataRecorrido.distancia_km} km
-                    </div>
-                    <div className="text-gray-600">Distancia</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">
-                      {metadataRecorrido.duracion_minutos} min
-                    </div>
-                    <div className="text-gray-600">Duración</div>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg">
-                    <div className="text-xs text-gray-600 mt-1">
-                      {new Date(metadataRecorrido.hora_inicio).toLocaleTimeString('es-PE', {hour: '2-digit', minute: '2-digit'})}
-                      {' - '}
-                      {new Date(metadataRecorrido.hora_fin).toLocaleTimeString('es-PE', {hour: '2-digit', minute: '2-digit'})}
-                    </div>
-                    <div className="text-gray-600">Horario</div>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      )}
-
-      <div className="h-[500px] rounded-lg overflow-hidden border border-gray-200">
+      {/* ✅ Mapa y Filtros lado a lado */}
+      <div className={`grid ${tipoMapa !== 'sensores' ? 'grid-cols-1 lg:grid-cols-[1fr_300px]' : 'grid-cols-1'} gap-4`}>
+        {/* Mapa */}
+        <div className="h-[500px] rounded-lg overflow-hidden border border-gray-200">
         <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -594,6 +535,17 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                         <p><span className="text-gray-600">Temp:</span> <span className="font-medium">{lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}</span></p>
                         <p><span className="text-gray-600">Humedad:</span> <span className="font-medium">{lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}</span></p>
                         <p><span className="text-gray-600">CO₂:</span> <span className="font-medium">{lectura.co2_nivel ? `${lectura.co2_nivel} ppm` : 'N/A'}</span></p>
+                        {lectura.lectura_datetime && (
+                          <p className="text-xs text-gray-500 mt-2 pt-2 border-t">
+                            {new Date(lectura.lectura_datetime).toLocaleString('es-PE', {
+                              day: '2-digit',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        )}
                       </div>
                     </div>
                   </Popup>
@@ -633,7 +585,15 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                     <div className="p-2">
                       <h3 className="font-bold" style={{color}}>{sensorId}</h3>
                       <p className="text-sm font-medium">Inicio</p>
-                      <p className="text-xs">{new Date(puntos[0].lectura_datetime).toLocaleTimeString('es-PE')}</p>
+                      <p className="text-xs text-gray-600">
+                        {new Date(puntos[0].lectura_datetime).toLocaleString('es-PE', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
                     </div>
                   </Popup>
                 </Marker>
@@ -652,7 +612,15 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                     <div className="p-2">
                       <h3 className="font-bold" style={{color}}>{sensorId}</h3>
                       <p className="text-sm font-medium">Fin</p>
-                      <p className="text-xs">{new Date(puntos[puntos.length - 1].lectura_datetime).toLocaleTimeString('es-PE')}</p>
+                      <p className="text-xs text-gray-600">
+                        {new Date(puntos[puntos.length - 1].lectura_datetime).toLocaleString('es-PE', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </p>
                     </div>
                   </Popup>
                 </Marker>
@@ -661,14 +629,27 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
           })}
 
           {/* MAPAS DE CALOR */}
-          {tipoMapa === 'calor-temp' && lecturasUnicas.map((lectura, index) => {
-            if (lectura.latitud && lectura.longitud && lectura.temperatura) {
-              const color = getColorByTemp(parseFloat(lectura.temperatura));
-              const radius = getRadiusByTemp(parseFloat(lectura.temperatura));
-              
+          {tipoMapa === 'calor-temp' && (() => {
+            // Filtrar lecturas por fecha y sensor
+            const lecturasFiltradas = lecturas.filter(lectura => {
+              const fechaLectura = lectura.lectura_datetime
+                ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
+                : null;
+              const cumpleFecha = fechaLectura === fechaSeleccionada;
+              const cumpleSensor = sensorRecorrido === 'todos' || lectura.id_sensor === sensorRecorrido;
+              return cumpleFecha && cumpleSensor;
+            });
+
+            // Agrupar por sensor y calcular promedios
+            const lecturasAgrupadas = agruparLecturasPorSensor(lecturasFiltradas, 'temperatura');
+
+            return lecturasAgrupadas.map((lectura, index) => {
+              const color = getColorByTemp(lectura.temperatura);
+              const radius = getRadiusByTemp(lectura.temperatura);
+
               return (
                 <Circle
-                  key={`calor-temp-${index}`}
+                  key={`calor-temp-${lectura.id_sensor}`}
                   center={[lectura.latitud, lectura.longitud]}
                   radius={radius}
                   pathOptions={{
@@ -683,25 +664,47 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                     <div className="p-2">
                       <h3 className="font-bold">{lectura.id_sensor}</h3>
                       <p className="text-lg font-bold" style={{ color: color }}>
-                        {parseFloat(lectura.temperatura).toFixed(1)}°C
+                        {lectura.temperatura.toFixed(1)}°C
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Promedio de {lectura.cantidad_lecturas} lecturas
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1 pt-1 border-t">
+                        {new Date(fechaSeleccionada + 'T12:00:00').toLocaleDateString('es-PE', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
                       </p>
                     </div>
                   </Popup>
                 </Circle>
               );
-            }
-            return null;
-          })}
+            });
+          })()}
 
-          {tipoMapa === 'calor-co2' && lecturasUnicas.map((lectura, index) => {
-            if (lectura.latitud && lectura.longitud && lectura.co2_nivel) {
-              const co2Value = parseInt(lectura.co2_nivel);
+          {tipoMapa === 'calor-co2' && (() => {
+            // Filtrar lecturas por fecha y sensor
+            const lecturasFiltradas = lecturas.filter(lectura => {
+              const fechaLectura = lectura.lectura_datetime
+                ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
+                : null;
+              const cumpleFecha = fechaLectura === fechaSeleccionada;
+              const cumpleSensor = sensorRecorrido === 'todos' || lectura.id_sensor === sensorRecorrido;
+              return cumpleFecha && cumpleSensor;
+            });
+
+            // Agrupar por sensor y calcular promedios
+            const lecturasAgrupadas = agruparLecturasPorSensor(lecturasFiltradas, 'co2_nivel');
+
+            return lecturasAgrupadas.map((lectura) => {
+              const co2Value = Math.round(lectura.co2_nivel);
               const color = getColorByCO2(co2Value);
               const radius = getRadiusByCO2(co2Value);
-              
+
               return (
                 <Circle
-                  key={`calor-co2-${index}`}
+                  key={`calor-co2-${lectura.id_sensor}`}
                   center={[lectura.latitud, lectura.longitud]}
                   radius={radius}
                   pathOptions={{
@@ -718,23 +721,45 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                       <p className="text-lg font-bold" style={{ color: color }}>
                         {co2Value} ppm
                       </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Promedio de {lectura.cantidad_lecturas} lecturas
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1 pt-1 border-t">
+                        {new Date(fechaSeleccionada + 'T12:00:00').toLocaleDateString('es-PE', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </p>
                     </div>
                   </Popup>
                 </Circle>
               );
-            }
-            return null;
-          })}
+            });
+          })()}
 
-          {tipoMapa === 'calor-co' && lecturasUnicas.map((lectura, index) => {
-            if (lectura.latitud && lectura.longitud && lectura.co_nivel) {
-              const coValue = parseFloat(lectura.co_nivel);
+          {tipoMapa === 'calor-co' && (() => {
+            // Filtrar lecturas por fecha y sensor
+            const lecturasFiltradas = lecturas.filter(lectura => {
+              const fechaLectura = lectura.lectura_datetime
+                ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
+                : null;
+              const cumpleFecha = fechaLectura === fechaSeleccionada;
+              const cumpleSensor = sensorRecorrido === 'todos' || lectura.id_sensor === sensorRecorrido;
+              return cumpleFecha && cumpleSensor;
+            });
+
+            // Agrupar por sensor y calcular promedios
+            const lecturasAgrupadas = agruparLecturasPorSensor(lecturasFiltradas, 'co_nivel');
+
+            return lecturasAgrupadas.map((lectura) => {
+              const coValue = lectura.co_nivel;
               const color = getColorByCO(coValue);
               const radius = getRadiusByCO(coValue);
-              
+
               return (
                 <Circle
-                  key={`calor-co-${index}`}
+                  key={`calor-co-${lectura.id_sensor}`}
                   center={[lectura.latitud, lectura.longitud]}
                   radius={radius}
                   pathOptions={{
@@ -751,87 +776,314 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                       <p className="text-lg font-bold" style={{ color: color }}>
                         {coValue.toFixed(1)} ppm
                       </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        Promedio de {lectura.cantidad_lecturas} lecturas
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1 pt-1 border-t">
+                        {new Date(fechaSeleccionada + 'T12:00:00').toLocaleDateString('es-PE', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        })}
+                      </p>
                     </div>
                   </Popup>
                 </Circle>
               );
-            }
-            return null;
-          })}
+            });
+          })()}
 
-          {/* ZONAS */}
-          {tipoMapa === 'zonas' && (
-            <>
-              <Polygon
-                positions={zonasPoligonos.urbana.coordenadas}
-                pathOptions={{
-                  color: zonasPoligonos.urbana.color,
-                  fillColor: zonasPoligonos.urbana.fillColor,
-                  fillOpacity: 0.2,
-                  weight: 3
-                }}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <h3 className="font-bold text-blue-700">{zonasPoligonos.urbana.nombre}</h3>
-                    <p className="text-sm mt-1">{zonasPoligonos.urbana.descripcion}</p>
-                    <p className="text-xs text-gray-600 mt-2">
-                      Sensores activos: {contarSensoresPorZona().urbanos}
-                    </p>
-                  </div>
-                </Popup>
-              </Polygon>
-
-              <Polygon
-                positions={zonasPoligonos.rural.coordenadas}
-                pathOptions={{
-                  color: zonasPoligonos.rural.color,
-                  fillColor: zonasPoligonos.rural.fillColor,
-                  fillOpacity: 0.2,
-                  weight: 3
-                }}
-              >
-                <Popup>
-                  <div className="p-2">
-                    <h3 className="font-bold text-green-700">{zonasPoligonos.rural.nombre}</h3>
-                    <p className="text-sm mt-1">{zonasPoligonos.rural.descripcion}</p>
-                    <p className="text-xs text-gray-600 mt-2">
-                      Sensores activos: {contarSensoresPorZona().rurales}
-                    </p>
-                  </div>
-                </Popup>
-              </Polygon>
-
-              {lecturasUnicas.map((lectura, index) => {
-                if (lectura.latitud && lectura.longitud) {
-                  const icon = lectura.is_movil ? movilIcon : fijoIcon;
-                  return (
-                    <Marker 
-                      key={`zona-sensor-${index}`} 
-                      position={[lectura.latitud, lectura.longitud]}
-                      icon={icon}
-                    >
-                      <Popup>
-                        <div className="p-2">
-                          <h3 className="font-bold">{lectura.id_sensor}</h3>
-                          <p className="text-sm">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              lectura.zona === 'Urbana' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                            }`}>
-                              {lectura.zona}
-                            </span>
-                          </p>
-                        </div>
-                      </Popup>
-                    </Marker>
-                  );
-                }
-                return null;
-              })}
-            </>
-          )}
         </MapContainer>
+        </div>
+
+        {/* ✅ Panel de Filtros Lateral */}
+        {tipoMapa !== 'sensores' && (
+          <div className="space-y-4">
+            {/* Filtro de Sensor - Para todos los tipos de mapa */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                {tipoMapa === 'recorridos' ? 'Sensor Móvil' : 'Sensor'}
+              </label>
+              <select
+                value={sensorRecorrido}
+                onChange={(e) => {
+                  setSensorRecorrido(e.target.value);
+                  // Si selecciona un sensor específico, ajustar fecha si no tiene lecturas
+                  if (e.target.value !== 'todos') {
+                    const fechasSensor = fechasPorSensor[e.target.value] || [];
+                    if (!fechasSensor.includes(fechaSeleccionada)) {
+                      setFechaSeleccionada(fechasSensor[0] || new Date().toISOString().split('T')[0]);
+                    }
+                  }
+                }}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary text-sm"
+              >
+                <option value="todos">
+                  {tipoMapa === 'recorridos' ? '🌐 Todos los sensores móviles' : '🌐 Todos los sensores'}
+                </option>
+                {tipoMapa === 'recorridos' ? (
+                  sensoresMoviles.map(id => (
+                    <option key={id} value={id}>{id}</option>
+                  ))
+                ) : (
+                  lecturasUnicas.map(l => (
+                    <option key={l.id_sensor} value={l.id_sensor}>{l.id_sensor}</option>
+                  ))
+                )}
+              </select>
+              <p className="mt-2 text-xs text-gray-500">
+                {sensorRecorrido === 'todos'
+                  ? tipoMapa === 'recorridos'
+                    ? `${sensoresMoviles.length} sensores móviles`
+                    : `${lecturasUnicas.length} sensores`
+                  : 'Sensor seleccionado'}
+              </p>
+            </div>
+
+            {/* Filtro de Fecha - Calendario Desplegable */}
+            <div ref={calendarioRef} className="bg-white rounded-lg border border-gray-200 p-4 relative">
+              <label className="block text-sm font-semibold text-gray-700 mb-3">
+                Fecha
+              </label>
+
+              {/* Selector de Fecha (Desplegable) */}
+              <button
+                onClick={() => setCalendarioAbierto(!calendarioAbierto)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary text-sm text-left flex items-center justify-between hover:bg-gray-50 transition"
+              >
+                <span className="font-medium text-gray-900">
+                  {new Date(fechaSeleccionada + 'T12:00:00').toLocaleDateString('es-PE', {
+                    day: '2-digit',
+                    month: 'long',
+                    year: 'numeric'
+                  })}
+                </span>
+                <svg
+                  className={`w-5 h-5 text-gray-400 transition-transform ${calendarioAbierto ? 'rotate-180' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+
+              {/* Calendario Desplegable */}
+              {calendarioAbierto && (() => {
+                const fechasDisponibles = sensorRecorrido === 'todos'
+                  ? fechasConLecturas
+                  : (fechasPorSensor[sensorRecorrido] || []);
+
+                const hoy = new Date();
+
+                // Obtener días del mes
+                const primerDia = new Date(anioActual, mesActual, 1);
+                const ultimoDia = new Date(anioActual, mesActual + 1, 0);
+                const diasEnMes = ultimoDia.getDate();
+                const primerDiaSemana = primerDia.getDay(); // 0 = Domingo
+
+                const dias = [];
+                for (let i = 0; i < primerDiaSemana; i++) {
+                  dias.push(null); // Días vacíos antes del primer día
+                }
+                for (let i = 1; i <= diasEnMes; i++) {
+                  dias.push(i);
+                }
+
+                const meses = [
+                  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+                  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+                ];
+
+                const cambiarMes = (direccion) => {
+                  let nuevoMes = mesActual + direccion;
+                  let nuevoAnio = anioActual;
+
+                  if (nuevoMes > 11) {
+                    nuevoMes = 0;
+                    nuevoAnio++;
+                  } else if (nuevoMes < 0) {
+                    nuevoMes = 11;
+                    nuevoAnio--;
+                  }
+
+                  setMesActual(nuevoMes);
+                  setAnioActual(nuevoAnio);
+                };
+
+                return (
+                  <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg border border-gray-300 shadow-xl z-50 p-4">
+                    {/* Header del Calendario */}
+                    <div className="flex items-center justify-between mb-3">
+                      <button
+                        onClick={() => cambiarMes(-1)}
+                        className="p-1 hover:bg-gray-100 rounded transition"
+                      >
+                        <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                        </svg>
+                      </button>
+
+                      <div className="text-center">
+                        <div className="font-semibold text-gray-900">{meses[mesActual]}</div>
+                        <div className="text-xs text-gray-500">{anioActual}</div>
+                      </div>
+
+                      <button
+                        onClick={() => cambiarMes(1)}
+                        disabled={anioActual === hoy.getFullYear() && mesActual === hoy.getMonth()}
+                        className="p-1 hover:bg-gray-100 rounded transition disabled:opacity-30 disabled:cursor-not-allowed"
+                      >
+                        <svg className="w-5 h-5 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Días de la Semana */}
+                    <div className="grid grid-cols-7 gap-1 mb-2">
+                      {['D', 'L', 'M', 'M', 'J', 'V', 'S'].map((dia, idx) => (
+                        <div key={idx} className="text-center text-xs font-semibold text-gray-500 py-1">
+                          {dia}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Grid de Días */}
+                    <div className="grid grid-cols-7 gap-1">
+                      {dias.map((dia, idx) => {
+                        if (!dia) {
+                          return <div key={`empty-${idx}`} className="aspect-square" />;
+                        }
+
+                        const fecha = `${anioActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+                        const tieneLecturas = fechasDisponibles.includes(fecha);
+                        const esSeleccionada = fecha === fechaSeleccionada;
+                        const esHoy = fecha === hoy.toISOString().split('T')[0];
+                        const esFuturo = new Date(fecha) > hoy;
+
+                        return (
+                          <button
+                            key={dia}
+                            onClick={() => {
+                              if (tieneLecturas && !esFuturo) {
+                                setFechaSeleccionada(fecha);
+                                setCalendarioAbierto(false); // Cerrar al seleccionar
+                              }
+                            }}
+                            disabled={!tieneLecturas || esFuturo}
+                            className={`aspect-square rounded-lg text-sm font-medium transition-all relative ${
+                              esSeleccionada
+                                ? 'bg-primary text-white shadow-lg scale-105'
+                                : esFuturo
+                                ? 'bg-gray-50 text-gray-300 cursor-not-allowed'
+                                : tieneLecturas
+                                ? 'bg-green-50 text-gray-900 hover:bg-green-100 hover:scale-105'
+                                : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {dia}
+                            {esHoy && !esSeleccionada && (
+                              <div className="absolute bottom-0.5 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-primary rounded-full" />
+                            )}
+                            {tieneLecturas && !esFuturo && !esSeleccionada && (
+                              <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-green-500 rounded-full" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Leyenda */}
+                    <div className="mt-3 pt-3 border-t space-y-1 text-xs">
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-green-50 border border-green-200 rounded"></div>
+                        <span className="text-gray-600">Con lecturas</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-primary rounded"></div>
+                        <span className="text-gray-600">Seleccionado</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <div className="w-3 h-3 bg-gray-50 rounded"></div>
+                        <span className="text-gray-600">Sin datos</span>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Estadísticas del Recorrido */}
+            {metadataRecorrido && (
+              <div className="bg-purple-50 rounded-lg border border-purple-200 p-4">
+                <h4 className="text-sm font-semibold text-gray-900 mb-3">Estadísticas</h4>
+                <div className="space-y-2 text-sm">
+                  {sensorRecorrido === 'todos' ? (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Sensores:</span>
+                        <span className="font-semibold text-purple-600">{metadataRecorrido.total_sensores}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Puntos:</span>
+                        <span className="font-semibold text-blue-600">{metadataRecorrido.total_puntos}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Distancia:</span>
+                        <span className="font-semibold text-green-600">{metadataRecorrido.distancia_km} km</span>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Puntos:</span>
+                        <span className="font-semibold text-purple-600">{metadataRecorrido.total_puntos}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Distancia:</span>
+                        <span className="font-semibold text-blue-600">{metadataRecorrido.distancia_km} km</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Duración:</span>
+                        <span className="font-semibold text-green-600">{metadataRecorrido.duracion_minutos} min</span>
+                      </div>
+                      <div className="pt-2 border-t border-purple-200 text-xs text-gray-600">
+                        {new Date(metadataRecorrido.hora_inicio).toLocaleTimeString('es-PE', {hour: '2-digit', minute: '2-digit'})}
+                        {' - '}
+                        {new Date(metadataRecorrido.hora_fin).toLocaleTimeString('es-PE', {hour: '2-digit', minute: '2-digit'})}
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
+      {/* Botones de Guardar Recorrido (Debajo del mapa) */}
+      {tipoMapa === 'recorridos' && (
+        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+          <button
+            onClick={() => setModalGuardar(true)}
+            disabled={Object.keys(recorridosDia).length === 0 || sensorRecorrido === 'todos'}
+            className="px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center space-x-2 font-medium transition-all"
+            title={sensorRecorrido === 'todos' ? 'Selecciona un sensor específico para guardar' : ''}
+          >
+            <BookmarkIcon className="w-5 h-5" />
+            <span>Guardar Recorrido</span>
+          </button>
+
+          <button
+            onClick={() => setModalListado(true)}
+            className="px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center space-x-2 font-medium transition-all"
+          >
+            <BookmarkIcon className="w-5 h-5" />
+            <span>Ver Guardados ({recorridosGuardados.length})</span>
+          </button>
+        </div>
+      )}
 
       {/* Leyendas */}
       <div className="mt-4 p-4 bg-gray-50 rounded-lg">
@@ -850,11 +1102,11 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
 
         {tipoMapa === 'recorridos' && (
           <div className="text-center text-sm text-gray-600">
-            <p className="font-medium">Recorridos del {fechaSeleccionada.split('-').reverse().join('/')}</p>
+            <p className="font-medium">Lecturas Móviles del {fechaSeleccionada.split('-').reverse().join('/')}</p>
             <p className="text-xs mt-1">
-              {sensorRecorrido === 'todos' 
-                ? `Mostrando ${Object.keys(recorridosDia).length} sensores con recorrido`
-                : 'Selecciona "Todos" para ver múltiples sensores'
+              {sensorRecorrido === 'todos'
+                ? `Mostrando ${Object.keys(recorridosDia).length} sensores móviles`
+                : `Visualizando sensor: ${sensorRecorrido}`
               }
             </p>
           </div>
@@ -944,27 +1196,6 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
           </div>
         )}
 
-        {tipoMapa === 'zonas' && (
-          <div>
-            <p className="text-sm font-medium text-gray-700 mb-2 text-center">Delimitación de Zonas</p>
-            <div className="flex items-center justify-center space-x-6 text-xs">
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-4 border-2" style={{ borderColor: '#3B82F6', backgroundColor: 'rgba(59, 130, 246, 0.2)' }}></div>
-                <div>
-                  <span className="font-medium text-blue-700">Zona Urbana</span>
-                  <span className="text-gray-600 ml-2">({contarSensoresPorZona().urbanos} sensores)</span>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-6 h-4 border-2" style={{ borderColor: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.2)' }}></div>
-                <div>
-                  <span className="font-medium text-green-700">Zona Rural</span>
-                  <span className="text-gray-600 ml-2">({contarSensoresPorZona().rurales} sensores)</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* ✅ Modal para Guardar Recorrido - CON Z-INDEX ALTO */}
@@ -1151,14 +1382,34 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
       <div className="mt-2 text-center text-xs text-gray-500">
         {tipoMapa === 'sensores' && `${lecturasUnicas.filter(l => l.latitud && l.longitud).length} sensores visibles`}
         {tipoMapa === 'recorridos' && Object.keys(recorridosDia).length > 0 && (
-          sensorRecorrido === 'todos' 
-            ? `${Object.keys(recorridosDia).length} sensores con recorrido` 
-            : `${recorridosDia[sensorRecorrido]?.length || 0} puntos del recorrido`
+          sensorRecorrido === 'todos'
+            ? `${Object.keys(recorridosDia).length} sensores con lecturas móviles`
+            : `${recorridosDia[sensorRecorrido]?.length || 0} puntos de lectura`
         )}
-        {tipoMapa === 'calor-temp' && `${lecturasUnicas.filter(l => l.latitud && l.longitud && l.temperatura).length} puntos de temperatura`}
-        {tipoMapa === 'calor-co2' && `${lecturasUnicas.filter(l => l.latitud && l.longitud && l.co2_nivel).length} puntos de CO₂`}
-        {tipoMapa === 'calor-co' && `${lecturasUnicas.filter(l => l.latitud && l.longitud && l.co_nivel).length} puntos de CO`}
-        {tipoMapa === 'zonas' && `${lecturasUnicas.length} sensores distribuidos en ${Object.keys(zonasPoligonos).length} zonas`}
+        {tipoMapa === 'calor-temp' && (() => {
+          const lecturasFiltradas = lecturas.filter(l => {
+            const fechaLectura = l.lectura_datetime ? new Date(l.lectura_datetime).toISOString().split('T')[0] : null;
+            return fechaLectura === fechaSeleccionada && l.latitud && l.longitud && l.temperatura && (sensorRecorrido === 'todos' || l.id_sensor === sensorRecorrido);
+          });
+          const sensoresUnicos = new Set(lecturasFiltradas.map(l => l.id_sensor));
+          return `${sensoresUnicos.size} sensor(es) con temperatura`;
+        })()}
+        {tipoMapa === 'calor-co2' && (() => {
+          const lecturasFiltradas = lecturas.filter(l => {
+            const fechaLectura = l.lectura_datetime ? new Date(l.lectura_datetime).toISOString().split('T')[0] : null;
+            return fechaLectura === fechaSeleccionada && l.latitud && l.longitud && l.co2_nivel && (sensorRecorrido === 'todos' || l.id_sensor === sensorRecorrido);
+          });
+          const sensoresUnicos = new Set(lecturasFiltradas.map(l => l.id_sensor));
+          return `${sensoresUnicos.size} sensor(es) con CO₂`;
+        })()}
+        {tipoMapa === 'calor-co' && (() => {
+          const lecturasFiltradas = lecturas.filter(l => {
+            const fechaLectura = l.lectura_datetime ? new Date(l.lectura_datetime).toISOString().split('T')[0] : null;
+            return fechaLectura === fechaSeleccionada && l.latitud && l.longitud && l.co_nivel && (sensorRecorrido === 'todos' || l.id_sensor === sensorRecorrido);
+          });
+          const sensoresUnicos = new Set(lecturasFiltradas.map(l => l.id_sensor));
+          return `${sensoresUnicos.size} sensor(es) con CO`;
+        })()}
       </div>
     </div>
   );

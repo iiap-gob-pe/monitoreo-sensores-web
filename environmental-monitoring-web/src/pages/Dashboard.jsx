@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
 import { lecturasAPI, alertasAPI, sensoresAPI } from '../services/api';
 import { usePreferencias } from '../hooks/usePreferencias'; // ✅ Importar hook
-import { 
-  ServerIcon, 
-  ExclamationTriangleIcon, 
-  FireIcon, 
-  CheckCircleIcon,
+import {
+  ServerIcon,
+  ExclamationTriangleIcon,
+  FireIcon,
+  CloudIcon,
   ClockIcon
 } from '@heroicons/react/24/outline';
 import MapView from '../components/dashboard/MapView';
@@ -20,6 +20,13 @@ export default function Dashboard() {
   const [tipoFiltro, setTipoFiltro] = useState('todos');
   const [ultimaActualizacion, setUltimaActualizacion] = useState(null); // ✅ Tracking de actualización
   const [actualizandoBackground, setActualizandoBackground] = useState(false);
+
+  // ✅ Estados para filtros del mapa
+  const [filtrosMapa, setFiltrosMapa] = useState({
+    tipoMapa: 'sensores',
+    fechaSeleccionada: new Date().toISOString().split('T')[0],
+    sensorRecorrido: 'todos'
+  });
 
   // ✅ Cargar datos inicial
   useEffect(() => {
@@ -60,8 +67,8 @@ export default function Dashboard() {
     }
   };
 
-  // Calcular lecturas filtradas
-  const lecturasFiltradas = lecturas
+  // Calcular lecturas filtradas para la tabla
+  const lecturasTabla = lecturas
     .filter(lectura => {
       if (tipoFiltro === 'todos') return true;
       const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
@@ -96,10 +103,46 @@ export default function Dashboard() {
     );
   }
 
-  const sensoresActivos = sensores.filter(s => s.estado === 'Activo').length;
+  // ✅ Filtrar lecturas según los filtros del mapa
+  const lecturasFiltradas = (() => {
+    // Si estamos en vista de sensores (tiempo real), usar todas las lecturas
+    if (filtrosMapa.tipoMapa === 'sensores') {
+      return lecturas;
+    }
+
+    // Para otros tipos de mapa, filtrar por fecha y sensor
+    return lecturas.filter(lectura => {
+      const fechaLectura = lectura.lectura_datetime
+        ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
+        : null;
+      const cumpleFecha = fechaLectura === filtrosMapa.fechaSeleccionada;
+      const cumpleSensor = filtrosMapa.sensorRecorrido === 'todos' || lectura.id_sensor === filtrosMapa.sensorRecorrido;
+      return cumpleFecha && cumpleSensor;
+    });
+  })();
+
+  // ✅ Calcular sensores únicos en las lecturas filtradas
+  const sensoresEnFiltro = new Set(lecturasFiltradas.map(l => l.id_sensor));
+  const sensoresActivosTotal = sensores.filter(s => s.estado === 'Activo').length;
+
+  // Mostrar sensores activos según filtro
+  const sensoresActivos = filtrosMapa.tipoMapa === 'sensores'
+    ? sensoresActivosTotal
+    : sensoresEnFiltro.size;
+
   const alertasActivas = alertas.length;
-  const temperaturaPromedio = lecturas.length > 0 
-    ? (lecturas.reduce((sum, l) => sum + (parseFloat(l.temperatura) || 0), 0) / lecturas.length).toFixed(1)
+
+  // ✅ Calcular promedios con lecturas filtradas
+  const temperaturaPromedio = lecturasFiltradas.length > 0
+    ? (lecturasFiltradas.reduce((sum, l) => sum + (parseFloat(l.temperatura) || 0), 0) / lecturasFiltradas.length).toFixed(1)
+    : 0;
+
+  const co2Promedio = lecturasFiltradas.length > 0
+    ? Math.round(lecturasFiltradas.reduce((sum, l) => sum + (parseFloat(l.co2_nivel) || 0), 0) / lecturasFiltradas.length)
+    : 0;
+
+  const humedadPromedio = lecturasFiltradas.length > 0
+    ? (lecturasFiltradas.reduce((sum, l) => sum + (parseFloat(l.humedad) || 0), 0) / lecturasFiltradas.length).toFixed(1)
     : 0;
 
   return (
@@ -142,11 +185,19 @@ export default function Dashboard() {
         {/* Sensores Activos */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <div className="text-sm font-medium text-gray-600">Sensores Activos</div>
               <div className="mt-2 text-3xl font-bold text-gray-900">
-                {sensoresActivos}/{sensores.length}
+                {filtrosMapa.tipoMapa === 'sensores'
+                  ? `${sensoresActivos}/${sensores.length}`
+                  : sensoresActivos
+                }
               </div>
+              {filtrosMapa.tipoMapa !== 'sensores' && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Filtrado por {filtrosMapa.sensorRecorrido === 'todos' ? 'fecha' : 'sensor y fecha'}
+                </p>
+              )}
             </div>
             <div className="p-3 bg-primary bg-opacity-10 rounded-lg">
               <ServerIcon className="w-8 h-8 text-primary" />
@@ -172,11 +223,16 @@ export default function Dashboard() {
         {/* Temperatura */}
         <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-secondary hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex-1">
               <div className="text-sm font-medium text-gray-600">Temp. Promedio</div>
               <div className="mt-2 text-3xl font-bold text-gray-900">
                 {temperaturaPromedio}°C
               </div>
+              {filtrosMapa.tipoMapa !== 'sensores' && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Filtrado por {filtrosMapa.sensorRecorrido === 'todos' ? 'fecha' : 'sensor y fecha'}
+                </p>
+              )}
             </div>
             <div className="p-3 bg-secondary bg-opacity-10 rounded-lg">
               <FireIcon className="w-8 h-8 text-secondary" />
@@ -184,17 +240,22 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* Calidad */}
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-primary hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
+        {/* CO₂ Promedio */}
+        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500 hover:shadow-lg hover:-translate-y-1 transition-all duration-300">
           <div className="flex items-center justify-between">
-            <div>
-              <div className="text-sm font-medium text-gray-600">Calidad del Aire</div>
-              <div className="mt-2 text-3xl font-bold text-primary">
-                BUENA
+            <div className="flex-1">
+              <div className="text-sm font-medium text-gray-600">CO₂ Promedio</div>
+              <div className="mt-2 text-3xl font-bold text-gray-900">
+                {co2Promedio} <span className="text-lg">ppm</span>
               </div>
+              {filtrosMapa.tipoMapa !== 'sensores' && (
+                <p className="text-xs text-blue-600 mt-1">
+                  Filtrado por {filtrosMapa.sensorRecorrido === 'todos' ? 'fecha' : 'sensor y fecha'}
+                </p>
+              )}
             </div>
-            <div className="p-3 bg-primary bg-opacity-10 rounded-lg">
-              <CheckCircleIcon className="w-8 h-8 text-primary" />
+            <div className="p-3 bg-blue-100 rounded-lg">
+              <CloudIcon className="w-8 h-8 text-blue-500" />
             </div>
           </div>
         </div>
@@ -202,9 +263,10 @@ export default function Dashboard() {
         
       {/* ✅ Mapa - Solo mostrar si está habilitado en preferencias */}
       {preferencias.mostrarGraficos && (
-        <MapView 
-          lecturas={lecturas} 
-          lecturasUnicas={lecturasUnicasPorSensor} 
+        <MapView
+          lecturas={lecturas}
+          lecturasUnicas={lecturasUnicasPorSensor}
+          onFilterChange={setFiltrosMapa}
         />
       )}
 
@@ -247,7 +309,7 @@ export default function Dashboard() {
         {/* Contador de resultados */}
         <div className="mb-4">
           <span className="text-sm text-gray-500">
-            Mostrando {lecturasFiltradas.length} de {lecturas.length} lecturas
+            Mostrando {lecturasTabla.length} de {lecturas.length} lecturas
             {lecturas.length >= 1000000 && ' (límite alcanzado)'}
           </span>
         </div>
@@ -268,7 +330,7 @@ export default function Dashboard() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {lecturasFiltradas.map((lectura, index) => {
+                  {lecturasTabla.map((lectura, index) => {
                     const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
                     return (
                       <tr key={index} className="hover:bg-gray-50">
