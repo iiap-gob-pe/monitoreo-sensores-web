@@ -148,8 +148,7 @@ const sensorController = {
           ...(zona && { zona }),
           ...(is_movil !== undefined && { is_movil }),
           ...(description !== undefined && { description }),
-          ...(estado && { estado }),
-          updated_at: new Date()
+          ...(estado && { estado })
         }
       });
 
