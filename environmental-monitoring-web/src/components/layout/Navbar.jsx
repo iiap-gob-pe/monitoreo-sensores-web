@@ -1,13 +1,12 @@
 // src/components/layout/Navbar.jsx
 import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Cog6ToothIcon, 
+import {
+  Cog6ToothIcon,
   ArrowRightOnRectangleIcon,
   UserCircleIcon,
   Bars3Icon,
-  XMarkIcon,
-  BellIcon
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.svg'; // ✅ Import del logo
@@ -172,13 +171,7 @@ export default function Navbar() {
           </div>
 
           {/* Menú Hamburguesa Mobile */}
-          <div className="md:hidden flex items-center space-x-2">
-            {isAuthenticated && (
-              <button className="relative p-2 text-gray-600">
-                <BellIcon className="w-6 h-6" />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
-              </button>
-            )}
+          <div className="md:hidden flex items-center">
             <button
               onClick={toggleMenuMovil}
               className="p-2 text-gray-600 hover:text-primary hover:bg-gray-100 rounded-lg transition-all"
@@ -198,19 +191,19 @@ export default function Navbar() {
         <div className="md:hidden border-t border-gray-200 bg-white">
           <div className="px-4 py-4 space-y-2">
             <Link to="/" className={mobileLinkClass('/')} onClick={toggleMenuMovil}>
-              📊 Dashboard
+              Dashboard
             </Link>
             <Link to="/sensores" className={mobileLinkClass('/sensores')} onClick={toggleMenuMovil}>
-              📡 Sensores
+              Sensores
             </Link>
             <Link to="/lecturas" className={mobileLinkClass('/lecturas')} onClick={toggleMenuMovil}>
-              📈 Lecturas
+              Lecturas
             </Link>
             <Link to="/alertas" className={mobileLinkClass('/alertas')} onClick={toggleMenuMovil}>
-              🚨 Alertas
+              Alertas
             </Link>
             <Link to="/reportes" className={mobileLinkClass('/reportes')} onClick={toggleMenuMovil}>
-              📄 Reportes
+              Reportes
             </Link>
 
             {isAuthenticated ? (
@@ -218,17 +211,17 @@ export default function Navbar() {
                 <div className="border-t border-gray-200 my-3"></div>
                 {isAdmin() && (
                   <Link to="/configuracion" className={mobileLinkClass('/configuracion')} onClick={toggleMenuMovil}>
-                    ⚙️ Configuración
+                    Configuración
                   </Link>
                 )}
                 <Link to="/perfil" className={mobileLinkClass('/perfil')} onClick={toggleMenuMovil}>
-                  👤 Mi Perfil
+                    Mi Perfil
                 </Link>
                 <button
                   onClick={handleLogout}
                   className="w-full text-left px-4 py-3 text-base text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                 >
-                  🚪 Cerrar Sesión
+                  Cerrar Sesión
                 </button>
               </>
             ) : (

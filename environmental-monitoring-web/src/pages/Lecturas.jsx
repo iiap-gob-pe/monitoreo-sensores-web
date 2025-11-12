@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { usePreferencias } from '../hooks/usePreferencias';
+import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 export default function Lecturas() {
   const { preferencias, formatearFechaHora, formatearFecha, formatearHora } = usePreferencias();
@@ -45,6 +46,13 @@ export default function Lecturas() {
     totalPages: 0
   });
 
+  // Estados para calendarios inteligentes
+  const [fechasConLecturas, setFechasConLecturas] = useState([]);
+  const [calendarioInicioAbierto, setCalendarioInicioAbierto] = useState(false);
+  const [calendarioFinAbierto, setCalendarioFinAbierto] = useState(false);
+  const calendarioInicioRef = useRef(null);
+  const calendarioFinRef = useRef(null);
+
   console.log('📌 Filtros inicializados con limit:', filtros.limit); // Debug
 
   // Cargar sensores para el filtro
@@ -68,6 +76,45 @@ export default function Lecturas() {
     };
     fetchSensores();
   }, []);
+
+  // Cargar fechas con lecturas disponibles
+  useEffect(() => {
+    const cargarFechasDisponibles = async () => {
+      try {
+        const response = await fetch('http://localhost:3000/api/lecturas?limite=1000000');
+        const result = await response.json();
+
+        if (result.success && Array.isArray(result.data)) {
+          const fechasUnicas = [...new Set(
+            result.data
+              .filter(l => l.lectura_datetime)
+              .map(l => new Date(l.lectura_datetime).toISOString().split('T')[0])
+          )].sort().reverse();
+          setFechasConLecturas(fechasUnicas);
+        }
+      } catch (error) {
+        console.error('Error al cargar fechas disponibles:', error);
+      }
+    };
+    cargarFechasDisponibles();
+  }, []);
+
+  // Click outside handlers para calendarios
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (calendarioInicioRef.current && !calendarioInicioRef.current.contains(event.target)) {
+        setCalendarioInicioAbierto(false);
+      }
+      if (calendarioFinRef.current && !calendarioFinRef.current.contains(event.target)) {
+        setCalendarioFinAbierto(false);
+      }
+    };
+
+    if (calendarioInicioAbierto || calendarioFinAbierto) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [calendarioInicioAbierto, calendarioFinAbierto]);
 
   // ✅ Cargar lecturas cuando cambien los filtros
   useEffect(() => {
@@ -211,8 +258,8 @@ export default function Lecturas() {
     }
 
     const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.join(','))
+      headers.join(';'),
+      ...rows.map(row => row.join(';'))
     ].join('\n');
 
     const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -290,8 +337,8 @@ export default function Lecturas() {
       }
 
       const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.join(','))
+        headers.join(';'),
+        ...rows.map(row => row.join(';'))
       ].join('\n');
 
       const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -342,6 +389,130 @@ export default function Lecturas() {
       default:
         return 'text-gray-900';
     }
+  };
+
+  // Función para renderizar calendario inteligente
+  const renderCalendario = (tipo) => {
+    const setFecha = tipo === 'inicio' ?
+      (fecha) => setFiltros(prev => ({ ...prev, fecha_inicio: fecha, page: 1 })) :
+      (fecha) => setFiltros(prev => ({ ...prev, fecha_fin: fecha, page: 1 }));
+
+    const setCalendarioAbierto = tipo === 'inicio' ? setCalendarioInicioAbierto : setCalendarioFinAbierto;
+
+    const mesActual = new Date().getMonth();
+    const anioActual = new Date().getFullYear();
+
+    const primerDia = new Date(anioActual, mesActual, 1);
+    const ultimoDia = new Date(anioActual, mesActual + 1, 0);
+    const diasEnMes = ultimoDia.getDate();
+    const primerDiaSemana = primerDia.getDay();
+
+    const nombreMes = primerDia.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
+    const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    const seleccionarFecha = (dia) => {
+      const fechaStr = `${anioActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+
+      if (fechasConLecturas.includes(fechaStr)) {
+        // Si es fecha inicio: T00:00:00
+        // Si es fecha fin: T23:59:59 para incluir todo el día
+        const fechaCompleta = tipo === 'inicio'
+          ? fechaStr + 'T00:00:00'
+          : fechaStr + 'T23:59:59';
+
+        setFecha(fechaCompleta);
+        setCalendarioAbierto(false);
+      }
+    };
+
+    const renderDias = () => {
+      const dias = [];
+      const hoy = new Date().toISOString().split('T')[0];
+
+      // Obtener fechas de inicio y fin sin hora para comparación
+      const fechaInicioComparacion = filtros.fecha_inicio
+        ? new Date(filtros.fecha_inicio).toISOString().split('T')[0]
+        : null;
+
+      const fechaFinComparacion = filtros.fecha_fin
+        ? new Date(filtros.fecha_fin).toISOString().split('T')[0]
+        : null;
+
+      for (let i = 0; i < primerDiaSemana; i++) {
+        dias.push(<div key={`empty-${i}`} className="h-10"></div>);
+      }
+
+      for (let dia = 1; dia <= diasEnMes; dia++) {
+        const fechaStr = `${anioActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+        const tieneLecturas = fechasConLecturas.includes(fechaStr);
+        const esHoy = fechaStr === hoy;
+        const esFuturo = new Date(fechaStr) > new Date();
+
+        // Validaciones de rangos de fechas
+        // Si es calendario de fin, deshabilitar fechas anteriores a fecha inicio
+        const esAnteriorAInicio = tipo === 'fin' && fechaInicioComparacion && fechaStr < fechaInicioComparacion;
+
+        // Si es calendario de inicio, deshabilitar fechas posteriores a fecha fin
+        const esPosteriorAFin = tipo === 'inicio' && fechaFinComparacion && fechaStr > fechaFinComparacion;
+
+        const estaDeshabilitado = !tieneLecturas || esFuturo || esAnteriorAInicio || esPosteriorAFin;
+
+        dias.push(
+          <button
+            key={dia}
+            onClick={() => !estaDeshabilitado && seleccionarFecha(dia)}
+            disabled={estaDeshabilitado}
+            className={`
+              h-10 rounded-lg font-medium text-sm transition-all duration-200 relative
+              ${tieneLecturas && !esFuturo && !esAnteriorAInicio && !esPosteriorAFin
+                ? 'bg-green-50 text-green-700 hover:bg-green-100 hover:scale-110 cursor-pointer border-2 border-green-200'
+                : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+              }
+              ${esHoy ? 'ring-2 ring-blue-400' : ''}
+              ${esAnteriorAInicio || esPosteriorAFin ? 'opacity-40' : ''}
+            `}
+          >
+            {dia}
+            {tieneLecturas && !esFuturo && (
+              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full"></div>
+            )}
+          </button>
+        );
+      }
+
+      return dias;
+    };
+
+    return (
+      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border-2 border-gray-200 shadow-2xl z-50 p-4">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-900 capitalize">{nombreMes}</h3>
+        </div>
+
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {diasSemana.map(dia => (
+            <div key={dia} className="text-center text-xs font-semibold text-gray-500 py-1">
+              {dia}
+            </div>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-7 gap-1">
+          {renderDias()}
+        </div>
+
+        <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-center space-x-4 text-xs">
+          <div className="flex items-center space-x-1">
+            <div className="w-3 h-3 bg-green-100 border-2 border-green-200 rounded"></div>
+            <span className="text-gray-600">Con datos</span>
+          </div>
+          <div className="flex items-center space-x-1">
+            <div className="w-3 h-3 bg-gray-50 border-2 border-gray-200 rounded"></div>
+            <span className="text-gray-600">Sin datos</span>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Función para renderizar columnas según parámetro seleccionado
@@ -587,138 +758,190 @@ export default function Lecturas() {
         </div>
       </div>
 
-      {/* Panel de Filtros */}
-      <div className="bg-white p-6 rounded-lg shadow">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Filtros</h2>
+      {/* Panel de Filtros Modernos */}
+      <div className="bg-gradient-to-br from-white to-gray-50 p-6 rounded-2xl shadow-lg border border-gray-100">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            Filtros Avanzados
+          </h2>
           <button
             onClick={limpiarFiltros}
-            className="text-sm text-blue-600 hover:text-blue-800"
+            className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
           >
-            Limpiar filtros
+            Limpiar Filtros
           </button>
         </div>
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {/* Filtro de Sensor */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
               Sensor
             </label>
-            <select
-              name="id_sensor"
-              value={filtros.id_sensor}
-              onChange={handleFiltroChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los sensores</option>
-              {Array.isArray(sensores) && sensores.length > 0 ? (
-                sensores.map(sensor => (
-                  <option key={sensor.id_sensor} value={sensor.id_sensor}>
-                    {sensor.id_sensor} - {sensor.nombre_sensor}
-                  </option>
-                ))
-              ) : (
-                <option key="no-sensores" disabled>No hay sensores disponibles</option>
-              )}
-            </select>
+            <div className="relative">
+              <select
+                name="id_sensor"
+                value={filtros.id_sensor}
+                onChange={handleFiltroChange}
+                className="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 appearance-none bg-white hover:border-gray-300 font-medium text-gray-900"
+              >
+                <option value="">Todos los sensores</option>
+                {Array.isArray(sensores) && sensores.length > 0 ? (
+                  sensores.map(sensor => (
+                    <option key={sensor.id_sensor} value={sensor.id_sensor}>
+                      {sensor.id_sensor} - {sensor.nombre_sensor}
+                    </option>
+                  ))
+                ) : (
+                  <option disabled>No hay sensores disponibles</option>
+                )}
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
           {/* Filtro de Parámetro */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
               Parámetro
             </label>
-            <select
-              name="parametro"
-              value={filtros.parametro}
-              onChange={handleFiltroChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Todos los parámetros</option>
-              <option value="temperatura">Temperatura</option>
-              <option value="humedad">Humedad</option>
-              <option value="co2">CO₂</option>
-              <option value="co">CO</option>
-            </select>
+            <div className="relative">
+              <select
+                name="parametro"
+                value={filtros.parametro}
+                onChange={handleFiltroChange}
+                className="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 appearance-none bg-white hover:border-gray-300 font-medium text-gray-900"
+              >
+                <option value="">Todos los parámetros</option>
+                <option value="temperatura">Temperatura</option>
+                <option value="humedad">Humedad</option>
+                <option value="co2">CO₂</option>
+                <option value="co">CO</option>
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
           </div>
 
           {/* Filtro de Tipo de Sensor */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
               Tipo de Sensor
             </label>
-            <select
-              name="tipo_sensor"
-              value={filtros.tipo_sensor}
-              onChange={handleFiltroChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            <div className="relative">
+              <select
+                name="tipo_sensor"
+                value={filtros.tipo_sensor}
+                onChange={handleFiltroChange}
+                className="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 appearance-none bg-white hover:border-gray-300 font-medium text-gray-900"
+              >
+                <option value="">Todos</option>
+                <option value="movil">Móvil</option>
+                <option value="estacionario">Fijo</option>
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Filtro de Registros por página */}
+          <div className="space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Registros por Página
+            </label>
+            <div className="relative">
+              <select
+                name="limit"
+                value={filtros.limit}
+                onChange={handleFiltroChange}
+                className="w-full px-4 py-3 pr-10 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-primary focus:border-primary transition-all duration-200 appearance-none bg-white hover:border-gray-300 font-medium text-gray-900"
+              >
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+                <option value={200}>200</option>
+              </select>
+              <ChevronDownIcon className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Fecha Inicio con Calendario */}
+          <div ref={calendarioInicioRef} className="relative space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Fecha de Inicio
+            </label>
+            <button
+              onClick={() => {
+                setCalendarioInicioAbierto(!calendarioInicioAbierto);
+                setCalendarioFinAbierto(false);
+              }}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-white hover:border-primary hover:shadow-md transition-all duration-200 flex items-center justify-between text-left"
             >
-              <option value="">Todos</option>
-              <option value="movil">Móvil</option>
-              <option value="estacionario">Estacionario</option>
-            </select>
+              <span className="font-medium text-gray-900">
+                {filtros.fecha_inicio ? new Date(filtros.fecha_inicio).toLocaleDateString('es-PE', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric'
+                }) : 'Seleccionar fecha'}
+              </span>
+              <svg className={`w-5 h-5 text-gray-400 transition-transform ${calendarioInicioAbierto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {calendarioInicioAbierto && renderCalendario('inicio')}
           </div>
 
-          {/* ✅ Filtro de Registros por página */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Registros por página
+          {/* Fecha Fin con Calendario */}
+          <div ref={calendarioFinRef} className="relative space-y-2">
+            <label className="block text-sm font-semibold text-gray-700">
+              Fecha de Fin
             </label>
-            <select
-              name="limit"
-              value={filtros.limit}
-              onChange={handleFiltroChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+            <button
+              onClick={() => {
+                setCalendarioFinAbierto(!calendarioFinAbierto);
+                setCalendarioInicioAbierto(false);
+              }}
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-white hover:border-primary hover:shadow-md transition-all duration-200 flex items-center justify-between text-left"
             >
-              <option value={10}>10</option>
-              <option value={20}>20</option>
-              <option value={50}>50</option>
-              <option value={100}>100</option>
-              <option value={200}>200</option>
-            </select>
-          </div>
+              <span className="font-medium text-gray-900">
+                {filtros.fecha_fin ? new Date(filtros.fecha_fin).toLocaleDateString('es-PE', {
+                  day: '2-digit',
+                  month: 'long',
+                  year: 'numeric'
+                }) : 'Seleccionar fecha'}
+              </span>
+              <svg className={`w-5 h-5 text-gray-400 transition-transform ${calendarioFinAbierto ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
 
-          {/* Fecha Inicio */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha Inicio
-            </label>
-            <input
-              type="datetime-local"
-              name="fecha_inicio"
-              value={filtros.fecha_inicio}
-              onChange={handleFiltroChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-
-          {/* Fecha Fin */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Fecha Fin
-            </label>
-            <input
-              type="datetime-local"
-              name="fecha_fin"
-              value={filtros.fecha_fin}
-              onChange={handleFiltroChange}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-            />
+            {calendarioFinAbierto && renderCalendario('fin')}
           </div>
         </div>
 
         {/* Contador de filtros activos */}
-        <div className="mt-4 text-sm text-gray-600">
-          {Object.entries(filtros).filter(([key, value]) => 
-            value && !['page', 'limit', 'sort_by', 'sort_order'].includes(key)
-          ).length > 0 && (
-            <span>
-              ✓ {Object.entries(filtros).filter(([key, value]) => 
+        <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-gray-600">
+              {Object.entries(filtros).filter(([key, value]) =>
                 value && !['page', 'limit', 'sort_by', 'sort_order'].includes(key)
-              ).length} filtro(s) activo(s)
-            </span>
-          )}
+              ).length > 0 ? (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+                  <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                  </svg>
+                  {Object.entries(filtros).filter(([key, value]) =>
+                    value && !['page', 'limit', 'sort_by', 'sort_order'].includes(key)
+                  ).length} filtro(s) activo(s)
+                </span>
+              ) : (
+                <span className="text-gray-500">Sin filtros aplicados</span>
+              )}
+            </div>
+          </div>
         </div>
       </div>
 

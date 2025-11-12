@@ -376,7 +376,7 @@ const lecturaController = {
           parametro,
           fecha_inicio,
           fecha_fin,
-          tipo_sensor,      // ✅ Nuevo: móvil o estacionario
+          tipo_sensor,      // ✅ Nuevo: móvil o fijo
           page = 1,
           limit = 50,
           sort_by = 'lectura_datetime',
@@ -423,7 +423,7 @@ const lecturaController = {
           }
         }
 
-        // ✅ Filtro por tipo de sensor (móvil o estacionario)
+        // ✅ Filtro por tipo de sensor (móvil o fijo)
         const sensorWhere = {};
         if (tipo_sensor !== undefined && tipo_sensor !== '') {
           sensorWhere.is_movil = tipo_sensor === 'movil';
@@ -469,7 +469,7 @@ const lecturaController = {
           sensor_id: lectura.id_sensor,
           nombre_sensor: lectura.sensor.nombre_sensor,
           is_movil: lectura.sensor.is_movil,
-          tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Estacionario',
+          tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Fijo',
           sensor_estado: lectura.sensor.estado,
           lectura_datetime: lectura.lectura_datetime,
           temperatura: lectura.temperatura,

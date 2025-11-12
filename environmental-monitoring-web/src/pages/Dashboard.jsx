@@ -152,7 +152,7 @@ export default function Dashboard() {
           Monitoreo Ambiental en Tiempo Real
         </h1>
         <p className="mt-2 text-base sm:text-lg text-gray-600">
-          Sistema de sensores IoT - Región Loreto, Perú
+          Sistema de sensores IoT - Loreto, Perú
         </p>
       </div>
 
@@ -322,7 +322,6 @@ export default function Dashboard() {
                   <tr>
                     <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Sensor</th>
                     <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tipo</th>
-                    <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Zona</th>
                     <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Temp/Hum</th>
                     <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">CO2/CO</th>
                     <th className="hidden md:table-cell px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ubicación</th>
@@ -347,13 +346,6 @@ export default function Dashboard() {
                               Fijo
                             </span>
                           )}
-                        </td>
-                        <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
-                          <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${
-                            lectura.zona === 'Urbana' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800'
-                          }`}>
-                            {lectura.zona}
-                          </span>
                         </td>
                         <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
                           <div className="text-xs sm:text-sm text-gray-900">
