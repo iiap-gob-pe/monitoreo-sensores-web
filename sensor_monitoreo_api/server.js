@@ -1,9 +1,8 @@
 
 // server.js - Punto de entrada del servidor. Trae consigo la app y la herramienta de prisma.
 const app = require('./src/app');
-const { PrismaClient } = require('@prisma/client');
+const { prisma, disconnectPrisma } = require('./src/config/database');
 
-const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
 
 // Función para inicializar el servidor
@@ -25,7 +24,7 @@ async function startServer() {
     // Manejo de cierre graceful
     process.on('SIGTERM', async () => {
       console.log('\n🔄 Cerrando servidor por SIGTERM...');
-      await prisma.$disconnect();
+      await disconnectPrisma();
       server.close(() => {
         console.log('✅ Servidor cerrado correctamente');
         process.exit(0);
@@ -34,7 +33,7 @@ async function startServer() {
 
     process.on('SIGINT', async () => {
       console.log('\n🔄 Cerrando servidor por SIGINT...');
-      await prisma.$disconnect();
+      await disconnectPrisma();
       server.close(() => {
         console.log('✅ Servidor cerrado correctamente');
         process.exit(0);
@@ -43,7 +42,7 @@ async function startServer() {
 
   } catch (error) {
     console.error('❌ Error al iniciar el servidor:', error);
-    await prisma.$disconnect();
+    await disconnectPrisma();
     process.exit(1);
   }
 }

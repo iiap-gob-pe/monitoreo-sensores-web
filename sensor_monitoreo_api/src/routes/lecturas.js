@@ -2,15 +2,17 @@
 const express = require('express');
 const router = express.Router();
 const lecturaController = require('../controllers/lecturaController');
+const { verificarTokenOpcional } = require('../middleware/auth');
 
-// Rutas para lecturas
+// Ruta pública para ESP32 (sin autenticación para permitir sensores enviar datos)
 router.post('/', lecturaController.crear);                         // POST /api/lecturas (Para ESP32)
-router.get('/', lecturaController.obtenerTodas);                   // GET /api/lecturas
-router.get('/ultimas', lecturaController.obtenerUltimas);          // GET /api/lecturas/ultimas
-router.get('/sensor/:id', lecturaController.obtenerPorSensor);     // GET /api/lecturas/sensor/:id
-router.get('/estadisticas/:id', lecturaController.obtenerEstadisticas); // GET /api/lecturas/estadisticas/:id
-router.get('/avanzado', lecturaController.obtenerLecturasAvanzado);     
-router.get('/exportar', lecturaController.obtenerParaExportar); 
 
+// Rutas públicas de solo lectura (con token opcional para posibles permisos futuros)
+router.get('/', verificarTokenOpcional, lecturaController.obtenerTodas);                   // GET /api/lecturas - Público
+router.get('/ultimas', verificarTokenOpcional, lecturaController.obtenerUltimas);          // GET /api/lecturas/ultimas - Público
+router.get('/sensor/:id', verificarTokenOpcional, lecturaController.obtenerPorSensor);     // GET /api/lecturas/sensor/:id - Público
+router.get('/estadisticas/:id', verificarTokenOpcional, lecturaController.obtenerEstadisticas); // GET /api/lecturas/estadisticas/:id - Público
+router.get('/avanzado', verificarTokenOpcional, lecturaController.obtenerLecturasAvanzado);     // GET /api/lecturas/avanzado - Público
+router.get('/exportar', verificarTokenOpcional, lecturaController.obtenerParaExportar);         // GET /api/lecturas/exportar - Público
 
 module.exports = router;

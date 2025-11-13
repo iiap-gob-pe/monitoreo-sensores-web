@@ -1,6 +1,5 @@
 // src/controllers/sensorController.js - Controlador para gestión de sensores
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../config/database');
 
 const sensorController = {
   // Obtener todos los sensores

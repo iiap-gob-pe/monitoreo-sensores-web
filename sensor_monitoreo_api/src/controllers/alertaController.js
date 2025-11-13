@@ -1,6 +1,5 @@
 // src/controllers/alertaController.js - Controlador para gestión de alertas
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const { prisma } = require('../config/database');
 
 const alertaController = {
   // Obtener todas las alertas

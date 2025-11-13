@@ -1,6 +1,7 @@
 // src/context/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
+import { API_URL, STORAGE_KEYS } from '../config/constants';
 
 const AuthContext = createContext();
 
@@ -18,13 +19,13 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const tokenGuardado = localStorage.getItem('token');
-    const usuarioGuardado = localStorage.getItem('usuario');
+    const tokenGuardado = localStorage.getItem(STORAGE_KEYS.TOKEN);
+    const usuarioGuardado = localStorage.getItem(STORAGE_KEYS.USER);
 
     if (tokenGuardado && usuarioGuardado) {
       try {
         const decoded = jwtDecode(tokenGuardado);
-        
+
         if (decoded.exp * 1000 < Date.now()) {
           logout();
         } else {
@@ -41,7 +42,7 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (username, password) => {
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -55,8 +56,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Error al iniciar sesión');
       }
 
-      localStorage.setItem('token', data.token);
-      localStorage.setItem('usuario', JSON.stringify(data.usuario));
+      localStorage.setItem(STORAGE_KEYS.TOKEN, data.token);
+      localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(data.usuario));
 
       setToken(data.token);
       setUsuario(data.usuario);
@@ -64,9 +65,9 @@ export const AuthProvider = ({ children }) => {
       return { success: true };
     } catch (error) {
       console.error('Error en login:', error);
-      return { 
-        success: false, 
-        message: error.message || 'Error al iniciar sesión' 
+      return {
+        success: false,
+        message: error.message || 'Error al iniciar sesión'
       };
     }
   };
@@ -74,7 +75,7 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       if (token) {
-        await fetch('http://localhost:3000/api/auth/logout', {
+        await fetch(`${API_URL}/auth/logout`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`
@@ -84,8 +85,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('Error al hacer logout:', error);
     } finally {
-      localStorage.removeItem('token');
-      localStorage.removeItem('usuario');
+      localStorage.removeItem(STORAGE_KEYS.TOKEN);
+      localStorage.removeItem(STORAGE_KEYS.USER);
       setToken(null);
       setUsuario(null);
     }
