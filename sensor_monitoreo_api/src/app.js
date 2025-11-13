@@ -12,9 +12,9 @@ const alertasRoutes = require('./routes/alertas');
 const authRoutes = require('./routes/auth');
 const usuariosRoutes = require('./routes/usuarios');
 const perfilRoutes = require('./routes/perfil');
-const recorridosRoutes = require('./routes/recorridos')
-const umbralesRoutes = require('./routes/umbrales')
- 
+const recorridosRoutes = require('./routes/recorridos');
+const umbralesRoutes = require('./routes/umbrales');
+const preferenciasSistemaRoutes = require('./routes/preferencias-sistema');
 
 
 const app = express();
@@ -48,6 +48,7 @@ app.use('/api/alertas', alertasRoutes);
 app.use('/api/umbrales', umbralesRoutes);
 app.use('/api/perfil', perfilRoutes);
 app.use('/api/recorridos', recorridosRoutes);
+app.use('/api/preferencias-sistema', preferenciasSistemaRoutes);
 
 // Registrar rutas de autenticación
 app.use('/api/auth', authRoutes);

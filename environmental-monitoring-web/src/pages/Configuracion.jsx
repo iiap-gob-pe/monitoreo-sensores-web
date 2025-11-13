@@ -1,6 +1,6 @@
 // src/pages/Configuracion.jsx
 import { useState } from 'react';
-import { 
+import {
   Cog6ToothIcon,
   BellAlertIcon,
   UserGroupIcon,
@@ -8,8 +8,7 @@ import {
 } from '@heroicons/react/24/outline';
 import ConfiguracionUmbrales from '../components/configuracion/ConfiguracionUmbrales';
 import GestionUsuarios from '../components/configuracion/GestionUsuarios';
-import PreferenciasSistema from '../components/configuracion/PreferenciasSistema'; // ✅ Nuevo
-import ConfiguracionNotificaciones from '../components/configuracion/ConfiguracionNotificaciones'; // ✅ Nuevo
+import PreferenciasSistema from '../components/configuracion/PreferenciasSistema';
 
 export default function Configuracion() {
   const [tabActivo, setTabActivo] = useState('umbrales');
@@ -17,9 +16,7 @@ export default function Configuracion() {
   const tabs = [
     { id: 'umbrales', nombre: 'Umbrales de Alertas', icono: BellAlertIcon, disponible: true },
     { id: 'usuarios', nombre: 'Gestión de Usuarios', icono: UserGroupIcon, disponible: true },
-    { id: 'notificaciones', nombre: 'Notificaciones', icono: BellAlertIcon, disponible: true }, // ✅ Activar
-    { id: 'sistema', nombre: 'Preferencias del Sistema', icono: GlobeAltIcon, disponible: true } // ✅ Activar
-    // ❌ Exportación Automática eliminada
+    { id: 'sistema', nombre: 'Preferencias del Sistema', icono: GlobeAltIcon, disponible: true }
   ];
 
   return (
@@ -72,7 +69,6 @@ export default function Configuracion() {
       <div>
         {tabActivo === 'umbrales' && <ConfiguracionUmbrales />}
         {tabActivo === 'usuarios' && <GestionUsuarios />}
-        {tabActivo === 'notificaciones' && <ConfiguracionNotificaciones />}
         {tabActivo === 'sistema' && <PreferenciasSistema />}
       </div>
     </div>

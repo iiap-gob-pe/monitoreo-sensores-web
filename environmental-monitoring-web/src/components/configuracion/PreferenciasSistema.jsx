@@ -1,6 +1,6 @@
 // src/components/configuracion/PreferenciasSistema.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   ClockIcon,
   GlobeAltIcon,
   ChartBarIcon,
@@ -8,8 +8,11 @@ import {
   CheckCircleIcon,
   TableCellsIcon
 } from '@heroicons/react/24/outline';
+import { useAuth } from '../../context/AuthContext';
+import axios from 'axios';
 
 export default function PreferenciasSistema() {
+  const { usuario } = useAuth();
   const [configuracion, setConfiguracion] = useState({
     zonaHoraria: 'America/Lima',
     formatoFecha: 'DD/MM/YYYY',
@@ -21,14 +24,37 @@ export default function PreferenciasSistema() {
 
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState({ tipo: '', texto: '' });
+  const [cargando, setCargando] = useState(true);
 
-  // Cargar configuración guardada
+  // Cargar configuración desde la API
   useEffect(() => {
-    const configGuardada = localStorage.getItem('preferencias_sistema');
-    if (configGuardada) {
-      setConfiguracion(JSON.parse(configGuardada));
-    }
-  }, []);
+    const cargarPreferencias = async () => {
+      if (!usuario?.id_usuario) return;
+
+      try {
+        setCargando(true);
+        const response = await axios.get(`http://localhost:3000/api/preferencias-sistema/${usuario.id_usuario}`);
+
+        if (response.data.success) {
+          const prefs = response.data.data;
+          setConfiguracion({
+            zonaHoraria: prefs.zona_horaria || 'America/Lima',
+            formatoFecha: prefs.formato_fecha || 'DD/MM/YYYY',
+            intervaloActualizacion: prefs.intervalo_actualizacion ?? 30,
+            registrosPorPagina: prefs.registros_por_pagina ?? 20,
+            mostrarGraficos: prefs.mostrar_graficos ?? true,
+            animacionesGraficos: prefs.animaciones_graficos ?? true
+          });
+        }
+      } catch (error) {
+        console.error('Error al cargar preferencias:', error);
+      } finally {
+        setCargando(false);
+      }
+    };
+
+    cargarPreferencias();
+  }, [usuario]);
 
   const handleChange = (campo, valor) => {
     setConfiguracion(prev => ({
@@ -38,43 +64,92 @@ export default function PreferenciasSistema() {
   };
 
   const handleGuardar = async () => {
+    if (!usuario?.id_usuario) {
+      setMensaje({ tipo: 'error', texto: 'Usuario no autenticado' });
+      return;
+    }
+
     setGuardando(true);
     try {
-      // Guardar en localStorage
-      localStorage.setItem('preferencias_sistema', JSON.stringify(configuracion));
-      
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      setMensaje({ tipo: 'success', texto: 'Preferencias guardadas exitosamente. Recargando página...' });
-      
-      // Recargar para aplicar cambios
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      const dataToSave = {
+        id_usuario: usuario.id_usuario,
+        zona_horaria: configuracion.zonaHoraria,
+        formato_fecha: configuracion.formatoFecha,
+        intervalo_actualizacion: configuracion.intervaloActualizacion,
+        registros_por_pagina: configuracion.registrosPorPagina,
+        mostrar_graficos: configuracion.mostrarGraficos,
+        animaciones_graficos: configuracion.animacionesGraficos
+      };
+
+      const response = await axios.patch(
+        `http://localhost:3000/api/preferencias-sistema/${usuario.id_usuario}`,
+        dataToSave
+      );
+
+      if (response.data.success) {
+        setMensaje({ tipo: 'success', texto: 'Preferencias guardadas exitosamente. Recargando página...' });
+
+        // Recargar para aplicar cambios
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
+      }
     } catch (error) {
       console.error('Error al guardar:', error);
       setMensaje({ tipo: 'error', texto: 'Error al guardar las preferencias' });
-    } finally {
       setGuardando(false);
     }
   };
 
-  const handleRestaurar = () => {
-    if (window.confirm('¿Restaurar configuración por defecto?')) {
+  const handleRestaurar = async () => {
+    if (!window.confirm('¿Restaurar configuración por defecto?')) return;
+
+    if (!usuario?.id_usuario) {
+      setMensaje({ tipo: 'error', texto: 'Usuario no autenticado' });
+      return;
+    }
+
+    try {
       const configDefault = {
-        zonaHoraria: 'America/Lima',
-        formatoFecha: 'DD/MM/YYYY',
-        intervaloActualizacion: 30,
-        registrosPorPagina: 20,
-        mostrarGraficos: true,
-        animacionesGraficos: true
+        id_usuario: usuario.id_usuario,
+        zona_horaria: 'America/Lima',
+        formato_fecha: 'DD/MM/YYYY',
+        intervalo_actualizacion: 30,
+        registros_por_pagina: 20,
+        mostrar_graficos: true,
+        animaciones_graficos: true
       };
-      setConfiguracion(configDefault);
-      localStorage.setItem('preferencias_sistema', JSON.stringify(configDefault));
-      setMensaje({ tipo: 'success', texto: 'Configuración restaurada. Recargando...' });
-      setTimeout(() => window.location.reload(), 1500);
+
+      const response = await axios.patch(
+        `http://localhost:3000/api/preferencias-sistema/${usuario.id_usuario}`,
+        configDefault
+      );
+
+      if (response.data.success) {
+        setConfiguracion({
+          zonaHoraria: 'America/Lima',
+          formatoFecha: 'DD/MM/YYYY',
+          intervaloActualizacion: 30,
+          registrosPorPagina: 20,
+          mostrarGraficos: true,
+          animacionesGraficos: true
+        });
+        setMensaje({ tipo: 'success', texto: 'Configuración restaurada. Recargando...' });
+        setTimeout(() => window.location.reload(), 1500);
+      }
+    } catch (error) {
+      console.error('Error al restaurar:', error);
+      setMensaje({ tipo: 'error', texto: 'Error al restaurar la configuración' });
     }
   };
+
+  if (cargando) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -97,8 +172,8 @@ export default function PreferenciasSistema() {
       {/* Mensajes */}
       {mensaje.texto && (
         <div className={`p-4 rounded-lg ${
-          mensaje.tipo === 'success' 
-            ? 'bg-green-50 border border-green-200 text-green-700' 
+          mensaje.tipo === 'success'
+            ? 'bg-green-50 border border-green-200 text-green-700'
             : 'bg-red-50 border border-red-200 text-red-700'
         }`}>
           {mensaje.tipo === 'success' ? '✅' : '❌'} {mensaje.texto}

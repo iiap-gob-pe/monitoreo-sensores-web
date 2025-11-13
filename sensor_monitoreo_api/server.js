@@ -1,9 +1,7 @@
 
-// server.js - Punto de entrada del servidor. Trae consigo la app y la herramienta de prisma. 
+// server.js - Punto de entrada del servidor. Trae consigo la app y la herramienta de prisma.
 const app = require('./src/app');
 const { PrismaClient } = require('@prisma/client');
-
-
 
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3000;
@@ -35,7 +33,7 @@ async function startServer() {
     });
 
     process.on('SIGINT', async () => {
-      console.log('\n🔄 Cerrando servidor por SIGNIT...');
+      console.log('\n🔄 Cerrando servidor por SIGINT...');
       await prisma.$disconnect();
       server.close(() => {
         console.log('✅ Servidor cerrado correctamente');
