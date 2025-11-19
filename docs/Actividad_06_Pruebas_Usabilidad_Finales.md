@@ -524,14 +524,288 @@ El sistema fue **APROBADO** para producción porque cumple:
 
 ---
 
-## Referencias
+## 1.10. Conclusiones y Recomendaciones
 
-- **Actividad 04:** Desarrollo del Backend (API REST)
-- **Actividad 05:** Desarrollo del Frontend (Interfaz Web)
-- **Entregable 01:** Informe de Requerimientos (requisitos validados)
-- **Entregable 05:** Guía de Usuario (documento de referencia para pruebas)
-- **Entregable 06:** Informe de Pruebas de Usabilidad
-- **Entregable 06:** Informe Final de Pruebas
+### Conclusiones
+
+1. **Sistema Aprobado para Producción**
+   - El Sistema de Monitoreo Ambiental IIAP cumplió con el 100% de los criterios de aceptación establecidos, logrando certificación para despliegue en producción.
+   - La tasa de éxito en casos de prueba fue del 96.9% inicialmente y 100% después de correcciones, superando el objetivo mínimo del 95%.
+
+2. **Excelente Usabilidad Validada**
+   - El score SUS (System Usability Scale) de 82.5/100 clasifica el sistema como "Excelente" (Grade A), indicando alta satisfacción de usuarios.
+   - La tasa de éxito en tareas fue del 93.75% (30/32 tareas completadas), demostrando que el sistema es intuitivo y fácil de usar.
+   - Usuarios elogiaron especialmente el mapa interactivo, gráficos claros y exportación rápida de reportes.
+
+3. **Rendimiento Excepcional**
+   - Tiempo de carga promedio de 1.8 segundos superó ampliamente el objetivo de <3 segundos.
+   - Tiempo de respuesta API promedio de 285ms estuvo muy por debajo del objetivo de <500ms.
+   - Lighthouse Performance score de 92/100 confirma que el sistema es rápido y eficiente.
+
+4. **Seguridad Robusta**
+   - Todas las pruebas de seguridad pasaron exitosamente: JWT expiration, password hashing con bcrypt, CORS, protección XSS, prevención de SQL injection.
+   - No se encontraron vulnerabilidades críticas ni altas.
+
+5. **Compatibilidad Universal**
+   - 100% de compatibilidad en 4 navegadores principales (Chrome, Firefox, Edge, Safari).
+   - 100% de responsividad en 5 breakpoints (375px - 1920px), garantizando acceso desde cualquier dispositivo.
+
+6. **Gestión Efectiva de Bugs**
+   - Se encontraron 5 bugs durante las pruebas: 0 críticos, 1 alto, 2 medios, 2 bajos.
+   - 4 de 5 bugs fueron corregidos exitosamente (1 bug bajo pospuesto a v2.0 por no ser crítico).
+   - Las pruebas de regresión confirmaron que las correcciones no introdujeron nuevos problemas.
+
+7. **Metodología de Testing Efectiva**
+   - El enfoque híbrido (pruebas manuales + automatizadas + pruebas con usuarios) permitió detectar bugs funcionales, de usabilidad y de rendimiento.
+   - Las 5 fases de testing (Preparación, Usabilidad, Funcionales, No Funcionales, Corrección) cubrieron exhaustivamente todos los aspectos del sistema.
+
+8. **Escalabilidad Validada**
+   - Pruebas de carga con Apache JMeter demostraron que el sistema soporta 50 usuarios simultáneos sin degradación (CPU 45%, memoria 512 MB).
+   - Esta capacidad es suficiente para la audiencia esperada inicialmente (investigadores IIAP + estudiantes + público general).
+
+### Recomendaciones
+
+#### Para Testing y QA Continuo
+
+1. **Automatizar Casos de Prueba**
+   - **Recomendación:** Implementar Cypress o Playwright para automatizar los 32 casos de prueba funcionales.
+   - **Beneficio:** Ejecutar suite completa de tests en <10 minutos vs 2 días de testing manual, detectar regresiones automáticamente.
+   - **Prioridad:** Alta
+   - **Estimación:** 2-3 semanas
+   - **ROI:** Ahorro de 15-20 horas de testing manual por cada release.
+
+2. **Integrar Tests en CI/CD Pipeline**
+   - **Recomendación:** Configurar GitHub Actions para ejecutar tests automatizados en cada commit y pull request.
+   - **Beneficio:** Prevenir merge de código con bugs, garantizar calidad continua.
+   - **Prioridad:** Alta
+   - **Estimación:** 3-5 días
+   - **Herramientas:** GitHub Actions + Cypress + Jest
+
+3. **Implementar Cobertura de Tests > 80%**
+   - **Recomendación:** Agregar tests unitarios (Jest) para componentes React y tests de integración para flujos end-to-end.
+   - **Beneficio:** Mayor confianza en modificaciones de código, documentación viva del comportamiento esperado.
+   - **Prioridad:** Media
+   - **Estimación:** 2-4 semanas
+   - **Meta:** Backend 80%, Frontend 80%
+
+4. **Monitoreo de Errores en Producción**
+   - **Recomendación:** Integrar Sentry para tracking automático de errores reportados por usuarios reales.
+   - **Beneficio:** Detectar bugs no encontrados en testing, stacktraces detallados para debugging rápido.
+   - **Prioridad:** Alta
+   - **Estimación:** 1-2 días
+   - **Costo:** Plan gratuito hasta 5,000 eventos/mes
+
+#### Para Usabilidad y Experiencia de Usuario
+
+5. **Implementar Features Solicitadas por Usuarios**
+   - **Recomendación:** Priorizar las 2 features más solicitadas en pruebas de usabilidad:
+     1. Alertas visibles en dashboard (sin necesidad de ir a página de Alertas)
+     2. Notificaciones push para alertas críticas
+   - **Beneficio:** Aumentar satisfacción de usuarios, mejorar NPS de +60 a +70+.
+   - **Prioridad:** Alta
+   - **Estimación:** 1 semana cada feature
+
+6. **Agregar Tooltips y Ayuda Contextual**
+   - **Recomendación:** Implementar tooltips (usando react-tooltip) en secciones donde usuarios tuvieron dudas (ej: configuración de umbrales).
+   - **Beneficio:** Reducir curva de aprendizaje, disminuir soporte técnico.
+   - **Prioridad:** Media
+   - **Estimación:** 3-4 días
+
+7. **Mejorar Accesibilidad para Usuarios con Discapacidad**
+   - **Recomendación:** Realizar pruebas de usabilidad con usuarios con discapacidad visual (lectores de pantalla) y motora (solo teclado).
+   - **Beneficio:** Cumplir con normativas de inclusión, expandir audiencia.
+   - **Prioridad:** Media (mandatorio si el sistema será usado por entidades gubernamentales)
+   - **Estimación:** 5-7 días (ajustes basados en feedback)
+
+8. **Sesiones de Testing Trimestral con Usuarios**
+   - **Recomendación:** Establecer programa regular de pruebas de usabilidad (cada 3 meses) con 3-5 usuarios.
+   - **Beneficio:** Validar nuevas features, detectar problemas de UX tempranamente.
+   - **Prioridad:** Media
+   - **Costo:** Incentivos para usuarios (~$50/sesión × 5 usuarios = $250/trimestre)
+
+#### Para Rendimiento y Escalabilidad
+
+9. **Monitoreo de Rendimiento en Producción**
+   - **Recomendación:** Implementar New Relic, Datadog o Google Analytics 4 para monitorear tiempos de carga reales de usuarios.
+   - **Beneficio:** Detectar degradación de rendimiento proactivamente, optimizar endpoints lentos.
+   - **Prioridad:** Alta
+   - **Estimación:** 2-3 días
+   - **Costo:** New Relic Lite (gratuito) o Google Analytics 4 (gratuito)
+
+10. **Pruebas de Carga con Mayor Escala**
+    - **Recomendación:** Realizar pruebas de carga con 100-200 usuarios simultáneos si se espera crecimiento de audiencia.
+    - **Beneficio:** Identificar cuellos de botella antes de que afecten usuarios reales.
+    - **Prioridad:** Media (si audiencia crece >50 usuarios/día)
+    - **Estimación:** 1 semana (incluye optimizaciones)
+
+11. **Optimizar Queries de Base de Datos**
+    - **Recomendación:** Analizar queries lentas con PostgreSQL `pg_stat_statements`, agregar índices adicionales si es necesario.
+    - **Beneficio:** Mantener tiempo de respuesta API <500ms a medida que volumen de datos crece.
+    - **Prioridad:** Media
+    - **Estimación:** 3-5 días
+
+#### Para Seguridad
+
+12. **Auditoría de Seguridad Anual**
+    - **Recomendación:** Contratar auditoría de seguridad profesional (pentesting) anualmente.
+    - **Beneficio:** Identificar vulnerabilidades no detectadas, cumplir con estándares de seguridad.
+    - **Prioridad:** Media
+    - **Costo:** $2,000-$5,000 USD/año
+
+13. **Implementar Refresh Token**
+    - **Recomendación:** Implementar refresh tokens para renovar JWT automáticamente antes de expirar (actualmente expira a las 8h sin aviso).
+    - **Beneficio:** Mejorar experiencia de usuario, evitar pérdida de sesión repentina.
+    - **Prioridad:** Media (BUG-T05 pospuesto)
+    - **Estimación:** 3-4 días
+
+14. **Configurar Rate Limiting Dinámico**
+    - **Recomendación:** Implementar rate limiting más restrictivo para endpoints sensibles (login: 5 intentos/15min).
+    - **Beneficio:** Prevenir ataques de fuerza bruta.
+    - **Prioridad:** Media
+    - **Estimación:** 1-2 días
+
+#### Para Documentación
+
+15. **Documentar Casos de Prueba en Repositorio**
+    - **Recomendación:** Mantener casos de prueba como código (test scripts) en el repositorio, versionados con Git.
+    - **Beneficio:** Facilitar colaboración en testing, historial de cambios en casos de prueba.
+    - **Prioridad:** Baja
+    - **Estimación:** 2-3 días
+
+16. **Crear Runbook de Incidentes**
+    - **Recomendación:** Documentar procedimientos para incidentes comunes (servidor caído, BD corrupta, bug crítico en producción).
+    - **Beneficio:** Resolver incidentes rápidamente, reducir downtime.
+    - **Prioridad:** Alta
+    - **Estimación:** 1 semana
+
+### Roadmap de Testing (Próximos 12 meses)
+
+**Mes 1-2 (Prioridad Crítica):**
+- Automatizar 32 casos de prueba con Cypress
+- Integrar tests en CI/CD (GitHub Actions)
+- Implementar Sentry para monitoreo de errores
+- Configurar monitoreo de rendimiento (New Relic o GA4)
+
+**Mes 3-4 (Prioridad Alta):**
+- Implementar features solicitadas (alertas en dashboard, notificaciones push)
+- Agregar tooltips en secciones confusas
+- Aumentar cobertura de tests a 80%
+
+**Mes 5-6 (Prioridad Media):**
+- Realizar pruebas de usabilidad con usuarios con discapacidad
+- Optimizar queries de base de datos
+- Implementar refresh tokens
+
+**Mes 7-12 (Prioridad Baja):**
+- Establecer programa regular de testing trimestral con usuarios
+- Documentar runbook de incidentes
+- Contratar auditoría de seguridad profesional
+
+---
+
+## 1.11. Bibliografía
+
+### Testing y Calidad de Software
+
+1. **Crispin, L. & Gregory, J.** (2009). *Agile Testing: A Practical Guide for Testers and Agile Teams*. Addison-Wesley. ISBN: 978-0-321-53446-0
+
+2. **Myers, G. J., Sandler, C., & Badgett, T.** (2011). *The Art of Software Testing* (3rd ed.). John Wiley & Sons. ISBN: 978-1-118-03196-4
+
+3. **Fowler, M. & Highsmith, J.** (2001). *The Agile Manifesto*. Recuperado de https://agilemanifesto.org/
+
+4. **Black, R.** (2009). *Managing the Testing Process: Practical Tools and Techniques for Managing Hardware and Software Testing* (3rd ed.). John Wiley & Sons. ISBN: 978-0-470-40415-7
+
+5. **Humble, J. & Farley, D.** (2010). *Continuous Delivery: Reliable Software Releases through Build, Test, and Deployment Automation*. Addison-Wesley. ISBN: 978-0-321-60191-9
+
+### Pruebas de Usabilidad
+
+6. **Rubin, J. & Chisnell, D.** (2008). *Handbook of Usability Testing: How to Plan, Design, and Conduct Effective Tests* (2nd ed.). John Wiley & Sons. ISBN: 978-0-470-18548-3
+
+7. **Krug, S.** (2010). *Rocket Surgery Made Easy: The Do-It-Yourself Guide to Finding and Fixing Usability Problems*. New Riders. ISBN: 978-0-321-65729-9
+
+8. **Nielsen, J.** (1993). *Usability Engineering*. Morgan Kaufmann. ISBN: 978-0-12-518406-9
+
+9. **Sauro, J. & Lewis, J. R.** (2016). *Quantifying the User Experience: Practical Statistics for User Research* (2nd ed.). Morgan Kaufmann. ISBN: 978-0-12-802308-2
+
+10. **Brooke, J.** (1996). *SUS: A "Quick and Dirty" Usability Scale*. In P. W. Jordan, B. Thomas, B. A. Weerdmeester, & I. L. McClelland (Eds.), *Usability Evaluation in Industry* (pp. 189-194). Taylor & Francis. ISBN: 978-0-748-40460-5
+
+### Testing de Aplicaciones Web
+
+11. **Gerrard, P.** (2000). *Risk-Based E-Business Testing*. Artech House Publishers. ISBN: 978-1-580-53314-5
+
+12. **Copeland, L.** (2004). *A Practitioner's Guide to Software Test Design*. Artech House. ISBN: 978-1-580-53791-4
+
+13. **Selenium Community** (2024). *Selenium Documentation*. Recuperado de https://www.selenium.dev/documentation/
+
+14. **Cypress.io** (2024). *Cypress Documentation: JavaScript End to End Testing Framework*. Recuperado de https://docs.cypress.io/
+
+15. **Playwright Team** (2024). *Playwright: Fast and reliable end-to-end testing for modern web apps*. Microsoft. Recuperado de https://playwright.dev/
+
+### Rendimiento y Pruebas de Carga
+
+16. **Molyneaux, I.** (2009). *The Art of Application Performance Testing: Help for Programmers and Quality Assurance*. O'Reilly Media. ISBN: 978-0-596-52066-3
+
+17. **Grigorik, I.** (2013). *High Performance Browser Networking*. O'Reilly Media. ISBN: 978-1-449-34476-4
+
+18. **Apache JMeter** (2024). *Apache JMeter User's Manual*. Apache Software Foundation. Recuperado de https://jmeter.apache.org/usermanual/
+
+19. **Google Developers** (2024). *Lighthouse: Automated auditing, performance metrics, and best practices for the web*. Recuperado de https://developer.chrome.com/docs/lighthouse/
+
+20. **Google Developers** (2024). *Web Vitals: Essential metrics for a healthy site*. Recuperado de https://web.dev/vitals/
+
+### Seguridad en Aplicaciones Web
+
+21. **OWASP Foundation** (2021). *OWASP Top Ten: The Ten Most Critical Web Application Security Risks*. Recuperado de https://owasp.org/www-project-top-ten/
+
+22. **OWASP Foundation** (2024). *OWASP Testing Guide v4.2*. Recuperado de https://owasp.org/www-project-web-security-testing-guide/
+
+23. **Hoffman, A.** (2020). *Web Application Security: Exploitation and Countermeasures for Modern Web Applications*. O'Reilly Media. ISBN: 978-1-492-05351-4
+
+24. **Stuttard, D. & Pinto, M.** (2011). *The Web Application Hacker's Handbook: Finding and Exploiting Security Flaws* (2nd ed.). John Wiley & Sons. ISBN: 978-1-118-02647-2
+
+### Accesibilidad
+
+25. **W3C Web Accessibility Initiative** (2023). *Web Content Accessibility Guidelines (WCAG) 2.1*. World Wide Web Consortium. Recuperado de https://www.w3.org/WAI/WCAG21/quickref/
+
+26. **W3C** (2024). *Understanding WCAG 2.1: A guide to understanding and implementing Web Content Accessibility Guidelines 2.1*. Recuperado de https://www.w3.org/WAI/WCAG21/Understanding/
+
+27. **Henry, S. L.** (Ed.). (2023). *Introduction to Web Accessibility*. W3C Web Accessibility Initiative. Recuperado de https://www.w3.org/WAI/fundamentals/accessibility-intro/
+
+28. **WebAIM** (2024). *WebAIM: Web Accessibility In Mind*. Recuperado de https://webaim.org/
+
+### Metodologías Ágiles y SCRUM
+
+29. **Sutherland, J. & Schwaber, K.** (2020). *The Scrum Guide: The Definitive Guide to Scrum: The Rules of the Game*. Scrum.org. Recuperado de https://scrumguides.org/
+
+30. **Cohn, M.** (2009). *Succeeding with Agile: Software Development Using Scrum*. Addison-Wesley. ISBN: 978-0-321-57936-2
+
+31. **Beck, K., et al.** (2001). *Manifesto for Agile Software Development*. Recuperado de https://agilemanifesto.org/
+
+### Herramientas y Recursos
+
+32. **Postman Team** (2024). *Postman Learning Center: API Platform Documentation*. Recuperado de https://learning.postman.com/
+
+33. **Chrome DevTools** (2024). *Chrome DevTools Documentation*. Google. Recuperado de https://developer.chrome.com/docs/devtools/
+
+34. **OBS Studio** (2024). *OBS Studio Documentation*. Open Broadcaster Software. Recuperado de https://obsproject.com/wiki/
+
+35. **BrowserStack** (2024). *BrowserStack: Cross Browser Testing Tool*. Recuperado de https://www.browserstack.com/
+
+### Documentación del Proyecto
+
+36. **IIAP** (2025). *Actividad 01: Análisis de Requerimientos - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
+
+37. **IIAP** (2025). *Actividad 04: Desarrollo del Backend - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
+
+38. **IIAP** (2025). *Actividad 05: Desarrollo del Frontend - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
+
+39. **IIAP** (2025). *Entregable 01: Informe de Requerimientos - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
+
+40. **IIAP** (2025). *Entregable 05: Guía de Usuario - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
+
+41. **IIAP** (2025). *Entregable 06: Informe de Pruebas de Usabilidad - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
+
+42. **IIAP** (2025). *Entregable 06: Informe Final de Pruebas - Sistema de Monitoreo Ambiental IIAP*. Documento interno del proyecto.
 
 ---
 
