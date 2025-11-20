@@ -349,6 +349,18 @@ classDiagram
         +DateTime created_at
         +DateTime last_seen
         +String estado
+        +crear(datos) sensores
+        +obtenerPorId(id) sensores
+        +obtenerTodos(filtros) sensores[]
+        +actualizar(id, datos) sensores
+        +eliminar(id) boolean
+        +actualizarUltimaConexion(id) void
+        +cambiarEstado(id, estado) void
+        +contarTotal() int
+        +obtenerEstadisticas() Object
+        +verificarExiste(id) boolean
+        +obtenerMoviles() sensores[]
+        +obtenerPorZona(zona) sensores[]
     }
 
     class lecturas {
@@ -364,6 +376,19 @@ classDiagram
         +Decimal altitud
         +String zona
         +DateTime created_at
+        +crear(datos) lecturas
+        +obtenerPorId(id) lecturas
+        +obtenerTodas(filtros, paginacion) lecturas[]
+        +obtenerPorSensor(idSensor, limit) lecturas[]
+        +obtenerUltima(idSensor) lecturas
+        +obtenerUltimas(limit) lecturas[]
+        +obtenerPorRangoFechas(inicio, fin) lecturas[]
+        +obtenerPorZona(zona) lecturas[]
+        +calcularEstadisticas(filtros) Object
+        +calcularPromedios(idSensor, periodo) Object
+        +contarTotal() int
+        +obtenerParaExportar(filtros) lecturas[]
+        +validarCoordenadas() boolean
     }
 
     class alertas {
@@ -378,6 +403,17 @@ classDiagram
         +DateTime se_activo_at
         +DateTime resuelto_at
         +Boolean is_resolved
+        +crear(datos) alertas
+        +obtenerPorId(id) alertas
+        +obtenerTodas(filtros, paginacion) alertas[]
+        +obtenerActivas() alertas[]
+        +obtenerPorSensor(idSensor) alertas[]
+        +marcarResuelta(id, usuarioId) alertas
+        +eliminar(id) boolean
+        +contarActivas() int
+        +contarPorGravedad(gravedad) int
+        +obtenerRecientes(limit) alertas[]
+        +calcularGravedad(parametro, diferencia) String
     }
 
     class sensor_umbral {
@@ -389,6 +425,17 @@ classDiagram
         +Boolean alerta_habilitar
         +DateTime created_at
         +DateTime updated_at
+        +crear(datos) sensor_umbral
+        +obtenerPorId(id) sensor_umbral
+        +obtenerPorSensor(idSensor) sensor_umbral[]
+        +obtenerPorParametro(idSensor, parametro) sensor_umbral
+        +actualizar(id, datos) sensor_umbral
+        +eliminar(id) boolean
+        +habilitarAlertas(id) void
+        +deshabilitarAlertas(id) void
+        +verificarExiste(idSensor, parametro) boolean
+        +validarRangos(min, max) boolean
+        +obtenerActivos(idSensor) sensor_umbral[]
     }
 
     class usuarios {
@@ -402,6 +449,20 @@ classDiagram
         +DateTime ultimo_acceso
         +DateTime created_at
         +DateTime updated_at
+        +crear(datos) usuarios
+        +obtenerPorId(id) usuarios
+        +obtenerPorUsername(username) usuarios
+        +obtenerPorEmail(email) usuarios
+        +obtenerTodos() usuarios[]
+        +actualizar(id, datos) usuarios
+        +eliminar(id) boolean
+        +cambiarPassword(id, passwordNuevo) boolean
+        +verificarPassword(password) boolean
+        +actualizarUltimoAcceso(id) void
+        +activar(id) void
+        +desactivar(id) void
+        +cambiarRol(id, nuevoRol) void
+        +verificarEstadoActivo(id) boolean
     }
 
     class logs_actividad {
@@ -414,6 +475,15 @@ classDiagram
         +String detalles
         +String ip_address
         +DateTime created_at
+        +registrar(datos) logs_actividad
+        +obtenerPorId(id) logs_actividad
+        +obtenerTodos(filtros, paginacion) logs_actividad[]
+        +obtenerPorUsuario(idUsuario) logs_actividad[]
+        +obtenerPorTabla(tabla) logs_actividad[]
+        +obtenerPorFecha(fecha) logs_actividad[]
+        +obtenerRecientes(limit) logs_actividad[]
+        +eliminarAntiguos(dias) int
+        +contarPorAccion(accion) int
     }
 
     class recorridos_guardados {
@@ -430,6 +500,17 @@ classDiagram
         +Json metadata
         +DateTime created_at
         +String usuario_creo
+        +crear(datos) recorridos_guardados
+        +obtenerPorId(id) recorridos_guardados
+        +obtenerTodos() recorridos_guardados[]
+        +obtenerPorSensor(idSensor) recorridos_guardados[]
+        +obtenerPorUsuario(usuario) recorridos_guardados[]
+        +eliminar(id) boolean
+        +calcularDistancia(puntos) Decimal
+        +calcularDuracion(inicio, fin) int
+        +contarPuntos(geojson) int
+        +validarGeoJSON(geojson) boolean
+        +obtenerPorFecha(fecha) recorridos_guardados[]
     }
 
     class preferencias_sistema {
@@ -443,6 +524,13 @@ classDiagram
         +Boolean animaciones_graficos
         +DateTime created_at
         +DateTime updated_at
+        +crear(datos) preferencias_sistema
+        +obtenerPorUsuario(idUsuario) preferencias_sistema
+        +actualizar(idUsuario, datos) preferencias_sistema
+        +eliminar(idUsuario) boolean
+        +restaurarDefecto(idUsuario) preferencias_sistema
+        +validarIntervalo(intervalo) boolean
+        +validarZonaHoraria(zona) boolean
     }
 
     sensores "1" --> "*" lecturas : tiene
@@ -455,82 +543,164 @@ classDiagram
 
 #### 4.2.2 Controladores (Capa de Lógica)
 
+**Nota:** Los controladores son funciones que reciben peticiones HTTP (req, res) y coordinan la lógica de negocio.
+
 ```mermaid
 classDiagram
     class authController {
-        +login(req, res)
-        +verificar(req, res)
-        +logout(req, res)
+        -PrismaClient prisma
+        -jwt jsonwebtoken
+        -bcrypt bcryptjs
+        +login(req, res) Promise~Response~
+        +verificar(req, res) Promise~Response~
+        +logout(req, res) Promise~Response~
+        +refreshToken(req, res) Promise~Response~
+        -generarToken(usuario) string
+        -validarCredenciales(username, password) Promise~boolean~
+        -registrarAcceso(usuarioId, ip) Promise~void~
     }
 
     class sensorController {
-        +obtenerTodos(req, res)
-        +obtenerPorId(req, res)
-        +crear(req, res)
-        +actualizar(req, res)
-        +eliminar(req, res)
-        +obtenerEstadisticas(req, res)
+        -PrismaClient prisma
+        +obtenerTodos(req, res) Promise~Response~
+        +obtenerPorId(req, res) Promise~Response~
+        +crear(req, res) Promise~Response~
+        +actualizar(req, res) Promise~Response~
+        +eliminar(req, res) Promise~Response~
+        +obtenerEstadisticas(req, res) Promise~Response~
+        +obtenerPorZona(req, res) Promise~Response~
+        +cambiarEstado(req, res) Promise~Response~
+        +obtenerMoviles(req, res) Promise~Response~
+        +obtenerActivos(req, res) Promise~Response~
+        -validarDatosSensor(datos) boolean
+        -registrarLog(accion, sensorId, usuarioId) Promise~void~
     }
 
     class lecturaController {
-        +crear(req, res)
-        +obtenerTodas(req, res)
-        +obtenerUltimas(req, res)
-        +obtenerPorSensor(req, res)
-        +obtenerEstadisticas(req, res)
-        +obtenerLecturasAvanzado(req, res)
-        +obtenerParaExportar(req, res)
+        -PrismaClient prisma
+        -alertService alertService
+        +crear(req, res) Promise~Response~
+        +obtenerTodas(req, res) Promise~Response~
+        +obtenerUltimas(req, res) Promise~Response~
+        +obtenerPorSensor(req, res) Promise~Response~
+        +obtenerEstadisticas(req, res) Promise~Response~
+        +obtenerLecturasAvanzado(req, res) Promise~Response~
+        +obtenerParaExportar(req, res) Promise~Response~
+        +obtenerPorRangoFechas(req, res) Promise~Response~
+        +obtenerPorZona(req, res) Promise~Response~
+        +calcularPromedios(req, res) Promise~Response~
+        +obtenerUltimaPorSensor(req, res) Promise~Response~
+        -autoRegistrarSensor(idSensor, datos) Promise~void~
+        -detectarSensorMovil(idSensor) Promise~boolean~
+        -procesarAlertasAutomaticas(lectura) Promise~void~
     }
 
     class alertaController {
-        +obtenerTodas(req, res)
-        +obtenerPorId(req, res)
-        +marcarResuelta(req, res)
-        +eliminar(req, res)
+        -PrismaClient prisma
+        +obtenerTodas(req, res) Promise~Response~
+        +obtenerPorId(req, res) Promise~Response~
+        +obtenerActivas(req, res) Promise~Response~
+        +obtenerPorSensor(req, res) Promise~Response~
+        +obtenerPorGravedad(req, res) Promise~Response~
+        +marcarResuelta(req, res) Promise~Response~
+        +eliminar(req, res) Promise~Response~
+        +contarActivas(req, res) Promise~Response~
+        +obtenerRecientes(req, res) Promise~Response~
+        -registrarResolucion(alertaId, usuarioId) Promise~void~
     }
 
     class umbralController {
-        +obtenerPorSensor(req, res)
-        +crear(req, res)
-        +actualizar(req, res)
-        +eliminar(req, res)
+        -PrismaClient prisma
+        +obtenerPorSensor(req, res) Promise~Response~
+        +obtenerPorParametro(req, res) Promise~Response~
+        +obtenerActivos(req, res) Promise~Response~
+        +crear(req, res) Promise~Response~
+        +actualizar(req, res) Promise~Response~
+        +eliminar(req, res) Promise~Response~
+        +habilitar(req, res) Promise~Response~
+        +deshabilitar(req, res) Promise~Response~
+        -validarRangos(min, max) boolean
+        -verificarDuplicado(sensorId, parametro) Promise~boolean~
+        -registrarLog(accion, umbralId, usuarioId) Promise~void~
     }
 
     class recorridosController {
-        +obtenerTodos(req, res)
-        +obtenerPorId(req, res)
-        +crear(req, res)
-        +eliminar(req, res)
+        -PrismaClient prisma
+        +obtenerTodos(req, res) Promise~Response~
+        +obtenerPorId(req, res) Promise~Response~
+        +obtenerPorSensor(req, res) Promise~Response~
+        +obtenerPorUsuario(req, res) Promise~Response~
+        +crear(req, res) Promise~Response~
+        +eliminar(req, res) Promise~Response~
+        +obtenerPorFecha(req, res) Promise~Response~
+        -calcularDistanciaTotal(puntos) number
+        -calcularDuracion(inicio, fin) number
+        -validarGeoJSON(geojson) boolean
+        -verificarSensorMovil(sensorId) Promise~boolean~
     }
 
     class preferenciasSistemaController {
-        +obtenerPreferencias(req, res)
-        +actualizarPreferencias(req, res)
+        -PrismaClient prisma
+        +obtenerPreferencias(req, res) Promise~Response~
+        +actualizarPreferencias(req, res) Promise~Response~
+        +restaurarDefecto(req, res) Promise~Response~
+        -validarIntervalo(intervalo) boolean
+        -validarZonaHoraria(zona) boolean
+        -obtenerDefecto() Object
     }
 
     class usuarioController {
-        +obtenerTodos(req, res)
-        +obtenerPorId(req, res)
-        +crear(req, res)
-        +actualizar(req, res)
-        +eliminar(req, res)
+        -PrismaClient prisma
+        -bcrypt bcryptjs
+        +obtenerTodos(req, res) Promise~Response~
+        +obtenerPorId(req, res) Promise~Response~
+        +crear(req, res) Promise~Response~
+        +actualizar(req, res) Promise~Response~
+        +eliminar(req, res) Promise~Response~
+        +activar(req, res) Promise~Response~
+        +desactivar(req, res) Promise~Response~
+        +cambiarRol(req, res) Promise~Response~
+        -hashPassword(password) Promise~string~
+        -validarEmail(email) boolean
+        -verificarDuplicado(username, email) Promise~boolean~
+        -registrarLog(accion, usuarioId) Promise~void~
     }
 
     class perfilController {
-        +obtenerPerfil(req, res)
-        +actualizarPerfil(req, res)
-        +cambiarPassword(req, res)
+        -PrismaClient prisma
+        -bcrypt bcryptjs
+        +obtenerPerfil(req, res) Promise~Response~
+        +actualizarPerfil(req, res) Promise~Response~
+        +cambiarPassword(req, res) Promise~Response~
+        +actualizarPreferencias(req, res) Promise~Response~
+        -verificarPasswordActual(usuarioId, password) Promise~boolean~
+        -validarPasswordNuevo(password) boolean
+        -registrarCambioPassword(usuarioId) Promise~void~
+    }
+
+    class logsController {
+        -PrismaClient prisma
+        +obtenerTodos(req, res) Promise~Response~
+        +obtenerPorUsuario(req, res) Promise~Response~
+        +obtenerPorTabla(req, res) Promise~Response~
+        +obtenerPorFecha(req, res) Promise~Response~
+        +obtenerRecientes(req, res) Promise~Response~
+        +eliminarAntiguos(req, res) Promise~Response~
+        +contarPorAccion(req, res) Promise~Response~
+        -formatearLogs(logs) Object[]
     }
 
     authController --> PrismaClient : usa
     sensorController --> PrismaClient : usa
     lecturaController --> PrismaClient : usa
+    lecturaController --> alertService : usa
     alertaController --> PrismaClient : usa
     umbralController --> PrismaClient : usa
     recorridosController --> PrismaClient : usa
     preferenciasSistemaController --> PrismaClient : usa
     usuarioController --> PrismaClient : usa
     perfilController --> PrismaClient : usa
+    logsController --> PrismaClient : usa
 
     class PrismaClient {
         +sensores
@@ -541,26 +711,113 @@ classDiagram
         +logs_actividad
         +recorridos_guardados
         +preferencias_sistema
+        +$connect() Promise~void~
+        +$disconnect() Promise~void~
+        +$transaction(callback) Promise~any~
+    }
+
+    class alertService {
+        -PrismaClient prisma
+        +checkThresholds(lectura) Promise~Alerta[]~
+        +calcularGravedad(parametro, diferencia) String
+        +crearAlerta(datos) Promise~Alerta~
+        +enviarNotificacion(alerta) Promise~void~
     }
 ```
 
 #### 4.2.3 Middlewares
 
+**Nota:** Los middlewares son funciones que se ejecutan antes de los controladores para validar, autenticar o procesar peticiones.
+
 ```mermaid
 classDiagram
-    class auth {
-        +verificarToken(req, res, next)
-        +verificarTokenOpcional(req, res, next)
+    class authMiddleware {
+        -jwt jsonwebtoken
+        -PrismaClient prisma
+        +verificarToken(req, res, next) Promise~void~
+        +verificarTokenOpcional(req, res, next) Promise~void~
+        +verificarRolAdmin(req, res, next) Promise~void~
+        +verificarRolSuperAdmin(req, res, next) Promise~void~
+        -extraerToken(req) string
+        -decodificarToken(token) Object
+        -verificarUsuarioActivo(usuarioId) Promise~boolean~
+        -adjuntarUsuario(req, usuario) void
     }
 
-    class validation {
-        +validarSensor(req, res, next)
-        +validarLectura(req, res, next)
-        +validarUmbral(req, res, next)
+    class validationMiddleware {
+        -expresValidator express-validator
+        +validarSensor(req, res, next) void
+        +validarLectura(req, res, next) void
+        +validarUmbral(req, res, next) void
+        +validarUsuario(req, res, next) void
+        +validarAlerta(req, res, next) void
+        +validarRecorrido(req, res, next) void
+        +validarLogin(req, res, next) void
+        +validarCambioPassword(req, res, next) void
+        +validarFiltros(req, res, next) void
+        +procesarErroresValidacion(req, res, next) void
+        -sanitizarEntrada(valor) string
+        -validarRangoCoordenadas(lat, lon) boolean
+        -validarFormatoFecha(fecha) boolean
     }
 
-    auth --> jwt : usa
-    auth --> PrismaClient : verifica usuario
+    class errorHandler {
+        +manejarError(err, req, res, next) void
+        +errorNotFound(req, res, next) void
+        +errorValidacion(err, req, res, next) void
+        +errorAutenticacion(err, req, res, next) void
+        +errorBaseDatos(err, req, res, next) void
+        -formatearError(err) Object
+        -registrarError(err, req) Promise~void~
+        -determinarCodigoHTTP(err) number
+        -esErrorProduccion() boolean
+    }
+
+    class rateLimiter {
+        -expressRateLimit express-rate-limit
+        +limitarPeticionesGenerales(req, res, next) void
+        +limitarPeticionesAuth(req, res, next) void
+        +limitarPeticionesAPI(req, res, next) void
+        +limitarCreacionRecursos(req, res, next) void
+        -configurarLimite(ventana, max) Object
+        -mensajeExcedido(req) string
+    }
+
+    class corsMiddleware {
+        -cors cors
+        +configurarCORS(req, res, next) void
+        +verificarOrigen(origin, callback) void
+        -origenePermitidos() string[]
+        -opcionesCORS() Object
+    }
+
+    class loggerMiddleware {
+        -morgan morgan
+        +registrarPeticion(req, res, next) void
+        +registrarRespuesta(req, res, next) void
+        -formatearLog(req) string
+        -obtenerIP(req) string
+        -calcularTiempoRespuesta(inicio) number
+    }
+
+    class securityMiddleware {
+        -helmet helmet
+        +configurarHelmet(req, res, next) void
+        +sanitizarEntrada(req, res, next) void
+        +prevenir SQLInjection(req, res, next) void
+        +prevenirXSS(req, res, next) void
+        +configurarCSP(req, res, next) void
+        +configurarHSTS(req, res, next) void
+        -limpiarHTML(texto) string
+    }
+
+    authMiddleware --> jwt : usa
+    authMiddleware --> PrismaClient : verifica usuario
+    validationMiddleware --> expresValidator : usa
+    rateLimiter --> expressRateLimit : usa
+    corsMiddleware --> cors : usa
+    loggerMiddleware --> morgan : usa
+    securityMiddleware --> helmet : usa
 ```
 
 **[INSERTAR DIAGRAMA: Diagrama de Clases Completo (imagen exportada de Mermaid o herramienta UML)]**
