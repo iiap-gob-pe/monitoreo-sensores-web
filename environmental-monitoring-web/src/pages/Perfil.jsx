@@ -1,5 +1,6 @@
 // src/pages/Perfil.jsx
 import { useState, useEffect } from 'react';
+import { perfilAPI } from '../services/api';
 import CambiarContrasenaModal from '../components/perfil/CambiarContrasenaModal';
 import {
   UserCircleIcon,
@@ -15,7 +16,7 @@ import {
 
 export default function Perfil() {
   const [userId] = useState(1);
-  
+
   const [perfil, setPerfil] = useState(null);
   const [historial, setHistorial] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,8 +38,8 @@ export default function Perfil() {
 
   const cargarPerfil = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/perfil/${userId}`);
-      const result = await response.json();
+      const response = await perfilAPI.obtenerPerfil(userId);
+      const result = response.data;
 
       if (result.success) {
         setPerfil(result.data);
@@ -58,8 +59,8 @@ export default function Perfil() {
 
   const cargarHistorial = async () => {
     try {
-      const response = await fetch(`http://localhost:3000/api/perfil/${userId}/historial?limite=10`);
-      const result = await response.json();
+      const response = await perfilAPI.obtenerHistorial(userId, 10);
+      const result = response.data;
 
       if (result.success) {
         setHistorial(result.data);
@@ -82,13 +83,8 @@ export default function Perfil() {
     setMensaje({ tipo: '', texto: '' });
 
     try {
-      const response = await fetch(`http://localhost:3000/api/perfil/${userId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-
-      const result = await response.json();
+      const response = await perfilAPI.actualizarPerfil(userId, formData);
+      const result = response.data;
 
       if (result.success) {
         setPerfil(result.data);

@@ -4,6 +4,7 @@ const app = require('./src/app');
 const { prisma, disconnectPrisma } = require('./src/config/database');
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0'; // Escuchar en todas las interfaces de red
 
 // Función para inicializar el servidor
 async function startServer() {
@@ -12,10 +13,11 @@ async function startServer() {
     await prisma.$connect();
     console.log('✅ Conexión a PostgreSQL establecida exitosamente');
 
-    // Iniciar servidor
-    const server = app.listen(PORT, () => {
+    // Iniciar servidor en todas las interfaces de red
+    const server = app.listen(PORT, HOST, () => {
       console.log('🚀 Servidor Environmental Monitoring API iniciado');
       console.log(`📡 Servidor corriendo en http://localhost:${PORT}`);
+      console.log(`📡 Accesible desde red local en http://192.168.1.48:${PORT}`);
       console.log(`🔗 API Base URL: http://localhost:${PORT}/api`);
       console.log(`📊 Documentación: http://localhost:${PORT}/api/docs`);
       console.log(`⏰ Iniciado en: ${new Date().toLocaleString()}`);

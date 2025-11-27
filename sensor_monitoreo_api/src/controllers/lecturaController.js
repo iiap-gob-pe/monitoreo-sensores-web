@@ -7,7 +7,6 @@ const lecturaController = {
   crear: async (req, res) => {
     try {
       const {
-        id_sensor,
         temperatura,
         humedad,
         co2_nivel,
@@ -18,13 +17,9 @@ const lecturaController = {
         zona
       } = req.body;
 
-      // Validar campos requeridos
-      if (!id_sensor) {
-        return res.status(400).json({
-          success: false,
-          message: 'El campo id_sensor es obligatorio'
-        });
-      }
+      // 🔐 OBTENER ID DEL SENSOR desde la API Key
+      const id_sensor = req.apiKey.id_sensor;
+      console.log(`🔐 Lectura recibida para sensor: ${id_sensor} (API Key: ${req.apiKey.nombre})`);
 
       // 🆕 PASO 1: Verificar si el sensor existe
       let sensor = await prisma.sensores.findUnique({

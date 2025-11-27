@@ -3,9 +3,10 @@ const express = require('express');
 const router = express.Router();
 const lecturaController = require('../controllers/lecturaController');
 const { verificarTokenOpcional } = require('../middleware/auth');
+const { verificarApiKey } = require('../middleware/apiKey');
 
-// Ruta pública para ESP32 (sin autenticación para permitir sensores enviar datos)
-router.post('/', lecturaController.crear);                         // POST /api/lecturas (Para ESP32)
+// Ruta protegida para ESP32/Apps móviles - REQUIERE API Key
+router.post('/', verificarApiKey, lecturaController.crear);       // POST /api/lecturas (Para ESP32/Apps)
 
 // Rutas públicas de solo lectura (con token opcional para posibles permisos futuros)
 router.get('/', verificarTokenOpcional, lecturaController.obtenerTodas);                   // GET /api/lecturas - Público

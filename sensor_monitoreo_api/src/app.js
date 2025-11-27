@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const rateLimit = require('express-rate-limit');
 require('dotenv').config();
 
 // Importar rutas
@@ -15,6 +16,7 @@ const perfilRoutes = require('./routes/perfil');
 const recorridosRoutes = require('./routes/recorridos');
 const umbralesRoutes = require('./routes/umbrales');
 const preferenciasSistemaRoutes = require('./routes/preferencias-sistema');
+const adminApiKeysRoutes = require('./routes/admin/apiKeys');
 
 
 const app = express();
@@ -23,10 +25,36 @@ const app = express();
 app.use(helmet());
 
 // Configuración de CORS
+// Lee CORS_ORIGIN desde .env y permite múltiples orígenes separados por coma
+const getCorsOrigins = () => {
+  const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:5173';
+  const origins = corsOrigin.split(',').map(origin => origin.trim());
+
+  // En desarrollo: permitir IPs locales para pruebas con app móvil en la MISMA red WiFi
+  // En producción: las apps móviles acceden por el dominio público (ej: https://api.monitoreo.iiap.org.pe)
+  // y NO necesitan estar en CORS ya que las peticiones POST /api/lecturas son públicas
+  if (process.env.NODE_ENV === 'development') {
+    origins.push('http://localhost:3001');
+    origins.push(/^http:\/\/192\.168\.\d+\.\d+:\d+$/);  // Red local 192.168.x.x con puerto (pruebas)
+    origins.push(/^http:\/\/192\.168\.\d+\.\d+$/);       // Red local 192.168.x.x sin puerto (pruebas)
+    origins.push(/^http:\/\/10\.\d+\.\d+\.\d+$/);        // Red 10.x.x.x (algunas redes WiFi)
+  }
+
+  return origins;
+};
+
 app.use(cors({
-  origin: ['http://localhost:3001', 'http://localhost:5173'],
+  origin: getCorsOrigins(),
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: [
+    'Content-Type',
+    'Authorization',
+    'X-API-Key',  // Header para autenticación de sensores y apps móviles
+    // Headers personalizados de la app móvil
+    'X-Client-Type',
+    'X-Client-Version',
+    'X-Device-ID'
+  ],
   credentials: true
 }));
 
@@ -41,6 +69,29 @@ if (process.env.NODE_ENV === 'development') {
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Rate limiting para prevenir abuso de API (solo para rutas públicas)
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos
+  max: 100, // límite de 100 requests por ventana de 15 min
+  message: {
+    success: false,
+    message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde',
+    code: 'RATE_LIMIT_EXCEEDED'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Excluir rutas de administración del rate limit
+    return req.path.startsWith('/api/admin') ||
+           req.path.startsWith('/api/auth') ||
+           req.path.startsWith('/api/usuarios') ||
+           req.path.startsWith('/api/perfil');
+  }
+});
+
+// Aplicar rate limiting
+app.use('/api', apiLimiter);
+
 // Rutas principales
 app.use('/api/sensores', sensoresRoutes);
 app.use('/api/lecturas', lecturasRoutes);
@@ -53,6 +104,9 @@ app.use('/api/preferencias-sistema', preferenciasSistemaRoutes);
 // Registrar rutas de autenticación
 app.use('/api/auth', authRoutes);
 app.use('/api/usuarios', usuariosRoutes);
+
+// Rutas de administración (solo admins)
+app.use('/api/admin/api-keys', adminApiKeysRoutes);
 
 // Ruta de salud del servidor
 app.get('/api/health', (req, res) => {

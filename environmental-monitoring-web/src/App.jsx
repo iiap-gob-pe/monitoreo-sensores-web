@@ -11,6 +11,7 @@ import Reportes from "./pages/Reportes";
 import Configuracion from "./pages/Configuracion";
 import Lecturas from './pages/Lecturas';
 import Perfil from './pages/Perfil';
+import GestionApiKeys from './pages/GestionApiKeys';
 
 function AppContent() {
   return (
@@ -26,21 +27,29 @@ function AppContent() {
       <Route path="/reportes" element={<Layout><Reportes /></Layout>} />
 
       {/* ✅ Rutas PROTEGIDAS - Solo Admin */}
-      <Route 
-        path="/configuracion" 
+      <Route
+        path="/configuracion"
         element={
           <ProtectedRoute requiredRole="admin">
             <Layout><Configuracion /></Layout>
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/perfil" 
+      <Route
+        path="/perfil"
         element={
           <ProtectedRoute requiredRole="admin">
             <Layout><Perfil /></Layout>
           </ProtectedRoute>
-        } 
+        }
+      />
+      <Route
+        path="/api-keys"
+        element={
+          <ProtectedRoute requiredRole="admin">
+            <Layout><GestionApiKeys /></Layout>
+          </ProtectedRoute>
+        }
       />
 
       <Route path="*" element={<Navigate to="/" replace />} />
