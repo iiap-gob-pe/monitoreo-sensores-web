@@ -17,8 +17,28 @@ const lecturaController = {
         zona
       } = req.body;
 
-      // 🔐 OBTENER ID DEL SENSOR desde la API Key
-      const id_sensor = req.apiKey.id_sensor;
+      // 🔐 OBTENER ID DEL SENSOR
+      let id_sensor = req.apiKey.id_sensor;
+      const id_sensor_body = req.body.id_sensor; // El sensor debe enviar su ID en el body
+      let needsBinding = false;
+
+      // 🆕 AUTO-BINDING: Si la API Key no tiene sensor asociado, marcaremos para asociar
+      if (!id_sensor) {
+        if (!id_sensor_body) {
+          return res.status(400).json({
+            success: false,
+            message: 'Primera conexión: Debe enviar id_sensor en el cuerpo para vincularlo a la API Key'
+          });
+        }
+        id_sensor = id_sensor_body;
+        needsBinding = true;
+      } else {
+        // Si la key ya tiene sensor, VERIFICAR que coincida con el que envía (si envía)
+        if (id_sensor_body && id_sensor_body !== id_sensor) {
+          console.warn(`⚠️ Mismatch: API Key es de ${id_sensor}, pero request dice ${id_sensor_body}. Usando el de la Key.`);
+        }
+      }
+
       console.log(`🔐 Lectura recibida para sensor: ${id_sensor} (API Key: ${req.apiKey.nombre})`);
 
       // 🆕 PASO 1: Verificar si el sensor existe
@@ -29,7 +49,7 @@ const lecturaController = {
       // 🆕 PASO 2: Si no existe, AUTO-REGISTRARLO
       if (!sensor) {
         console.log(`🆕 Nuevo sensor detectado: ${id_sensor} - Iniciando auto-registro...`);
-        
+
         try {
           sensor = await prisma.sensores.create({
             data: {
@@ -42,15 +62,37 @@ const lecturaController = {
               last_seen: new Date()
             }
           });
-          
+
           console.log(`✅ Sensor ${id_sensor} registrado exitosamente`);
         } catch (createError) {
-          console.error(`❌ Error al auto-registrar sensor ${id_sensor}:`, createError);
-          return res.status(500).json({
-            success: false,
-            message: 'Error al registrar el nuevo sensor',
-            error: createError.message
-          });
+          // Si el error es por clave duplicada (código P2002), significa que otro proceso
+          // ya creó el sensor (race condition). En ese caso, simplemente buscarlo de nuevo.
+          if (createError.code === 'P2002') {
+            console.log(`⚠️ Sensor ${id_sensor} ya fue registrado por otro proceso. Buscando...`);
+            sensor = await prisma.sensores.findUnique({
+              where: { id_sensor }
+            });
+
+            if (!sensor) {
+              // Esto no debería pasar, pero por seguridad
+              console.error(`❌ Error crítico: Sensor ${id_sensor} no encontrado después de duplicate key`);
+              return res.status(500).json({
+                success: false,
+                message: 'Error al verificar sensor',
+                code: 'SENSOR_NOT_FOUND_AFTER_DUPLICATE'
+              });
+            }
+
+            console.log(`✅ Sensor ${id_sensor} encontrado correctamente`);
+          } else {
+            // Cualquier otro error es un problema real
+            console.error(`❌ Error al auto-registrar sensor ${id_sensor}:`, createError);
+            return res.status(500).json({
+              success: false,
+              message: 'Error al registrar el nuevo sensor',
+              error: createError.message
+            });
+          }
         }
       } else {
         // 🔄 PASO 3: Actualizar última conexión y detectar movilidad
@@ -65,23 +107,23 @@ const lecturaController = {
 
           // Determinar si es móvil basado en variación de coordenadas
           let esMovil = sensor.is_movil; // Mantener valor actual por defecto
-          
+
           if (ultimasLecturas.length >= 3 && latitud && longitud) {
             const coordenadasUnicas = new Set(
               ultimasLecturas
                 .filter(l => l.latitud && l.longitud)
                 .map(l => `${l.latitud.toFixed(4)},${l.longitud.toFixed(4)}`)
             );
-            
+
             // Si hay más de 1 coordenada diferente (tolerancia de 4 decimales ≈ 11 metros)
             esMovil = coordenadasUnicas.size > 1;
-            
+
             console.log(`📍 Sensor ${id_sensor}: ${esMovil ? 'Móvil' : 'Fijo'} detectado (${coordenadasUnicas.size} ubicaciones)`);
           }
 
           await prisma.sensores.update({
             where: { id_sensor },
-            data: { 
+            data: {
               last_seen: new Date(),
               estado: 'Activo',
               is_movil: esMovil // Actualizar según movimiento detectado
@@ -89,6 +131,26 @@ const lecturaController = {
           });
         } catch (updateError) {
           console.error(`⚠️ Error al actualizar sensor ${id_sensor}:`, updateError);
+        }
+      }
+
+      // 🔗 PASO 3.5: Si es primera vez, VINCULAR API Key al Sensor (ahora que seguro existe)
+      if (needsBinding) {
+        console.log(`🔗 Vinculando API Key '${req.apiKey.nombre}' al sensor '${id_sensor}'...`);
+        try {
+          await prisma.api_keys.update({
+            where: { id_api_key: req.apiKey.id },
+            data: { id_sensor: id_sensor }
+          });
+          console.log(`✅ Vinculación exitosa.`);
+        } catch (bindError) {
+          console.error('Error al vincular sensor a API Key:', bindError);
+          return res.status(409).json({
+            success: false,
+            message: 'Error al vincular: Este sensor ya podría estar asociado a otra API Key o hubo un conflicto.',
+            error: bindError.message,
+            code: bindError.code
+          });
         }
       }
 
@@ -111,8 +173,8 @@ const lecturaController = {
       // ✅ Respuesta exitosa
       res.status(201).json({
         success: true,
-        message: sensor.created_at && (new Date() - new Date(sensor.created_at)) < 5000 
-          ? 'Nuevo sensor registrado y lectura guardada' 
+        message: sensor.created_at && (new Date() - new Date(sensor.created_at)) < 5000
+          ? 'Nuevo sensor registrado y lectura guardada'
           : 'Lectura registrada exitosamente',
         data: nuevaLectura,
         sensor_info: {
@@ -364,141 +426,141 @@ const lecturaController = {
   },
 
   // Obtener lecturas con filtros avanzados y paginación (usando Prisma)
-    obtenerLecturasAvanzado: async (req, res) => {
-      try {
-        const {
-          id_sensor,
-          parametro,
-          fecha_inicio,
-          fecha_fin,
-          tipo_sensor,      // ✅ Nuevo: móvil o fijo
-          page = 1,
-          limit = 50,
-          sort_by = 'lectura_datetime',
-          sort_order = 'DESC'
-        } = req.query;
+  obtenerLecturasAvanzado: async (req, res) => {
+    try {
+      const {
+        id_sensor,
+        parametro,
+        fecha_inicio,
+        fecha_fin,
+        tipo_sensor,      // ✅ Nuevo: móvil o fijo
+        page = 1,
+        limit = 50,
+        sort_by = 'lectura_datetime',
+        sort_order = 'DESC'
+      } = req.query;
 
-        // Construir filtros dinámicamente
-        const filtros = {};
+      // Construir filtros dinámicamente
+      const filtros = {};
 
-        if (id_sensor) {
-          filtros.id_sensor = id_sensor;
-        }
-
-        if (fecha_inicio && fecha_fin) {
-          filtros.lectura_datetime = {
-            gte: new Date(fecha_inicio),
-            lte: new Date(fecha_fin)
-          };
-        } else if (fecha_inicio) {
-          filtros.lectura_datetime = {
-            gte: new Date(fecha_inicio)
-          };
-        } else if (fecha_fin) {
-          filtros.lectura_datetime = {
-            lte: new Date(fecha_fin)
-          };
-        }
-
-        // ✅ Filtro por parámetro específico
-        if (parametro) {
-          switch(parametro.toLowerCase()) {
-            case 'temperatura':
-              filtros.temperatura = { not: null };
-              break;
-            case 'humedad':
-              filtros.humedad = { not: null };
-              break;
-            case 'co2':
-              filtros.co2_nivel = { not: null };
-              break;
-            case 'co':
-              filtros.co_nivel = { not: null };
-              break;
-          }
-        }
-
-        // ✅ Filtro por tipo de sensor (móvil o fijo)
-        const sensorWhere = {};
-        if (tipo_sensor !== undefined && tipo_sensor !== '') {
-          sensorWhere.is_movil = tipo_sensor === 'movil';
-        }
-
-        // Determinar ordenamiento
-        const validSortColumns = ['lectura_datetime', 'temperatura', 'humedad', 'co2_nivel', 'co_nivel', 'id_sensor'];
-        const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'lectura_datetime';
-        const order = sort_order.toUpperCase() === 'ASC' ? 'asc' : 'desc';
-
-        // ✅ Construir where completo
-        const whereClause = {
-          ...filtros,
-          ...(Object.keys(sensorWhere).length > 0 && { sensor: sensorWhere })
-        };
-
-        // Obtener total de registros y lecturas paginadas
-        const [total, lecturas] = await Promise.all([
-          prisma.lecturas.count({ where: whereClause }),
-          prisma.lecturas.findMany({
-            where: whereClause,
-            include: {
-              sensor: {
-                select: {
-                  nombre_sensor: true,
-                  zona: true,
-                  is_movil: true,
-                  estado: true
-                }
-              }
-            },
-            orderBy: {
-              [sortColumn]: order
-            },
-            skip: (parseInt(page) - 1) * parseInt(limit),
-            take: parseInt(limit)
-          })
-        ]);
-
-        // Formatear datos para compatibilidad con frontend
-        const lecturasFormateadas = lecturas.map(lectura => ({
-          id_lectura: lectura.id_lectura,
-          sensor_id: lectura.id_sensor,
-          nombre_sensor: lectura.sensor.nombre_sensor,
-          is_movil: lectura.sensor.is_movil,
-          tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Fijo',
-          sensor_estado: lectura.sensor.estado,
-          lectura_datetime: lectura.lectura_datetime,
-          temperatura: lectura.temperatura,
-          humedad: lectura.humedad,
-          co2_nivel: lectura.co2_nivel,
-          co_nivel: lectura.co_nivel,
-          latitud: lectura.latitud,
-          longitud: lectura.longitud,
-          altitud: lectura.altitud
-        }));
-
-        res.json({
-          success: true,
-          data: lecturasFormateadas,
-          pagination: {
-            page: parseInt(page),
-            limit: parseInt(limit),
-            total: total,
-            totalPages: Math.ceil(total / parseInt(limit))
-          }
-        });
-
-      } catch (error) {
-        console.error('Error al obtener lecturas avanzado:', error);
-        res.status(500).json({ 
-          success: false,
-          message: 'Error al obtener lecturas',
-          error: error.message 
-        });
+      if (id_sensor) {
+        filtros.id_sensor = id_sensor;
       }
+
+      if (fecha_inicio && fecha_fin) {
+        filtros.lectura_datetime = {
+          gte: new Date(fecha_inicio),
+          lte: new Date(fecha_fin)
+        };
+      } else if (fecha_inicio) {
+        filtros.lectura_datetime = {
+          gte: new Date(fecha_inicio)
+        };
+      } else if (fecha_fin) {
+        filtros.lectura_datetime = {
+          lte: new Date(fecha_fin)
+        };
+      }
+
+      // ✅ Filtro por parámetro específico
+      if (parametro) {
+        switch (parametro.toLowerCase()) {
+          case 'temperatura':
+            filtros.temperatura = { not: null };
+            break;
+          case 'humedad':
+            filtros.humedad = { not: null };
+            break;
+          case 'co2':
+            filtros.co2_nivel = { not: null };
+            break;
+          case 'co':
+            filtros.co_nivel = { not: null };
+            break;
+        }
+      }
+
+      // ✅ Filtro por tipo de sensor (móvil o fijo)
+      const sensorWhere = {};
+      if (tipo_sensor !== undefined && tipo_sensor !== '') {
+        sensorWhere.is_movil = tipo_sensor === 'movil';
+      }
+
+      // Determinar ordenamiento
+      const validSortColumns = ['lectura_datetime', 'temperatura', 'humedad', 'co2_nivel', 'co_nivel', 'id_sensor'];
+      const sortColumn = validSortColumns.includes(sort_by) ? sort_by : 'lectura_datetime';
+      const order = sort_order.toUpperCase() === 'ASC' ? 'asc' : 'desc';
+
+      // ✅ Construir where completo
+      const whereClause = {
+        ...filtros,
+        ...(Object.keys(sensorWhere).length > 0 && { sensor: sensorWhere })
+      };
+
+      // Obtener total de registros y lecturas paginadas
+      const [total, lecturas] = await Promise.all([
+        prisma.lecturas.count({ where: whereClause }),
+        prisma.lecturas.findMany({
+          where: whereClause,
+          include: {
+            sensor: {
+              select: {
+                nombre_sensor: true,
+                zona: true,
+                is_movil: true,
+                estado: true
+              }
+            }
+          },
+          orderBy: {
+            [sortColumn]: order
+          },
+          skip: (parseInt(page) - 1) * parseInt(limit),
+          take: parseInt(limit)
+        })
+      ]);
+
+      // Formatear datos para compatibilidad con frontend
+      const lecturasFormateadas = lecturas.map(lectura => ({
+        id_lectura: lectura.id_lectura,
+        sensor_id: lectura.id_sensor,
+        nombre_sensor: lectura.sensor.nombre_sensor,
+        is_movil: lectura.sensor.is_movil,
+        tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Fijo',
+        sensor_estado: lectura.sensor.estado,
+        lectura_datetime: lectura.lectura_datetime,
+        temperatura: lectura.temperatura,
+        humedad: lectura.humedad,
+        co2_nivel: lectura.co2_nivel,
+        co_nivel: lectura.co_nivel,
+        latitud: lectura.latitud,
+        longitud: lectura.longitud,
+        altitud: lectura.altitud
+      }));
+
+      res.json({
+        success: true,
+        data: lecturasFormateadas,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total: total,
+          totalPages: Math.ceil(total / parseInt(limit))
+        }
+      });
+
+    } catch (error) {
+      console.error('Error al obtener lecturas avanzado:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al obtener lecturas',
+        error: error.message
+      });
+    }
   },
 
   //Obtención de todas las lecturas sin paginación
-    obtenerParaExportar: async (req, res) => {
+  obtenerParaExportar: async (req, res) => {
     try {
       const {
         id_sensor,
@@ -531,7 +593,7 @@ const lecturaController = {
       }
 
       if (parametro) {
-        switch(parametro.toLowerCase()) {
+        switch (parametro.toLowerCase()) {
           case 'temperatura':
             filtros.temperatura = { not: null };
             break;
@@ -602,10 +664,10 @@ const lecturaController = {
 
     } catch (error) {
       console.error('Error al obtener lecturas para exportar:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         success: false,
         message: 'Error al obtener lecturas',
-        error: error.message 
+        error: error.message
       });
     }
   }

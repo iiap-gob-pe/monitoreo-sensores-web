@@ -92,24 +92,21 @@ exports.crear = async (req, res) => {
       });
     }
 
-    // El id_sensor es siempre requerido
-    if (!id_sensor || !id_sensor.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'El ID del sensor es requerido'
-      });
-    }
+    // El id_sensor es opcional ahora
+    // if (!id_sensor || !id_sensor.trim()) { ... }
 
-    // Validar que no exista ya una API Key para este sensor
-    const apiKeyExistente = await prisma.api_keys.findUnique({
-      where: { id_sensor: id_sensor.trim() }
-    });
-
-    if (apiKeyExistente) {
-      return res.status(400).json({
-        success: false,
-        message: `Ya existe una API Key para el sensor '${id_sensor}'`
+    // Si se proporciona id_sensor, validar que no exista ya una API Key para este sensor
+    if (id_sensor && id_sensor.trim()) {
+      const apiKeyExistente = await prisma.api_keys.findUnique({
+        where: { id_sensor: id_sensor.trim() }
       });
+
+      if (apiKeyExistente) {
+        return res.status(400).json({
+          success: false,
+          message: `Ya existe una API Key para el sensor '${id_sensor}'`
+        });
+      }
     }
 
     // Generar API Key aleatoria
@@ -121,7 +118,7 @@ exports.crear = async (req, res) => {
       data: {
         key_name: key_name.trim(),
         api_key: apiKeyHash,
-        id_sensor: id_sensor.trim(),
+        id_sensor: id_sensor ? id_sensor.trim() : null,
         descripcion: descripcion || null,
         created_by: userId,
         expires_at: expires_at ? new Date(expires_at) : null,

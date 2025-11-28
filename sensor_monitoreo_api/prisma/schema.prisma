@@ -155,7 +155,7 @@ model api_keys {
   id_api_key       Int       @id @default(autoincrement())
   key_name         String    @db.VarChar(100)                    // Nombre descriptivo (ej: "ESP32_Sensor_001")
   api_key          String    @unique @db.VarChar(64)             // La API Key (hash SHA256)
-  id_sensor        String    @db.VarChar(50)                     // ID del sensor asociado (REQUERIDO)
+  id_sensor        String?   @db.VarChar(50)                     // ID del sensor asociado (OPCIONAL al inicio)
   descripcion      String?                                       // Descripción adicional
   esta_activo      Boolean   @default(true)                      // Permite deshabilitar sin eliminar
   ultima_uso       DateTime? @db.Timestamp(6)                    // Última vez que se usó
@@ -163,9 +163,9 @@ model api_keys {
   created_by       Int?                                          // ID del admin que la creó
   expires_at       DateTime? @db.Timestamp(6)                    // Opcional: fecha de expiración
   usuario_creador  usuarios? @relation(fields: [created_by], references: [id_usuario], onDelete: SetNull, onUpdate: NoAction)
-  sensor           sensores  @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+  sensor           sensores? @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
 
-  @@unique([id_sensor], map: "unique_sensor_api_key")           // Un sensor = Una API Key
+  // @@unique([id_sensor], map: "unique_sensor_api_key")           // ELIMINADO: Un sensor puede no tener key, o una key no tener sensor al inicio
   @@index([api_key], map: "idx_api_keys_key")
   @@index([esta_activo], map: "idx_api_keys_activo")
   @@index([created_by], map: "idx_api_keys_created_by")

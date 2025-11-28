@@ -71,8 +71,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // Rate limiting para prevenir abuso de API (solo para rutas públicas)
 const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos
-  max: 100, // límite de 100 requests por ventana de 15 min
+  windowMs: 60 * 1000, // 1 minuto
+  max: 300, // 300 request/min (5 request/seg) - Aumentado para soportar simulador con múltiples sensores
   message: {
     success: false,
     message: 'Demasiadas peticiones desde esta IP, intenta de nuevo más tarde',
@@ -83,9 +83,9 @@ const apiLimiter = rateLimit({
   skip: (req) => {
     // Excluir rutas de administración del rate limit
     return req.path.startsWith('/api/admin') ||
-           req.path.startsWith('/api/auth') ||
-           req.path.startsWith('/api/usuarios') ||
-           req.path.startsWith('/api/perfil');
+      req.path.startsWith('/api/auth') ||
+      req.path.startsWith('/api/usuarios') ||
+      req.path.startsWith('/api/perfil');
   }
 });
 
@@ -194,7 +194,7 @@ app.use('*', (req, res) => {
 // Middleware global de manejo de errores
 app.use((error, req, res, next) => {
   console.error('Error:', error);
-  
+
   res.status(error.status || 500).json({
     success: false,
     message: error.message || 'Error interno del servidor',
