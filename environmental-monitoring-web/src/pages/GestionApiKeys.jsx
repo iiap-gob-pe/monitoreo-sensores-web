@@ -10,7 +10,6 @@ const GestionApiKeys = () => {
   const [nuevaApiKey, setNuevaApiKey] = useState(null);
   const [formData, setFormData] = useState({
     key_name: '',
-    id_sensor: '',
     descripcion: ''
   });
 
@@ -39,17 +38,16 @@ const GestionApiKeys = () => {
       return;
     }
 
-    if (!formData.id_sensor.trim()) {
-      alert('El ID del sensor es requerido');
-      return;
-    }
+    // id_sensor ya no es requerido al crear
+    // if (!formData.id_sensor.trim()) { ... }
 
     try {
       const response = await apiKeysAPI.crear(formData);
       setNuevaApiKey(response.data.data);
       setShowModal(false);
+      setShowModal(false);
       setShowKeyModal(true);
-      setFormData({ key_name: '', id_sensor: '', descripcion: '' });
+      setFormData({ key_name: '', descripcion: '' });
       cargarApiKeys();
     } catch (error) {
       console.error('Error al crear API Key:', error);
@@ -162,14 +160,15 @@ const GestionApiKeys = () => {
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="text-sm font-mono font-medium text-gray-900">{key.id_sensor}</span>
+                        <span className={`text-sm font-mono font-medium ${key.id_sensor ? 'text-gray-900' : 'text-orange-500 italic'}`}>
+                          {key.id_sensor || 'Pendiente de conexión...'}
+                        </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          key.esta_activo
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-red-100 text-red-800'
-                        }`}>
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${key.esta_activo
+                          ? 'bg-green-100 text-green-800'
+                          : 'bg-red-100 text-red-800'
+                          }`}>
                           {key.esta_activo ? '✓ Activo' : '✗ Inactivo'}
                         </span>
                       </td>
@@ -182,11 +181,10 @@ const GestionApiKeys = () => {
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
                         <button
                           onClick={() => handleToggleEstado(key.id_api_key, key.key_name)}
-                          className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded ${
-                            key.esta_activo
-                              ? 'text-orange-700 bg-orange-100 hover:bg-orange-200'
-                              : 'text-green-700 bg-green-100 hover:bg-green-200'
-                          } transition-colors`}
+                          className={`inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded ${key.esta_activo
+                            ? 'text-orange-700 bg-orange-100 hover:bg-orange-200'
+                            : 'text-green-700 bg-green-100 hover:bg-green-200'
+                            } transition-colors`}
                           title={key.esta_activo ? 'Deshabilitar' : 'Habilitar'}
                         >
                           <PowerIcon className="w-4 h-4" />
@@ -238,22 +236,15 @@ const GestionApiKeys = () => {
                           <p className="mt-1 text-xs text-gray-500">Nombre descriptivo para identificar el dispositivo</p>
                         </div>
 
+                        {/* Campo ID Sensor ELIMINADO - Se vincula automáticamente */}
+                        {/* 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
                             ID del Sensor *
                           </label>
-                          <input
-                            type="text"
-                            value={formData.id_sensor}
-                            onChange={(e) => setFormData({ ...formData, id_sensor: e.target.value })}
-                            placeholder="ej: SENSOR_001"
-                            required
-                            className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 font-mono focus:outline-none focus:ring-primary focus:border-primary"
-                          />
-                          <p className="mt-1 text-xs text-gray-500">
-                            Escribe el ID que el sensor enviará en sus datos. Debe ser único. El sensor se auto-registrará al enviar su primera lectura.
-                          </p>
-                        </div>
+                          <input ... />
+                        </div> 
+                        */}
 
                         <div>
                           <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -316,6 +307,8 @@ const GestionApiKeys = () => {
                         <div className="ml-3">
                           <p className="text-sm text-yellow-700">
                             <strong>IMPORTANTE:</strong> Esta es la ÚNICA vez que verás la API Key completa. Guárdala en un lugar seguro.
+                            <br /><br />
+                            Esta API Key se vinculará automáticamente al primer sensor que envíe datos usándola. Asegúrate de configurarla en el dispositivo correcto.
                           </p>
                         </div>
                       </div>
@@ -329,7 +322,9 @@ const GestionApiKeys = () => {
                         </div>
                         <div>
                           <dt className="text-sm font-medium text-gray-500">ID del Sensor</dt>
-                          <dd className="mt-1 text-sm text-gray-900 font-mono">{nuevaApiKey.id_sensor}</dd>
+                          <dd className="mt-1 text-sm text-gray-900 font-mono">
+                            {nuevaApiKey.id_sensor || <span className="text-orange-500 italic">Se vinculará automáticamente al conectar</span>}
+                          </dd>
                         </div>
                       </dl>
                     </div>
@@ -351,37 +346,7 @@ const GestionApiKeys = () => {
                       </div>
                     </div>
 
-                    {/* Ejemplo de uso */}
-                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4">
-                      <h4 className="text-sm font-medium text-blue-800 mb-2">📱 Ejemplo de Uso (App Móvil):</h4>
-                      <pre className="bg-gray-800 rounded p-3 overflow-x-auto">
-                        <code className="text-green-400 text-xs font-mono">
-{`// Usa esta API Key cuando conectes al sensor ${nuevaApiKey.id_sensor}
-val apiKey = "${nuevaApiKey.api_key_plain}"
 
-fun enviarLectura(temp: Float, hum: Float) {
-  val json = JSONObject().apply {
-    // NO envíes id_sensor, está identificado en la API Key
-    put("temperatura", temp)
-    put("humedad", hum)
-    put("latitud", -3.7437)
-    put("longitud", -73.2516)
-  }
-
-  val request = Request.Builder()
-    .url("https://api.tu-servidor.com/api/lecturas")
-    .addHeader("X-API-Key", apiKey)  // ← Identifica el sensor
-    .addHeader("Content-Type", "application/json")
-    .post(json.toString().toRequestBody())
-    .build()
-}`}
-                        </code>
-                      </pre>
-                      <p className="mt-2 text-xs text-blue-700">
-                        <strong>Importante:</strong> Esta API Key está vinculada al sensor <code className="bg-blue-100 px-1">{nuevaApiKey.id_sensor}</code>.
-                        La app móvil debe almacenar múltiples API Keys (una por cada sensor) y usar la correcta según el sensor conectado por Bluetooth.
-                      </p>
-                    </div>
                   </div>
                 </div>
               </div>
