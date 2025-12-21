@@ -198,16 +198,18 @@ Se aplicó una metodología mixta combinando técnicas **cualitativas** y **cuan
 
 ### Requerimientos No Funcionales (8 identificados)
 
-| ID | Categoría | Especificación | Métrica |
-|----|-----------|----------------|---------|
-| RNF-01 | Rendimiento | Páginas < 2s, API < 500ms, 50+ usuarios concurrentes | 95% cumplimiento |
-| RNF-02 | Seguridad | JWT 128-char, bcrypt salt 10, Helmet, CORS, HTTPS prod | 0 vulnerabilidades críticas |
-| RNF-03 | Usabilidad | Responsive, 3 clics máx, WCAG 2.1 AA, tooltips | SUS > 80 |
-| RNF-04 | Disponibilidad | 99.5% uptime, RTO < 30min, RPO < 15min, backup diario | Medición mensual |
-| RNF-05 | Escalabilidad | 100→500 sensores sin degradación, stateless, PostgreSQL | 3x carga inicial |
-| RNF-06 | Mantenibilidad | Código limpio, docs, tests >70%, logs estructurados | Setup < 30min |
-| RNF-07 | Portabilidad | Win/Linux/macOS, Docker, últimas 2 versiones browsers | 2+ plataformas |
-| RNF-08 | Compatibilidad | ESP32 WiFi/GPRS, JSON, GeoJSON RFC 7946, ISO 8601 | 3+ tipos sensores |
+Los requisitos no funcionales definen los estándares de calidad y las condiciones bajo las cuales debe operar el sistema para garantizar una experiencia confiable y satisfactoria para todos los usuarios.
+
+| ID | Categoría | Descripción (Enfoque al Usuario) | Objetivo de Calidad |
+|----|-----------|----------------------------------|---------------------|
+| RNF-01 | Rendimiento | El sistema responderá de manera ágil, asegurando que los mapas y datos carguen rápidamente para no hacer esperar al usuario. | **Rapidez**: Tiempos de carga mínimos para una navegación fluida. |
+| RNF-02 | Seguridad | La información sensible se protegerá rigurosamente, garantizando que solo las personas autorizadas puedan realizar cambios en el sistema. | **Confidencialidad**: Protección total de los datos y el acceso administrativo. |
+| RNF-03 | Usabilidad | El diseño será intuitivo y fácil de entender, permitiendo que cualquier persona pueda consultar los datos sin necesidad de conocimientos técnicos avanzados, y se adaptará a pantallas de computadoras y móviles. | **Facilidad de uso**: Interfaz amigable y adaptable a cualquier dispositivo. |
+| RNF-04 | Disponibilidad | La plataforma estará operativa la mayor parte del tiempo, asegurando que los datos de monitoreo estén accesibles cuando se necesiten. | **Confiabilidad**: Servicio continuo con interrupciones mínimas. |
+| RNF-05 | Escalabilidad | El sistema estará preparado para crecer, permitiendo añadir más sensores en el futuro sin que se vuelva lento o falle. | **Crecimiento**: Capacidad de expansión sin perder calidad en el servicio. |
+| RNF-06 | Mantenibilidad | El software se construirá de forma ordenada para que, en el futuro, sea sencillo realizar mejoras o corregir problemas sin afectar el funcionamiento actual. | **Sostenibilidad**: Facilidad para actualizar y mejorar el sistema a largo plazo. |
+| RNF-07 | Portabilidad | La plataforma funcionará correctamente en los navegadores de internet más populares y en diferentes sistemas operativos. | **Versatilidad**: Acceso garantizado desde diferentes entornos tecnológicos. |
+| RNF-08 | Compatibilidad | El sistema se comunicará fluidamente con los sensores ambientales, utilizando un "lenguaje" común que evite errores en la transmisión de datos. | **Integración**: Comunicación efectiva y sin errores con los dispositivos de hardware. |
 
 ### Casos de Uso Principales (10 consolidados)
 
