@@ -106,9 +106,9 @@ Se aplicó la metodología **Design Thinking** en 5 fases:
 **Actividades:**
 1. **Sistema de Diseño (UI Kit):**
    - Paleta de colores:
-     - Primario: Azul (#2563EB) - Confianza, tecnología
-     - Secundario: Verde (#10B981) - Sostenibilidad, naturaleza
-     - Alertas: Amarillo (#F59E0B), Naranja (#F97316), Rojo (#EF4444)
+     - Primario: Verde (#10B981) - Sostenibilidad, naturaleza
+     - Secundario: Azul (#3B82F6) - Confianza, tecnología
+     - Alertas: Amarillo (#F59E0B), Rojo (#EF4444)
      - Neutral: Grises (#F9FAFB → #111827)
    - Tipografía: Inter (sans-serif, legible en pantallas)
    - Componentes reutilizables: Botones, cards, inputs, modales
@@ -251,11 +251,10 @@ Se aplicó la metodología **Design Thinking** en 5 fases:
 
 | Color | Hex | Uso |
 |-------|-----|-----|
-| Primary Blue | `#2563EB` | Botones principales, links, elementos interactivos |
-| Primary Blue (hover) | `#1D4ED8` | Estado hover de elementos primarios |
-| Success Green | `#10B981` | Mensajes de éxito, sensores activos |
+| Primary Green | `#10B981` | Botones principales, links, elementos interactivos |
+| Primary Green (hover) | `#059669` | Estado hover de elementos primarios |
+| Secondary Blue | `#3B82F6` | Botones secundarios, enlaces de soporte |
 | Warning Yellow | `#F59E0B` | Alertas de gravedad Low/Medium |
-| Warning Orange | `#F97316` | Alertas de gravedad High |
 | Danger Red | `#EF4444` | Alertas Critical, acciones destructivas |
 | Neutral 50 | `#F9FAFB` | Fondos de página |
 | Neutral 100 | `#F3F4F6` | Fondos de cards |
@@ -781,11 +780,10 @@ docs/design-assets/
 
 ```css
 /* Colores Principales */
---color-primary: #2563EB;
---color-primary-hover: #1D4ED8;
---color-success: #10B981;
+--color-primary: #10B981;
+--color-primary-hover: #059669;
+--color-secondary: #3B82F6;
 --color-warning: #F59E0B;
---color-warning-high: #F97316;
 --color-danger: #EF4444;
 
 /* Neutrales */
