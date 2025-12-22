@@ -237,30 +237,49 @@ Los requisitos no funcionales definen los estándares de calidad y las condicion
 
 ## 1.7. Resultados del Análisis
 
-### Requerimientos Priorizados (MoSCoW)
+### Requerimientos Priorizados (MoSCoW) - Estado Actual v1.0
 
-#### Must Have (Debe tener)
+Debido al avance rápido del desarrollo, varias características planificadas inicialmente como "Deseables" (Should Have) han sido implementadas exitosamente en la versión inicial (v1.0).
+
+#### Must Have (Implementado - Crítico)
 - ✅ Dashboard con datos en tiempo real
 - ✅ Mapa interactivo con sensores
 - ✅ Sistema de alertas automáticas
 - ✅ Registro automático de sensores
 - ✅ Acceso público de lectura
 
-#### Should Have (Debería tener)
-- ✅ Exportación de datos (Excel, PDF)
-- ✅ Gestión de recorridos móviles
-- ✅ Filtros avanzados de búsqueda
-- ✅ Mapas de calor (temperatura, CO2, CO)
+#### Should Have (Implementado - Alto Valor)
+*Estas funcionalidades fueron priorizadas e incluidas en la v1.0 debido a su alto valor para el análisis de datos.*
+- ✅ Exportación de datos (Excel, PDF, CSV, GPX)
+- ✅ Gestión de recorridos móviles (Visualización y guardado de rutas)
+- ✅ Filtros avanzados de búsqueda (Por sensor, fecha, tipo de mapa)
+- ✅ Mapas de calor (Temperatura, CO2, CO)
 
-#### Could Have (Podría tener)
-- ⚠️ Notificaciones por correo
-- ⚠️ API REST pública documentada
-- ⚠️ Sistema de roles múltiples
+#### Could Have (Pendiente / Futuro)
+- ⚠️ Notificaciones por correo (Requiere servidor SMTP)
+- ⚠️ API REST pública documentada (Implementada internamente, falta portal developer/Swagger)
+- ⚠️ Sistema de roles múltiples (Actualmente: Público y Admin. Se puede expandir a Editor/Viewer)
 
-#### Won't Have (No tendrá - v1.0)
-- ❌ Aplicación móvil nativa
-- ❌ Machine Learning para predicciones
+#### Won't Have (Fuera de Alcance v1.0)
+- ❌ Aplicación móvil nativa (Se priorizó Web Responsive)
+- ❌ Machine Learning para predicciones (Requiere recolección histórica de datos primero)
 - ❌ Integración con redes sociales
+
+### Justificación de la Priorización
+
+La priorización MoSCoW se definió bajo los siguientes criterios técnico-estratégicos:
+
+1.  **Valor para el Negocio (Stakeholders):**
+    *   Los elementos **Must Have** (Dashboard, Mapas) son el núcleo del producto; sin ellos, el sistema no cumple su propósito básico de monitoreo visual.
+    *   Los elementos **Should Have** (Exportación, Históricos) añaden capacidad analítica crítica para los investigadores del IIAP, permitiéndoles usar los datos fuera de la plataforma.
+
+2.  **Viabilidad Técnica y Tiempo:**
+    *   Se descartó la **App Móvil Nativa (Won't Have)** a favor de una **Web App Responsive (PWA)** para reducir tiempos de desarrollo a la mitad y garantizar compatibilidad universal inmediata (PC, Tablet, Celular) sin mantener dos bases de código.
+    *   El **Machine Learning** se pospuso porque requiere un dataset histórico robusto que el sistema apenas comenzará a recolectar.
+
+3.  **Costo-Beneficio:**
+    *   Integrar **Mapas de Calor** y **Recorridos Móviles** (inicialmente Should Have) resultó técnicamente viable usando librerías de `Leaflet` ya integradas, por lo que se promovieron a la versión 1.0 para enriquecer la experiencia visual sin costo extra significativo.
+    *   Las **Notificaciones por Correo** (Could Have) se pospusieron para evitar costos de servicios de emailing (SendGrid/AWS SES) y complejidad de configuración en la fase inicial, priorizando alertas visuales en consola.
 
 ### Matriz de Trazabilidad
 
