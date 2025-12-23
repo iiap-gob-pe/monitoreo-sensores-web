@@ -107,7 +107,6 @@ Se aplicó una metodología mixta combinando técnicas **cualitativas** y **cuan
 │  1. Reunión con Stakeholders del IIAP               │
 │     - Identificar necesidades                       │
 │     - Definir alcance                               │
-│     - Validar nuevos roles y permisos               │
 └────────────────────┬────────────────────────────────┘
                      │
                      ▼
@@ -115,23 +114,23 @@ Se aplicó una metodología mixta combinando técnicas **cualitativas** y **cuan
 │  2. Recopilación de Información                     │
 │     - Documentación técnica                         │
 │     - Especificaciones de sensores                  │
-│     - Requisitos de seguridad (API Keys)            │
+│     - Normativas aplicables                         │
 └────────────────────┬────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────┐
 │  3. Análisis de Requerimientos Funcionales          │
 │     - Visualización de datos                        │
-│     - Sistema de alertas y umbrales                 │
-│     - Gestión de sensores y usuarios                │
-│     - Administración de API Keys                    │
+│     - Sistema de alertas                            │
+│     - Gestión de sensores                           │
+│     - Generación de reportes                        │
 └────────────────────┬────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────┐
 │  4. Análisis de Requerimientos No Funcionales       │
 │     - Rendimiento                                   │
-│     - Seguridad (JWT, Hashing)                      │
+│     - Seguridad                                     │
 │     - Usabilidad                                    │
 │     - Escalabilidad                                 │
 └────────────────────┬────────────────────────────────┘
@@ -141,14 +140,14 @@ Se aplicó una metodología mixta combinando técnicas **cualitativas** y **cuan
 │  5. Análisis de Integración IoT                     │
 │     - Protocolo de comunicación (HTTP/REST)         │
 │     - Formato de datos (JSON)                       │
-│     - Autenticación de sensores (API Keys)          │
+│     - Autenticación de sensores                     │
 └────────────────────┬────────────────────────────────┘
                      │
                      ▼
 ┌─────────────────────────────────────────────────────┐
 │  6. Elaboración de Casos de Uso                     │
-│     - Usuario público (visualización, historial)    │
-│     - Administrador (sensores, usuarios, claves)    │
+│     - Usuario público (visualización)               │
+│     - Administrador (gestión completa)              │
 │     - Sensores IoT (envío de datos)                 │
 └────────────────────┬────────────────────────────────┘
                      │
@@ -214,56 +213,25 @@ Los requisitos no funcionales definen los estándares de calidad y las condicion
 
 ### Casos de Uso Principales (10 consolidados)
 
-```mermaid
-usecaseDiagram
-    actor "Usuario Público" as UP
-    actor "Administrador" as Admin
-    actor "Sensor ESP32" as Sensor
-
-    package "SISTEMA DE MONITOREO AMBIENTAL" {
-        usecase "CU-06: Ver Dashboard" as CU06
-        usecase "CU-07: Ver Historial" as CU07
-        usecase "CU-10: Exportar Datos" as CU10
-        usecase "CU-01: Autenticación" as CU01
-        usecase "CU-02: Gestión Sensores" as CU02
-        usecase "CU-03: Gestión Umbrales" as CU03
-        usecase "CU-04: Preferencias" as CU04
-        usecase "CU-08: Gestión API Keys" as CU08
-        usecase "CU-09: Gestión Usuarios" as CU09
-        usecase "CU-05: Enviar Datos" as CU05
-    }
-
-    UP --> CU06
-    UP --> CU07
-    UP --> CU10
-    
-    Admin --> CU01
-    Admin --> CU02
-    Admin --> CU03
-    Admin --> CU04
-    Admin --> CU08
-    Admin --> CU09
-    
-    Sensor --> CU05
-```
+**Nota:** Durante el análisis inicial se identificaron 12 casos de uso, los cuales fueron consolidados en 10 casos de uso finales durante la fase de diseño, siguiendo las mejores prácticas de IBM para nomenclatura de casos de uso (verbos activos + objeto).
 
 | ID | Caso de Uso | Actor | Descripción |
 |----|-------------|-------|-------------|
-| **CU-01** | **Autenticarse en el sistema** | Administrador | Iniciar sesión con credenciales para acceder al panel administrativo. |
-| **CU-02** | **Gestionar sensores** | Administrador | Crear, modificar, eliminar y consultar sensores del sistema. |
-| **CU-03** | **Gestionar umbrales de alertas** | Administrador | Definir valores mínimos y máximos para generar alertas automáticas. |
-| **CU-04** | **Configurar preferencias del sistema** | Administrador | Configurar las preferencias del sistema: zona horaria, formato de fecha, frecuencia de actualización de los datos, la paginación por defecto y opciones de visualización de los gráficos. |
-| **CU-05** | **Enviar datos ambientales** | Sistema Sensor ESP32 | Transmitir lecturas de sensores al backend vía HTTP POST. |
-| **CU-06** | **Visualizar dashboard** | Usuario Público | Acceder a la vista general con KPIs y datos en tiempo real, así como interactuar con el mapa en tiempo real. |
-| **CU-07** | **Consultar historial de lecturas** | Usuario Público | Consultar las lecturas históricas de los sensores, permitiendo filtrarlas por fecha, sensor, parámetro y tipo de sensor. |
-| **CU-08** | **Gestionar API keys** | Administrador | Agregar, desactivar o eliminar una api key. |
-| **CU-09** | **Gestionar usuarios** | Administrador | Ver, agregar, editar y eliminar a un nuevo usuario. |
-| **CU-10** | **Exportar de datos** | Usuario Público/Admin | Exportación de lecturas en formato PDF, Excel o CSV. |
+| **CU-01** | **Autenticarse en el Sistema** | Administrador | Iniciar sesión con credenciales para acceder al panel administrativo |
+| **CU-02** | **Gestionar Sensores** | Administrador | Crear, modificar, eliminar y consultar sensores del sistema |
+| **CU-03** | **Configurar Umbrales de Alertas** | Administrador | Definir valores mínimos y máximos para generar alertas automáticas |
+| **CU-04** | **Gestionar Alertas** | Administrador | Consultar y resolver alertas generadas por el sistema |
+| **CU-05** | **Enviar Datos Ambientales** | Sistema Sensor ESP32 | Transmitir lecturas de sensores al backend vía HTTP POST |
+| **CU-06** | **Visualizar Dashboard Público** | Usuario Público | Acceder a la vista general con KPIs y datos en tiempo real |
+| **CU-07** | **Consultar Lecturas Históricas** | Usuario Público | Filtrar y visualizar lecturas almacenadas con criterios avanzados |
+| **CU-08** | **Visualizar Estadísticas** | Usuario Público | Consultar promedios, máximos y mínimos por período de tiempo |
+| **CU-09** | **Gestionar Recorridos Móviles** | Administrador | Guardar, nombrar y visualizar trayectorias de sensores móviles |
+| **CU-10** | **Exportar Datos** | Usuario Público/Admin | Descargar reportes en formatos PDF, Excel o CSV |
 
 **Consolidaciones realizadas:**
-- CU "Gestionar Alertas" (previo) → Integrado en funcionalidades del Dashboard y Gestión
-- CU "Gestionar Recorridos Móviles" (previo) → Integrado en visualización de Dashboard y Mapas
-- Nuevos CU agregados: "Gestionar API Keys" y "Gestionar Usuarios" para mayor granularidad administrativa.
+- CU "Ver recorrido móvil" + "Guardar recorrido" → CU-09 "Gestionar Recorridos Móviles"
+- CU "Ver mapa calor" → Integrado en CU-06 "Visualizar Dashboard Público"
+- CU "Exportar GeoJSON" → Integrado en CU-10 "Exportar Datos"
 
 ---
 

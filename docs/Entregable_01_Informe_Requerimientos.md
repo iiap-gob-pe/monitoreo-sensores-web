@@ -1077,18 +1077,52 @@ El sistema debe proporcionar un endpoint HTTP para recibir datos de sensores ESP
 
 ### 6.1 Resumen de Casos de Uso (Versión Consolidada Final)
 
+```mermaid
+   usecaseDiagram
+      actor "Usuario Público" as UP
+      actor "Administrador" as Admin
+      actor "Sensor ESP32" as Sensor
+
+      package "SISTEMA DE MONITOREO AMBIENTAL" {
+         usecase "CU-06: Ver Dashboard" as CU06
+         usecase "CU-07: Ver Historial" as CU07
+         usecase "CU-10: Exportar Datos" as CU10
+         usecase "CU-01: Autenticación" as CU01
+         usecase "CU-02: Gestión Sensores" as CU02
+         usecase "CU-03: Gestión Umbrales" as CU03
+         usecase "CU-04: Preferencias" as CU04
+         usecase "CU-08: Gestión API Keys" as CU08
+         usecase "CU-09: Gestión Usuarios" as CU09
+         usecase "CU-05: Enviar Datos" as CU05
+      }
+
+      UP --> CU06
+      UP --> CU07
+      UP --> CU10
+      
+      Admin --> CU01
+      Admin --> CU02
+      Admin --> CU03
+      Admin --> CU04
+      Admin --> CU08
+      Admin --> CU09
+      
+      Sensor --> CU05
+```
+
 | ID | Caso de Uso | Actor | Descripción |
 |----|-------------|-------|-------------|
-| **CU-01** | **Autenticarse en el Sistema** | Administrador | Iniciar sesión con credenciales para acceder al panel administrativo |
-| **CU-02** | **Gestionar Sensores** | Administrador | Crear, modificar, eliminar y consultar sensores del sistema |
-| **CU-03** | **Configurar Umbrales de Alertas** | Administrador | Definir valores mínimos y máximos para generar alertas automáticas |
-| **CU-04** | **Gestionar Alertas** | Administrador | Consultar y resolver alertas generadas por el sistema |
-| **CU-05** | **Enviar Datos Ambientales** | Sistema Sensor ESP32 | Transmitir lecturas de sensores al backend vía HTTP POST |
-| **CU-06** | **Visualizar Dashboard Público** | Usuario Público | Acceder a la vista general con KPIs y datos en tiempo real |
-| **CU-07** | **Consultar Lecturas Históricas** | Usuario Público | Filtrar y visualizar lecturas almacenadas con criterios avanzados |
-| **CU-08** | **Visualizar Estadísticas** | Usuario Público | Consultar promedios, máximos y mínimos por período de tiempo |
-| **CU-09** | **Gestionar Recorridos Móviles** | Administrador | Guardar, nombrar y visualizar trayectorias de sensores móviles |
-| **CU-10** | **Exportar Datos** | Usuario Público/Admin | Descargar reportes en formatos PDF, Excel o CSV |
+
+| **CU-01** | **Autenticarse en el sistema** | Administrador | Iniciar sesión con credenciales para acceder al panel administrativo. |
+| **CU-02** | **Gestionar sensores** | Administrador | Crear, modificar, eliminar y consultar sensores del sistema. |
+| **CU-03** | **Gestionar umbrales de alertas** | Administrador | Definir valores mínimos y máximos para generar alertas automáticas. |
+| **CU-04** | **Configurar preferencias del sistema** | Administrador | Configurar las preferencias del sistema: zona horaria, formato de fecha, frecuencia de actualización de los datos, la paginación por defecto y opciones de visualización de los gráficos. |
+| **CU-05** | **Enviar datos ambientales** | Sistema Sensor ESP32 | Transmitir lecturas de sensores al backend vía HTTP POST. |
+| **CU-06** | **Visualizar dashboard** | Usuario Público | Acceder a la vista general con KPIs y datos en tiempo real, así como interactuar con el mapa en tiempo real. |
+| **CU-07** | **Consultar historial de lecturas** | Usuario Público | Consultar las lecturas históricas de los sensores, permitiendo filtrarlas por fecha, sensor, parámetro y tipo de sensor. |
+| **CU-08** | **Gestionar API keys** | Administrador | Agregar, desactivar o eliminar una api key. |
+| **CU-09** | **Gestionar usuarios** | Administrador | Ver, agregar, editar y eliminar a un nuevo usuario. |
+| **CU-10** | **Exportar de datos** | Usuario Público/Admin | Exportación de lecturas en formato PDF, Excel o CSV. |
 
 **Consolidaciones realizadas:**
 - Los CU detallados a continuación reflejan el análisis inicial. Los casos CU-04 + CU-05 (recorridos) se consolidaron en CU-09, CU-11 (mapa calor) se integró en CU-06, y CU-03 + CU-12 (exportación) se consolidaron en CU-10.

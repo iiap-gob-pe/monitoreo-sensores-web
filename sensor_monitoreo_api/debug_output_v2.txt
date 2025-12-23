@@ -1,0 +1,309 @@
+­ƒôé Archivos CSV encontrados: ESP32_002.csv, ESP32_003.csv
+
+­ƒö╣ Procesando archivo: ESP32_002.csv para Sensor ID: ESP32_002
+­ƒôì Zona del sensor: Urbana
+­ƒôØ Total lecturas parseadas para ESP32_002: 12731
+­ƒöì Ejemplo de lectura: {
+  id_sensor: 'ESP32_002',
+  lectura_datetime: 2025-11-21T16:48:37.000Z,
+  temperatura: 33.9,
+  humedad: 70.8,
+  co_nivel: 0.14,
+  co2_nivel: 648,
+  latitud: -3.745067,
+  longitud: -73.248279,
+  altitud: 125.3,
+  zona: 'Urbana'
+}
+­ƒôÑ Lote 1 insertado (100 registros). Total: 100
+­ƒôÑ Lote 2 insertado (100 registros). Total: 200
+­ƒôÑ Lote 3 insertado (100 registros). Total: 300
+­ƒôÑ Lote 4 insertado (100 registros). Total: 400
+­ƒôÑ Lote 5 insertado (100 registros). Total: 500
+­ƒôÑ Lote 6 insertado (100 registros). Total: 600
+­ƒôÑ Lote 7 insertado (100 registros). Total: 700
+­ƒôÑ Lote 8 insertado (100 registros). Total: 800
+­ƒôÑ Lote 9 insertado (100 registros). Total: 900
+­ƒôÑ Lote 10 insertado (100 registros). Total: 1000
+­ƒôÑ Lote 11 insertado (100 registros). Total: 1100
+­ƒôÑ Lote 12 insertado (100 registros). Total: 1200
+­ƒôÑ Lote 13 insertado (100 registros). Total: 1300
+­ƒôÑ Lote 14 insertado (100 registros). Total: 1400
+­ƒôÑ Lote 15 insertado (100 registros). Total: 1500
+­ƒôÑ Lote 16 insertado (100 registros). Total: 1600
+­ƒôÑ Lote 17 insertado (100 registros). Total: 1700
+­ƒôÑ Lote 18 insertado (100 registros). Total: 1800
+­ƒôÑ Lote 19 insertado (100 registros). Total: 1900
+­ƒôÑ Lote 20 insertado (100 registros). Total: 2000
+­ƒôÑ Lote 21 insertado (100 registros). Total: 2100
+­ƒôÑ Lote 22 insertado (100 registros). Total: 2200
+­ƒôÑ Lote 23 insertado (100 registros). Total: 2300
+­ƒôÑ Lote 24 insertado (100 registros). Total: 2400
+­ƒôÑ Lote 25 insertado (100 registros). Total: 2500
+­ƒôÑ Lote 26 insertado (100 registros). Total: 2600
+­ƒôÑ Lote 27 insertado (100 registros). Total: 2700
+­ƒôÑ Lote 28 insertado (100 registros). Total: 2800
+­ƒôÑ Lote 29 insertado (100 registros). Total: 2900
+­ƒôÑ Lote 30 insertado (100 registros). Total: 3000
+­ƒôÑ Lote 31 insertado (100 registros). Total: 3100
+­ƒôÑ Lote 32 insertado (100 registros). Total: 3200
+­ƒôÑ Lote 33 insertado (100 registros). Total: 3300
+­ƒôÑ Lote 34 insertado (100 registros). Total: 3400
+­ƒôÑ Lote 35 insertado (100 registros). Total: 3500
+­ƒôÑ Lote 36 insertado (100 registros). Total: 3600
+­ƒôÑ Lote 37 insertado (100 registros). Total: 3700
+­ƒôÑ Lote 38 insertado (100 registros). Total: 3800
+­ƒôÑ Lote 39 insertado (100 registros). Total: 3900
+­ƒôÑ Lote 40 insertado (100 registros). Total: 4000
+­ƒôÑ Lote 41 insertado (100 registros). Total: 4100
+­ƒôÑ Lote 42 insertado (100 registros). Total: 4200
+­ƒôÑ Lote 43 insertado (100 registros). Total: 4300
+­ƒôÑ Lote 44 insertado (100 registros). Total: 4400
+­ƒôÑ Lote 45 insertado (100 registros). Total: 4500
+­ƒôÑ Lote 46 insertado (100 registros). Total: 4600
+­ƒôÑ Lote 47 insertado (100 registros). Total: 4700
+­ƒôÑ Lote 48 insertado (100 registros). Total: 4800
+­ƒôÑ Lote 49 insertado (100 registros). Total: 4900
+­ƒôÑ Lote 50 insertado (100 registros). Total: 5000
+­ƒôÑ Lote 51 insertado (100 registros). Total: 5100
+­ƒôÑ Lote 52 insertado (100 registros). Total: 5200
+­ƒôÑ Lote 53 insertado (100 registros). Total: 5300
+­ƒôÑ Lote 54 insertado (100 registros). Total: 5400
+­ƒôÑ Lote 55 insertado (100 registros). Total: 5500
+­ƒôÑ Lote 56 insertado (100 registros). Total: 5600
+­ƒôÑ Lote 57 insertado (100 registros). Total: 5700
+­ƒôÑ Lote 58 insertado (100 registros). Total: 5800
+­ƒôÑ Lote 59 insertado (100 registros). Total: 5900
+­ƒôÑ Lote 60 insertado (100 registros). Total: 6000
+­ƒôÑ Lote 61 insertado (100 registros). Total: 6100
+­ƒôÑ Lote 62 insertado (100 registros). Total: 6200
+­ƒôÑ Lote 63 insertado (100 registros). Total: 6300
+­ƒôÑ Lote 64 insertado (100 registros). Total: 6400
+­ƒôÑ Lote 65 insertado (100 registros). Total: 6500
+­ƒôÑ Lote 66 insertado (100 registros). Total: 6600
+­ƒôÑ Lote 67 insertado (100 registros). Total: 6700
+­ƒôÑ Lote 68 insertado (100 registros). Total: 6800
+­ƒôÑ Lote 69 insertado (100 registros). Total: 6900
+­ƒôÑ Lote 70 insertado (100 registros). Total: 7000
+­ƒôÑ Lote 71 insertado (100 registros). Total: 7100
+­ƒôÑ Lote 72 insertado (100 registros). Total: 7200
+­ƒôÑ Lote 73 insertado (100 registros). Total: 7300
+­ƒôÑ Lote 74 insertado (100 registros). Total: 7400
+­ƒôÑ Lote 75 insertado (100 registros). Total: 7500
+­ƒôÑ Lote 76 insertado (100 registros). Total: 7600
+­ƒôÑ Lote 77 insertado (100 registros). Total: 7700
+­ƒôÑ Lote 78 insertado (100 registros). Total: 7800
+­ƒôÑ Lote 79 insertado (100 registros). Total: 7900
+­ƒôÑ Lote 80 insertado (100 registros). Total: 8000
+­ƒôÑ Lote 81 insertado (100 registros). Total: 8100
+­ƒôÑ Lote 82 insertado (100 registros). Total: 8200
+­ƒôÑ Lote 83 insertado (100 registros). Total: 8300
+­ƒôÑ Lote 84 insertado (100 registros). Total: 8400
+­ƒôÑ Lote 85 insertado (100 registros). Total: 8500
+­ƒôÑ Lote 86 insertado (100 registros). Total: 8600
+­ƒôÑ Lote 87 insertado (100 registros). Total: 8700
+­ƒôÑ Lote 88 insertado (100 registros). Total: 8800
+­ƒôÑ Lote 89 insertado (100 registros). Total: 8900
+­ƒôÑ Lote 90 insertado (100 registros). Total: 9000
+­ƒôÑ Lote 91 insertado (100 registros). Total: 9100
+­ƒôÑ Lote 92 insertado (100 registros). Total: 9200
+­ƒôÑ Lote 93 insertado (100 registros). Total: 9300
+­ƒôÑ Lote 94 insertado (100 registros). Total: 9400
+­ƒôÑ Lote 95 insertado (100 registros). Total: 9500
+­ƒôÑ Lote 96 insertado (100 registros). Total: 9600
+­ƒôÑ Lote 97 insertado (100 registros). Total: 9700
+­ƒôÑ Lote 98 insertado (100 registros). Total: 9800
+­ƒôÑ Lote 99 insertado (100 registros). Total: 9900
+­ƒôÑ Lote 100 insertado (100 registros). Total: 10000
+­ƒôÑ Lote 101 insertado (100 registros). Total: 10100
+­ƒôÑ Lote 102 insertado (100 registros). Total: 10200
+­ƒôÑ Lote 103 insertado (100 registros). Total: 10300
+­ƒôÑ Lote 104 insertado (100 registros). Total: 10400
+­ƒôÑ Lote 105 insertado (100 registros). Total: 10500
+­ƒôÑ Lote 106 insertado (100 registros). Total: 10600
+­ƒôÑ Lote 107 insertado (100 registros). Total: 10700
+­ƒôÑ Lote 108 insertado (100 registros). Total: 10800
+­ƒôÑ Lote 109 insertado (100 registros). Total: 10900
+­ƒôÑ Lote 110 insertado (100 registros). Total: 11000
+­ƒôÑ Lote 111 insertado (100 registros). Total: 11100
+­ƒôÑ Lote 112 insertado (100 registros). Total: 11200
+­ƒôÑ Lote 113 insertado (100 registros). Total: 11300
+­ƒôÑ Lote 114 insertado (100 registros). Total: 11400
+­ƒôÑ Lote 115 insertado (100 registros). Total: 11500
+­ƒôÑ Lote 116 insertado (100 registros). Total: 11600
+­ƒôÑ Lote 117 insertado (100 registros). Total: 11700
+­ƒôÑ Lote 118 insertado (100 registros). Total: 11800
+­ƒôÑ Lote 119 insertado (100 registros). Total: 11900
+­ƒôÑ Lote 120 insertado (100 registros). Total: 12000
+­ƒôÑ Lote 121 insertado (100 registros). Total: 12100
+­ƒôÑ Lote 122 insertado (100 registros). Total: 12200
+­ƒôÑ Lote 123 insertado (100 registros). Total: 12300
+­ƒôÑ Lote 124 insertado (100 registros). Total: 12400
+­ƒôÑ Lote 125 insertado (100 registros). Total: 12500
+­ƒôÑ Lote 126 insertado (100 registros). Total: 12600
+­ƒôÑ Lote 127 insertado (100 registros). Total: 12700
+­ƒôÑ Lote 128 insertado (31 registros). Total: 12731
+Ô£à Finalizado sensor ESP32_002. Total lecturas insertadas: 12731
+
+­ƒö╣ Procesando archivo: ESP32_003.csv para Sensor ID: ESP32_003
+­ƒôì Zona del sensor: Urbana
+­ƒôØ Total lecturas parseadas para ESP32_003: 14516
+­ƒöì Ejemplo de lectura: {
+  id_sensor: 'ESP32_003',
+  lectura_datetime: 2025-11-21T16:49:29.000Z,
+  temperatura: 35,
+  humedad: 61.2,
+  co_nivel: 0,
+  co2_nivel: 689,
+  latitud: -3.744655,
+  longitud: -73.248073,
+  altitud: 127.5,
+  zona: 'Urbana'
+}
+­ƒôÑ Lote 1 insertado (100 registros). Total: 100
+­ƒôÑ Lote 2 insertado (100 registros). Total: 200
+­ƒôÑ Lote 3 insertado (100 registros). Total: 300
+­ƒôÑ Lote 4 insertado (100 registros). Total: 400
+­ƒôÑ Lote 5 insertado (100 registros). Total: 500
+­ƒôÑ Lote 6 insertado (100 registros). Total: 600
+­ƒôÑ Lote 7 insertado (100 registros). Total: 700
+­ƒôÑ Lote 8 insertado (100 registros). Total: 800
+­ƒôÑ Lote 9 insertado (100 registros). Total: 900
+­ƒôÑ Lote 10 insertado (100 registros). Total: 1000
+­ƒôÑ Lote 11 insertado (100 registros). Total: 1100
+­ƒôÑ Lote 12 insertado (100 registros). Total: 1200
+­ƒôÑ Lote 13 insertado (100 registros). Total: 1300
+­ƒôÑ Lote 14 insertado (100 registros). Total: 1400
+­ƒôÑ Lote 15 insertado (100 registros). Total: 1500
+­ƒôÑ Lote 16 insertado (100 registros). Total: 1600
+­ƒôÑ Lote 17 insertado (100 registros). Total: 1700
+­ƒôÑ Lote 18 insertado (100 registros). Total: 1800
+­ƒôÑ Lote 19 insertado (100 registros). Total: 1900
+­ƒôÑ Lote 20 insertado (100 registros). Total: 2000
+­ƒôÑ Lote 21 insertado (100 registros). Total: 2100
+­ƒôÑ Lote 22 insertado (100 registros). Total: 2200
+­ƒôÑ Lote 23 insertado (100 registros). Total: 2300
+­ƒôÑ Lote 24 insertado (100 registros). Total: 2400
+­ƒôÑ Lote 25 insertado (100 registros). Total: 2500
+­ƒôÑ Lote 26 insertado (100 registros). Total: 2600
+­ƒôÑ Lote 27 insertado (100 registros). Total: 2700
+­ƒôÑ Lote 28 insertado (100 registros). Total: 2800
+­ƒôÑ Lote 29 insertado (100 registros). Total: 2900
+­ƒôÑ Lote 30 insertado (100 registros). Total: 3000
+­ƒôÑ Lote 31 insertado (100 registros). Total: 3100
+­ƒôÑ Lote 32 insertado (100 registros). Total: 3200
+­ƒôÑ Lote 33 insertado (100 registros). Total: 3300
+­ƒôÑ Lote 34 insertado (100 registros). Total: 3400
+­ƒôÑ Lote 35 insertado (100 registros). Total: 3500
+­ƒôÑ Lote 36 insertado (100 registros). Total: 3600
+­ƒôÑ Lote 37 insertado (100 registros). Total: 3700
+­ƒôÑ Lote 38 insertado (100 registros). Total: 3800
+­ƒôÑ Lote 39 insertado (100 registros). Total: 3900
+­ƒôÑ Lote 40 insertado (100 registros). Total: 4000
+­ƒôÑ Lote 41 insertado (100 registros). Total: 4100
+­ƒôÑ Lote 42 insertado (100 registros). Total: 4200
+­ƒôÑ Lote 43 insertado (100 registros). Total: 4300
+­ƒôÑ Lote 44 insertado (100 registros). Total: 4400
+­ƒôÑ Lote 45 insertado (100 registros). Total: 4500
+­ƒôÑ Lote 46 insertado (100 registros). Total: 4600
+­ƒôÑ Lote 47 insertado (100 registros). Total: 4700
+­ƒôÑ Lote 48 insertado (100 registros). Total: 4800
+­ƒôÑ Lote 49 insertado (100 registros). Total: 4900
+­ƒôÑ Lote 50 insertado (100 registros). Total: 5000
+­ƒôÑ Lote 51 insertado (100 registros). Total: 5100
+­ƒôÑ Lote 52 insertado (100 registros). Total: 5200
+­ƒôÑ Lote 53 insertado (100 registros). Total: 5300
+­ƒôÑ Lote 54 insertado (100 registros). Total: 5400
+­ƒôÑ Lote 55 insertado (100 registros). Total: 5500
+­ƒôÑ Lote 56 insertado (100 registros). Total: 5600
+­ƒôÑ Lote 57 insertado (100 registros). Total: 5700
+­ƒôÑ Lote 58 insertado (100 registros). Total: 5800
+­ƒôÑ Lote 59 insertado (100 registros). Total: 5900
+­ƒôÑ Lote 60 insertado (100 registros). Total: 6000
+­ƒôÑ Lote 61 insertado (100 registros). Total: 6100
+­ƒôÑ Lote 62 insertado (100 registros). Total: 6200
+­ƒôÑ Lote 63 insertado (100 registros). Total: 6300
+­ƒôÑ Lote 64 insertado (100 registros). Total: 6400
+­ƒôÑ Lote 65 insertado (100 registros). Total: 6500
+­ƒôÑ Lote 66 insertado (100 registros). Total: 6600
+­ƒôÑ Lote 67 insertado (100 registros). Total: 6700
+­ƒôÑ Lote 68 insertado (100 registros). Total: 6800
+­ƒôÑ Lote 69 insertado (100 registros). Total: 6900
+­ƒôÑ Lote 70 insertado (100 registros). Total: 7000
+­ƒôÑ Lote 71 insertado (100 registros). Total: 7100
+­ƒôÑ Lote 72 insertado (100 registros). Total: 7200
+­ƒôÑ Lote 73 insertado (100 registros). Total: 7300
+­ƒôÑ Lote 74 insertado (100 registros). Total: 7400
+­ƒôÑ Lote 75 insertado (100 registros). Total: 7500
+­ƒôÑ Lote 76 insertado (100 registros). Total: 7600
+­ƒôÑ Lote 77 insertado (100 registros). Total: 7700
+­ƒôÑ Lote 78 insertado (100 registros). Total: 7800
+­ƒôÑ Lote 79 insertado (100 registros). Total: 7900
+­ƒôÑ Lote 80 insertado (100 registros). Total: 8000
+­ƒôÑ Lote 81 insertado (100 registros). Total: 8100
+­ƒôÑ Lote 82 insertado (100 registros). Total: 8200
+­ƒôÑ Lote 83 insertado (100 registros). Total: 8300
+­ƒôÑ Lote 84 insertado (100 registros). Total: 8400
+­ƒôÑ Lote 85 insertado (100 registros). Total: 8500
+­ƒôÑ Lote 86 insertado (100 registros). Total: 8600
+­ƒôÑ Lote 87 insertado (100 registros). Total: 8700
+­ƒôÑ Lote 88 insertado (100 registros). Total: 8800
+­ƒôÑ Lote 89 insertado (100 registros). Total: 8900
+­ƒôÑ Lote 90 insertado (100 registros). Total: 9000
+­ƒôÑ Lote 91 insertado (100 registros). Total: 9100
+­ƒôÑ Lote 92 insertado (100 registros). Total: 9200
+­ƒôÑ Lote 93 insertado (100 registros). Total: 9300
+­ƒôÑ Lote 94 insertado (100 registros). Total: 9400
+­ƒôÑ Lote 95 insertado (100 registros). Total: 9500
+­ƒôÑ Lote 96 insertado (100 registros). Total: 9600
+­ƒôÑ Lote 97 insertado (100 registros). Total: 9700
+­ƒôÑ Lote 98 insertado (100 registros). Total: 9800
+­ƒôÑ Lote 99 insertado (100 registros). Total: 9900
+­ƒôÑ Lote 100 insertado (100 registros). Total: 10000
+­ƒôÑ Lote 101 insertado (100 registros). Total: 10100
+­ƒôÑ Lote 102 insertado (100 registros). Total: 10200
+­ƒôÑ Lote 103 insertado (100 registros). Total: 10300
+­ƒôÑ Lote 104 insertado (100 registros). Total: 10400
+­ƒôÑ Lote 105 insertado (100 registros). Total: 10500
+­ƒôÑ Lote 106 insertado (100 registros). Total: 10600
+­ƒôÑ Lote 107 insertado (100 registros). Total: 10700
+­ƒôÑ Lote 108 insertado (100 registros). Total: 10800
+­ƒôÑ Lote 109 insertado (100 registros). Total: 10900
+­ƒôÑ Lote 110 insertado (100 registros). Total: 11000
+­ƒôÑ Lote 111 insertado (100 registros). Total: 11100
+­ƒôÑ Lote 112 insertado (100 registros). Total: 11200
+­ƒôÑ Lote 113 insertado (100 registros). Total: 11300
+­ƒôÑ Lote 114 insertado (100 registros). Total: 11400
+­ƒôÑ Lote 115 insertado (100 registros). Total: 11500
+­ƒôÑ Lote 116 insertado (100 registros). Total: 11600
+­ƒôÑ Lote 117 insertado (100 registros). Total: 11700
+­ƒôÑ Lote 118 insertado (100 registros). Total: 11800
+­ƒôÑ Lote 119 insertado (100 registros). Total: 11900
+­ƒôÑ Lote 120 insertado (100 registros). Total: 12000
+­ƒôÑ Lote 121 insertado (100 registros). Total: 12100
+­ƒôÑ Lote 122 insertado (100 registros). Total: 12200
+­ƒôÑ Lote 123 insertado (100 registros). Total: 12300
+­ƒôÑ Lote 124 insertado (100 registros). Total: 12400
+­ƒôÑ Lote 125 insertado (100 registros). Total: 12500
+­ƒôÑ Lote 126 insertado (100 registros). Total: 12600
+­ƒôÑ Lote 127 insertado (100 registros). Total: 12700
+­ƒôÑ Lote 128 insertado (100 registros). Total: 12800
+­ƒôÑ Lote 129 insertado (100 registros). Total: 12900
+­ƒôÑ Lote 130 insertado (100 registros). Total: 13000
+­ƒôÑ Lote 131 insertado (100 registros). Total: 13100
+­ƒôÑ Lote 132 insertado (100 registros). Total: 13200
+­ƒôÑ Lote 133 insertado (100 registros). Total: 13300
+­ƒôÑ Lote 134 insertado (100 registros). Total: 13400
+­ƒôÑ Lote 135 insertado (100 registros). Total: 13500
+­ƒôÑ Lote 136 insertado (100 registros). Total: 13600
+­ƒôÑ Lote 137 insertado (100 registros). Total: 13700
+­ƒôÑ Lote 138 insertado (100 registros). Total: 13800
+­ƒôÑ Lote 139 insertado (100 registros). Total: 13900
+­ƒôÑ Lote 140 insertado (100 registros). Total: 14000
+­ƒôÑ Lote 141 insertado (100 registros). Total: 14100
+­ƒôÑ Lote 142 insertado (100 registros). Total: 14200
+­ƒôÑ Lote 143 insertado (100 registros). Total: 14300
+­ƒôÑ Lote 144 insertado (100 registros). Total: 14400
+­ƒôÑ Lote 145 insertado (100 registros). Total: 14500
+­ƒôÑ Lote 146 insertado (16 registros). Total: 14516
+Ô£à Finalizado sensor ESP32_003. Total lecturas insertadas: 14516
