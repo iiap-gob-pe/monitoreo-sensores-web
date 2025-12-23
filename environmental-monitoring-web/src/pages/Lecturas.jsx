@@ -4,13 +4,13 @@ import { ChevronDownIcon } from '@heroicons/react/24/outline';
 
 export default function Lecturas() {
   const { preferencias, formatearFechaHora, formatearFecha, formatearHora } = usePreferencias();
-  
+
   // Estados
   const [lecturas, setLecturas] = useState([]);
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+
   // ✅ SOLUCIÓN: Inicializar filtros directamente desde localStorage
   const getLimitInicial = () => {
     try {
@@ -50,6 +50,8 @@ export default function Lecturas() {
   const [fechasConLecturas, setFechasConLecturas] = useState([]);
   const [calendarioInicioAbierto, setCalendarioInicioAbierto] = useState(false);
   const [calendarioFinAbierto, setCalendarioFinAbierto] = useState(false);
+  // Estado para la navegación del calendario (mes/año visible)
+  const [calendarioNavegacion, setCalendarioNavegacion] = useState(new Date());
   const calendarioInicioRef = useRef(null);
   const calendarioFinRef = useRef(null);
 
@@ -61,7 +63,7 @@ export default function Lecturas() {
       try {
         const response = await fetch('http://localhost:3000/api/sensores');
         const data = await response.json();
-        
+
         if (data.success && Array.isArray(data.data)) {
           setSensores(data.data);
         } else if (Array.isArray(data)) {
@@ -123,10 +125,10 @@ export default function Lecturas() {
 
   // ✅ Auto-refresh SOLO si no hay filtros activos
   useEffect(() => {
-    const hayFiltrosActivos = filtros.id_sensor || filtros.parametro || 
-                            filtros.fecha_inicio || filtros.fecha_fin || 
-                            filtros.tipo_sensor;
-    
+    const hayFiltrosActivos = filtros.id_sensor || filtros.parametro ||
+      filtros.fecha_inicio || filtros.fecha_fin ||
+      filtros.tipo_sensor;
+
     if (hayFiltrosActivos) {
       return; // No hacer auto-refresh si hay filtros
     }
@@ -139,10 +141,10 @@ export default function Lecturas() {
   }, [filtros]);
 
   const fetchLecturas = async () => {
-    const hayFiltrosActivos = filtros.id_sensor || filtros.parametro || 
-                            filtros.fecha_inicio || filtros.fecha_fin || 
-                            filtros.tipo_sensor;
-    
+    const hayFiltrosActivos = filtros.id_sensor || filtros.parametro ||
+      filtros.fecha_inicio || filtros.fecha_fin ||
+      filtros.tipo_sensor;
+
     if (!hayFiltrosActivos) {
       // Solo mostrar loading en carga inicial o cuando NO hay filtros
     } else {
@@ -188,7 +190,7 @@ export default function Lecturas() {
   const limpiarFiltros = () => {
     const limitActual = preferencias.registrosPorPagina || getLimitInicial();
     console.log('🧹 Limpiando filtros, limit:', limitActual); // Debug
-    
+
     setFiltros({
       id_sensor: '',
       parametro: '',
@@ -228,9 +230,9 @@ export default function Lecturas() {
         'co2': 'CO₂ (ppm)',
         'co': 'CO (ppm)'
       }[filtros.parametro] || filtros.parametro;
-      
+
       headers.push(parametroLabel, 'Latitud', 'Longitud');
-      
+
       rows = lecturas.map(l => [
         formatearFechaHora(l.lectura_datetime),
         l.sensor_id,
@@ -242,7 +244,7 @@ export default function Lecturas() {
       ]);
     } else {
       headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
-      
+
       rows = lecturas.map(l => [
         formatearFechaHora(l.lectura_datetime),
         l.sensor_id,
@@ -307,9 +309,9 @@ export default function Lecturas() {
           'co2': 'CO₂ (ppm)',
           'co': 'CO (ppm)'
         }[filtros.parametro] || filtros.parametro;
-        
+
         headers.push(parametroLabel, 'Latitud', 'Longitud');
-        
+
         rows = todasLecturas.map(l => [
           formatearFechaHora(l.lectura_datetime),
           l.sensor_id,
@@ -321,7 +323,7 @@ export default function Lecturas() {
         ]);
       } else {
         headers.push('Temperatura', 'Humedad', 'CO2', 'CO', 'Latitud', 'Longitud');
-        
+
         rows = todasLecturas.map(l => [
           formatearFechaHora(l.lectura_datetime),
           l.sensor_id,
@@ -367,8 +369,8 @@ export default function Lecturas() {
   const getColorAlerta = (valor, parametro) => {
     if (!valor) return 'text-gray-400';
     const valorNum = parseFloat(valor);
-    
-    switch(parametro) {
+
+    switch (parametro) {
       case 'temperatura':
         if (valorNum > 35) return 'text-red-600 font-bold';
         if (valorNum > 30) return 'text-orange-600';
@@ -399,8 +401,9 @@ export default function Lecturas() {
 
     const setCalendarioAbierto = tipo === 'inicio' ? setCalendarioInicioAbierto : setCalendarioFinAbierto;
 
-    const mesActual = new Date().getMonth();
-    const anioActual = new Date().getFullYear();
+    // Usar estado de navegación en lugar de fecha actual
+    const mesActual = calendarioNavegacion.getMonth();
+    const anioActual = calendarioNavegacion.getFullYear();
 
     const primerDia = new Date(anioActual, mesActual, 1);
     const ultimoDia = new Date(anioActual, mesActual + 1, 0);
@@ -409,6 +412,15 @@ export default function Lecturas() {
 
     const nombreMes = primerDia.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' });
     const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+
+    // Funciones de navegación
+    const mesAnterior = () => {
+      setCalendarioNavegacion(new Date(anioActual, mesActual - 1, 1));
+    };
+
+    const mesSiguiente = () => {
+      setCalendarioNavegacion(new Date(anioActual, mesActual + 1, 1));
+    };
 
     const seleccionarFecha = (dia) => {
       const fechaStr = `${anioActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
@@ -445,14 +457,15 @@ export default function Lecturas() {
       for (let dia = 1; dia <= diasEnMes; dia++) {
         const fechaStr = `${anioActual}-${String(mesActual + 1).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
         const tieneLecturas = fechasConLecturas.includes(fechaStr);
+        // Validar si es el día seleccionado actualmente
+        const esSeleccionado = (tipo === 'inicio' && fechaInicioComparacion === fechaStr) ||
+          (tipo === 'fin' && fechaFinComparacion === fechaStr);
+
         const esHoy = fechaStr === hoy;
         const esFuturo = new Date(fechaStr) > new Date();
 
         // Validaciones de rangos de fechas
-        // Si es calendario de fin, deshabilitar fechas anteriores a fecha inicio
         const esAnteriorAInicio = tipo === 'fin' && fechaInicioComparacion && fechaStr < fechaInicioComparacion;
-
-        // Si es calendario de inicio, deshabilitar fechas posteriores a fecha fin
         const esPosteriorAFin = tipo === 'inicio' && fechaFinComparacion && fechaStr > fechaFinComparacion;
 
         const estaDeshabilitado = !tieneLecturas || esFuturo || esAnteriorAInicio || esPosteriorAFin;
@@ -463,18 +476,20 @@ export default function Lecturas() {
             onClick={() => !estaDeshabilitado && seleccionarFecha(dia)}
             disabled={estaDeshabilitado}
             className={`
-              h-10 rounded-lg font-medium text-sm transition-all duration-200 relative
-              ${tieneLecturas && !esFuturo && !esAnteriorAInicio && !esPosteriorAFin
-                ? 'bg-green-50 text-green-700 hover:bg-green-100 hover:scale-110 cursor-pointer border-2 border-green-200'
-                : 'bg-gray-50 text-gray-300 cursor-not-allowed'
+              h-10 rounded-lg font-medium text-sm transition-all duration-200 relative flex items-center justify-center
+              ${esSeleccionado
+                ? 'bg-blue-600 text-white shadow-lg scale-105 z-10'
+                : tieneLecturas && !esFuturo && !esAnteriorAInicio && !esPosteriorAFin
+                  ? 'bg-green-50 text-green-700 hover:bg-green-100 hover:scale-110 cursor-pointer border-2 border-green-200'
+                  : 'bg-gray-50 text-gray-300 cursor-not-allowed'
               }
-              ${esHoy ? 'ring-2 ring-blue-400' : ''}
-              ${esAnteriorAInicio || esPosteriorAFin ? 'opacity-40' : ''}
+              ${esHoy && !esSeleccionado ? 'ring-2 ring-blue-400' : ''}
+              ${(esAnteriorAInicio || esPosteriorAFin) ? 'opacity-40' : ''}
             `}
           >
             {dia}
-            {tieneLecturas && !esFuturo && (
-              <div className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-green-500 rounded-full"></div>
+            {tieneLecturas && !esFuturo && !esSeleccionado && (
+              <div className="absolute bottom-1 w-1 h-1 bg-green-500 rounded-full"></div>
             )}
           </button>
         );
@@ -484,9 +499,28 @@ export default function Lecturas() {
     };
 
     return (
-      <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl border-2 border-gray-200 shadow-2xl z-50 p-4">
+      <div className="absolute top-full left-0 mt-2 bg-white rounded-xl border-2 border-gray-200 shadow-2xl z-50 p-4 w-72">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="font-bold text-gray-900 capitalize">{nombreMes}</h3>
+          <button
+            onClick={mesAnterior}
+            className="p-1 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+          </button>
+
+          <h3 className="font-bold text-gray-900 capitalize text-sm">{nombreMes}</h3>
+
+          <button
+            onClick={mesSiguiente}
+            className="p-1 hover:bg-gray-100 rounded-full text-gray-600 transition-colors"
+            disabled={new Date(anioActual, mesActual + 1, 1) > new Date()} // Opcional: No ir al futuro mas alla del mes actual
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </button>
         </div>
 
         <div className="grid grid-cols-7 gap-1 mb-2">
@@ -529,13 +563,13 @@ export default function Lecturas() {
 
       return (
         <>
-          <th 
+          <th
             onClick={() => cambiarOrden('lectura_datetime')}
             className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
           >
             Fecha/Hora {filtros.sort_by === 'lectura_datetime' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
           </th>
-          <th 
+          <th
             onClick={() => cambiarOrden('id_sensor')}
             className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
           >
@@ -544,7 +578,7 @@ export default function Lecturas() {
           <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
             Nombre / Tipo
           </th>
-          <th 
+          <th
             onClick={() => cambiarOrden(info.campo)}
             className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
           >
@@ -560,13 +594,13 @@ export default function Lecturas() {
     // Vista completa sin filtro de parámetro
     return (
       <>
-        <th 
+        <th
           onClick={() => cambiarOrden('lectura_datetime')}
           className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
         >
           Fecha/Hora {filtros.sort_by === 'lectura_datetime' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
         </th>
-        <th 
+        <th
           onClick={() => cambiarOrden('id_sensor')}
           className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
         >
@@ -575,25 +609,25 @@ export default function Lecturas() {
         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
           Nombre / Tipo
         </th>
-        <th 
+        <th
           onClick={() => cambiarOrden('temperatura')}
           className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
         >
           Temp. {filtros.sort_by === 'temperatura' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
         </th>
-        <th 
+        <th
           onClick={() => cambiarOrden('humedad')}
           className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
         >
           Humedad {filtros.sort_by === 'humedad' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
         </th>
-        <th 
+        <th
           onClick={() => cambiarOrden('co2_nivel')}
           className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
         >
           CO₂ {filtros.sort_by === 'co2_nivel' && (filtros.sort_order === 'DESC' ? '↓' : '↑')}
         </th>
-        <th 
+        <th
           onClick={() => cambiarOrden('co_nivel')}
           className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
         >
@@ -635,11 +669,10 @@ export default function Lecturas() {
           <td className="px-4 py-3 whitespace-nowrap text-sm">
             <div className="text-gray-900">{lectura.nombre_sensor || 'N/A'}</div>
             <div className="text-xs">
-              <span className={`px-2 py-1 rounded ${
-                lectura.is_movil 
-                  ? 'bg-purple-100 text-purple-800' 
+              <span className={`px-2 py-1 rounded ${lectura.is_movil
+                  ? 'bg-purple-100 text-purple-800'
                   : 'bg-gray-100 text-gray-800'
-              }`}>
+                }`}>
                 {lectura.tipo_sensor}
               </span>
             </div>
@@ -676,11 +709,10 @@ export default function Lecturas() {
         <td className="px-4 py-3 whitespace-nowrap text-sm">
           <div className="text-gray-900">{lectura.nombre_sensor || 'N/A'}</div>
           <div className="text-xs">
-            <span className={`px-2 py-1 rounded ${
-              lectura.is_movil 
-                ? 'bg-purple-100 text-purple-800' 
+            <span className={`px-2 py-1 rounded ${lectura.is_movil
+                ? 'bg-purple-100 text-purple-800'
                 : 'bg-gray-100 text-gray-800'
-            }`}>
+              }`}>
               {lectura.tipo_sensor}
             </span>
           </div>
@@ -874,8 +906,13 @@ export default function Lecturas() {
             </label>
             <button
               onClick={() => {
-                setCalendarioInicioAbierto(!calendarioInicioAbierto);
+                const nuevoEstado = !calendarioInicioAbierto;
+                setCalendarioInicioAbierto(nuevoEstado);
                 setCalendarioFinAbierto(false);
+                // Si abrimos, sincronizar navegación con la fecha seleccionada o actual
+                if (nuevoEstado) {
+                  setCalendarioNavegacion(filtros.fecha_inicio ? new Date(filtros.fecha_inicio) : new Date());
+                }
               }}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-white hover:border-primary hover:shadow-md transition-all duration-200 flex items-center justify-between text-left"
             >
@@ -901,8 +938,13 @@ export default function Lecturas() {
             </label>
             <button
               onClick={() => {
-                setCalendarioFinAbierto(!calendarioFinAbierto);
+                const nuevoEstado = !calendarioFinAbierto;
+                setCalendarioFinAbierto(nuevoEstado);
                 setCalendarioInicioAbierto(false);
+                // Si abrimos, sincronizar navegación con la fecha seleccionada o fecha inicio o actual
+                if (nuevoEstado) {
+                  setCalendarioNavegacion(filtros.fecha_fin ? new Date(filtros.fecha_fin) : (filtros.fecha_inicio ? new Date(filtros.fecha_inicio) : new Date()));
+                }
               }}
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl bg-white hover:border-primary hover:shadow-md transition-all duration-200 flex items-center justify-between text-left"
             >
@@ -1017,7 +1059,7 @@ export default function Lecturas() {
                 >
                   ←
                 </button>
-                
+
                 {/* Números de página */}
                 {[...Array(pagination.totalPages)].map((_, index) => {
                   const pageNum = index + 1;
@@ -1030,11 +1072,10 @@ export default function Lecturas() {
                       <button
                         key={pageNum}
                         onClick={() => cambiarPagina(pageNum)}
-                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                          pageNum === pagination.page
+                        className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${pageNum === pagination.page
                             ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
                             : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                        }`}
+                          }`}
                       >
                         {pageNum}
                       </button>
