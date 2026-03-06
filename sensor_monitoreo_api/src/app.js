@@ -21,6 +21,9 @@ const adminApiKeysRoutes = require('./routes/admin/apiKeys');
 
 const app = express();
 
+// Confiar en el proxy inverso (necesario para que Rate Limiter obtenga la IP real en producción)
+app.set('trust proxy', 1);
+
 // Middleware de seguridad (cabeceras de seguridad)
 app.use(helmet());
 

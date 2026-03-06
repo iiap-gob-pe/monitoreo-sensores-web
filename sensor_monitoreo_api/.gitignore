@@ -1,5 +1,6 @@
 # Dependencias
 node_modules/
+docs
 
 # Variables de entorno (SECRETOS - NUNCA SUBIR)
 .env
