@@ -4,6 +4,10 @@ sensor_monitoreo_api/.env
 sensor_monitoreo_api/dist/
 sensor_monitoreo_api/prisma/migrations/dev/
 
+# Documentación
+docs/
+rutas/
+
 # Frontend  
 environmental-monitoring-web/node_modules/
 environmental-monitoring-web/.env.local
