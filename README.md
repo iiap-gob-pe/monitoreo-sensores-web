@@ -156,8 +156,6 @@ sensor_monitoreo/
 │   │   └── schema.prisma           # Modelaje de Tablas (Lecturas, Sensores, Usuarios)
 │   ├── rutas/                      # Respaldos de archivos CSV de módulos GPS
 │   ├── scripts/                    # Rutinas asíncronas de base de datos
-│   │   ├── delete_sensor.js        # Purga de sensores por consola
-│   │   ├── importar_datos.js       # Migradores en bloque
 │   │   └── importar_rutas.js       # Sanitizador relacional de GPS CSV
 │   ├── src/
 │   │   ├── config/                 # Pasarelas de conexión
