@@ -206,7 +206,8 @@ const lecturaController = {
         pagina = 1
       } = req.query;
 
-      const skip = (parseInt(pagina) - 1) * parseInt(limite);
+      const limitVal = Math.min(parseInt(limite) || 100, 5000); // Cap at 5000
+      const skip = (parseInt(pagina) - 1) * limitVal;
 
       const filtros = {
         ...(id_sensor && { id_sensor: id_sensor }),
@@ -235,7 +236,7 @@ const lecturaController = {
             lectura_datetime: 'desc'
           },
           skip,
-          take: parseInt(limite)
+          take: limitVal
         }),
         prisma.lecturas.count({ where: filtros })
       ]);
@@ -247,8 +248,8 @@ const lecturaController = {
         pagination: {
           total,
           pagina: parseInt(pagina),
-          limite: parseInt(limite),
-          total_paginas: Math.ceil(total / parseInt(limite))
+          limite: limitVal,
+          total_paginas: Math.ceil(total / limitVal)
         }
       });
 
@@ -312,7 +313,8 @@ const lecturaController = {
   // Obtener últimas N lecturas de todos los sensores
   obtenerUltimas: async (req, res) => {
     try {
-      const limite = parseInt(req.query.limite) || 100000;
+      // Límite interno máximo de 5000 para evitar que el request tumbe la BD/RAM
+      const limite = Math.min(parseInt(req.query.limite) || 1000, 5000);
 
       const lecturas = await prisma.lecturas.findMany({
         include: {
@@ -358,6 +360,90 @@ const lecturaController = {
 
     } catch (error) {
       console.error('Error al obtener últimas lecturas:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  },
+
+  obtenerActuales: async (req, res) => {
+    try {
+      // ✅ OPTIMIZADO: Consulta uno a uno los sensores activos con LIMIT 1 usando su Indexed Column
+      // En vez de obligar a PostgreSQL a realizar un escaneo y agrupamiento (DISTINCT) de ~100k registros (Lento: +8 segundos)
+      const sensores = await prisma.sensores.findMany({ select: { id_sensor: true } });
+      const currentReadingsPromises = sensores.map(sensor => 
+        prisma.lecturas.findFirst({
+          where: { id_sensor: sensor.id_sensor },
+          orderBy: { lectura_datetime: 'desc' },
+          include: {
+            sensor: {
+              select: { id_sensor: true, nombre_sensor: true, zona: true, is_movil: true, estado: true }
+            }
+          }
+        })
+      );
+      
+      const lecturasCrudas = await Promise.all(currentReadingsPromises);
+      const lecturas = lecturasCrudas.filter(l => l !== null);
+
+      const lecturasFormateadas = lecturas.map(lectura => ({
+        id_sensor: lectura.id_sensor,
+        nombre_sensor: lectura.sensor.nombre_sensor,
+        zona: lectura.zona || lectura.sensor.zona,
+        is_movil: lectura.sensor.is_movil,
+        estado: lectura.sensor.estado,
+        lectura_datetime: lectura.lectura_datetime,
+        temperatura: lectura.temperatura,
+        humedad: lectura.humedad,
+        co2_nivel: lectura.co2_nivel,
+        co_nivel: lectura.co_nivel,
+        latitud: lectura.latitud,
+        longitud: lectura.longitud,
+        altitud: lectura.altitud
+      }));
+
+      // Ordenar por fecha de lectura real descendente (opcional, como prefiera el cliente)
+      lecturasFormateadas.sort((a, b) => new Date(b.lectura_datetime) - new Date(a.lectura_datetime));
+
+      res.status(200).json({
+        success: true,
+        message: 'Lecturas actuales obtenidas exitosamente',
+        data: lecturasFormateadas,
+        total: lecturasFormateadas.length
+      });
+    } catch (error) {
+      console.error('Error al obtener lecturas actuales:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error interno del servidor',
+        error: error.message
+      });
+    }
+  },
+
+  // Obtener fechas únicas con lecturas registradas (para calendarios)
+  obtenerFechas: async (req, res) => {
+    try {
+      // Uso de query raw para usar TO_CHAR y extraer fechas unícas velozmente
+      // Evita descargar un millón de items
+      const result = await prisma.$queryRaw`
+        SELECT DISTINCT TO_CHAR(lectura_datetime, 'YYYY-MM-DD') as fecha 
+        FROM lecturas 
+        WHERE lectura_datetime IS NOT NULL 
+        ORDER BY fecha DESC
+      `;
+      
+      const fechas = result.map(row => row.fecha);
+
+      res.status(200).json({
+        success: true,
+        message: 'Fechas obtenidas exitosamente',
+        data: fechas
+      });
+    } catch (error) {
+      console.error('Error al obtener fechas:', error);
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
@@ -550,15 +636,87 @@ const lecturaController = {
       });
 
     } catch (error) {
-      console.error('Error al obtener lecturas avanzado:', error);
+      console.error('Error al obtener lecturas avanzadas:', error);
       res.status(500).json({
         success: false,
-        message: 'Error al obtener lecturas',
+        message: 'Error al obtener lecturas avanzadas',
         error: error.message
       });
     }
   },
 
+  // ✅ Nueva función: Agrupación en PostgreSQL para Mapas de Calor
+  obtenerAgrupadasCalor: async (req, res) => {
+    try {
+      const { fecha, id_sensor } = req.query;
+
+      if (!fecha) {
+        return res.status(400).json({
+          success: false,
+          message: 'El parámetro fecha es requerido'
+        });
+      }
+
+      // Rango del día completo
+      const fechaInicio = new Date(`${fecha}T00:00:00.000Z`);
+      const fechaFin = new Date(`${fecha}T23:59:59.999Z`);
+
+      const whereClause = {
+        lectura_datetime: {
+          gte: fechaInicio,
+          lte: fechaFin
+        },
+        latitud: { not: null },
+        longitud: { not: null }
+      };
+
+      if (id_sensor && id_sensor !== 'todos') {
+        whereClause.id_sensor = id_sensor;
+      }
+
+      // Agrupamos usando Prisma y calculamos promedios
+      const agrupaciones = await prisma.lecturas.groupBy({
+        by: ['id_sensor'],
+        where: whereClause,
+        _avg: {
+          temperatura: true,
+          humedad: true,
+          co2_nivel: true,
+          co_nivel: true,
+          latitud: true,
+          longitud: true
+        },
+        _count: {
+          id_lectura: true // Cantidad de lecturas por sensor
+        }
+      });
+
+      // Formatear salida simplificada para el Frontend
+      const lecturasAgrupadas = agrupaciones.map(g => ({
+        id_sensor: g.id_sensor,
+        latitud: Number(g._avg.latitud),
+        longitud: Number(g._avg.longitud),
+        temperatura: Number(g._avg.temperatura),
+        humedad: Number(g._avg.humedad),
+        co2_nivel: Number(g._avg.co2_nivel),
+        co_nivel: Number(g._avg.co_nivel),
+        cantidad_lecturas: g._count.id_lectura
+      }));
+
+      res.json({
+        success: true,
+        data: lecturasAgrupadas
+      });
+      
+    } catch (error) {
+      console.error('Error al agrupar lecturas para calor:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error al agrupar lecturas',
+        error: error.message
+      });
+    }
+  },
   //Obtención de todas las lecturas sin paginación
   obtenerParaExportar: async (req, res) => {
     try {

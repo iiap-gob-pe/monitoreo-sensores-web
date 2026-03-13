@@ -66,20 +66,49 @@ const recorridosController = {
         });
       }
 
-      // Calcular distancia total
+      // Filtrado por distancia (Downsampling basado en variación espacial)
+      // Solo agregamos puntos si la distancia con el anterior es > 5 metros (0.005 km)
+      const lecturasFiltradas = [];
       let distanciaTotal = 0;
-      for (let i = 1; i < lecturas.length; i++) {
-        distanciaTotal += calcularDistancia(
-          lecturas[i-1].latitud, lecturas[i-1].longitud,
-          lecturas[i].latitud, lecturas[i].longitud
-        );
+      
+      if (lecturas.length > 0) {
+        lecturasFiltradas.push(lecturas[0]); // Siempre incluir el primer punto
+
+        let ultimoPuntoAgregado = lecturas[0];
+
+        for (let i = 1; i < lecturas.length; i++) {
+          const puntoActual = lecturas[i];
+          const distParaTotal = calcularDistancia(
+            lecturas[i-1].latitud, lecturas[i-1].longitud,
+            puntoActual.latitud, puntoActual.longitud
+          );
+          distanciaTotal += distParaTotal;
+
+          const distDesdeUltimoAgregado = calcularDistancia(
+            ultimoPuntoAgregado.latitud, ultimoPuntoAgregado.longitud,
+            puntoActual.latitud, puntoActual.longitud
+          );
+
+          // Agregar al arreglo filtrado si cambió de posición más de 5 metros
+          if (distDesdeUltimoAgregado > 0.005) {
+            lecturasFiltradas.push(puntoActual);
+            ultimoPuntoAgregado = puntoActual;
+          }
+        }
+        
+        // Asegurarnos de incluir el último punto si no se agregó ya
+        if (ultimoPuntoAgregado !== lecturas[lecturas.length - 1]) {
+           lecturasFiltradas.push(lecturas[lecturas.length - 1]);
+        }
       }
+
+      console.log(`📉 Puntos originales: ${lecturas.length} -> Tras filtro de 5m: ${lecturasFiltradas.length}`);
 
       res.json({
         success: true,
-        data: lecturas,
+        data: lecturasFiltradas,
         metadata: {
-          total_puntos: lecturas.length,
+          total_puntos: lecturasFiltradas.length,
           distancia_km: distanciaTotal.toFixed(2),
           hora_inicio: lecturas[0].lectura_datetime,
           hora_fin: lecturas[lecturas.length - 1].lectura_datetime,

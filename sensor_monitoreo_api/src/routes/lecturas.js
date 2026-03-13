@@ -11,6 +11,9 @@ router.post('/', apiLimiter, verificarApiKey, lecturaController.crear);       //
 
 // Rutas públicas de solo lectura (con token opcional para posibles permisos futuros)
 router.get('/', verificarTokenOpcional, lecturaController.obtenerTodas);                   // GET /api/lecturas - Público
+router.get('/actuales', verificarTokenOpcional, lecturaController.obtenerActuales);        // GET /api/lecturas/actuales - Público
+router.get('/fechas', verificarTokenOpcional, lecturaController.obtenerFechas);            // GET /api/lecturas/fechas - Público
+router.get('/agrupadas-calor', verificarTokenOpcional, lecturaController.obtenerAgrupadasCalor); // GET /api/lecturas/agrupadas-calor - Público
 router.get('/ultimas', verificarTokenOpcional, lecturaController.obtenerUltimas);          // GET /api/lecturas/ultimas - Público
 router.get('/sensor/:id', verificarTokenOpcional, lecturaController.obtenerPorSensor);     // GET /api/lecturas/sensor/:id - Público
 router.get('/estadisticas/:id', verificarTokenOpcional, lecturaController.obtenerEstadisticas); // GET /api/lecturas/estadisticas/:id - Público

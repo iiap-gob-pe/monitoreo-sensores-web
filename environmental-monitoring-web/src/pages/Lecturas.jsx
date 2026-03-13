@@ -83,16 +83,11 @@ export default function Lecturas() {
   useEffect(() => {
     const cargarFechasDisponibles = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/lecturas?limite=1000000');
+        const response = await fetch('http://localhost:3000/api/lecturas/fechas');
         const result = await response.json();
 
         if (result.success && Array.isArray(result.data)) {
-          const fechasUnicas = [...new Set(
-            result.data
-              .filter(l => l.lectura_datetime)
-              .map(l => new Date(l.lectura_datetime).toISOString().split('T')[0])
-          )].sort().reverse();
-          setFechasConLecturas(fechasUnicas);
+          setFechasConLecturas(result.data);
         }
       } catch (error) {
         console.error('Error al cargar fechas disponibles:', error);

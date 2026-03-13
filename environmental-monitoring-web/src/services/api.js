@@ -45,10 +45,13 @@ export const sensoresAPI = {
 };
 
 export const lecturasAPI = {
+  getActuales: () => api.get('/lecturas/actuales'),
+  getFechasDisponibles: () => api.get('/lecturas/fechas'),
   getUltimas: (limite = 100) => api.get(`/lecturas/ultimas?limite=${limite}`),
   getBySensor: (id, limite = 50) => api.get(`/lecturas/sensor/${id}?limite=${limite}`),
   getEstadisticas: (id, dias = 7) => api.get(`/lecturas/estadisticas/${id}?dias=${dias}`),
-  getAll: (filtros = {}) => api.get('/lecturas', { params: filtros })
+  getAll: (filtros = {}) => api.get('/lecturas/avanzado', { params: filtros }),
+  getAgrupadasCalor: (params) => api.get('/lecturas/agrupadas-calor', { params })
 };
 
 export const alertasAPI = {

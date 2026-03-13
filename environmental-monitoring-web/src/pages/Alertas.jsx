@@ -48,7 +48,7 @@ export default function Alertas() {
       if (mostrarLoading) setLoading(true);
       
       const [alertasRes, sensoresRes] = await Promise.all([
-        alertasAPI.getAll({limite: 1000000}),
+        alertasAPI.getAll({limite: 5000}),
         sensoresAPI.getAll()
       ]);
       

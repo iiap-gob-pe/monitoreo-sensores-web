@@ -1,560 +1,185 @@
 # Sistema de Monitoreo Ambiental IIAP
 
-Sistema web de monitoreo ambiental en tiempo real para el Instituto de Investigaciones de la Amazonía Peruana (IIAP), con sensores IoT ESP32 para medición de temperatura, humedad, calidad del aire y geolocalización.
-
-![Estado del Proyecto](https://img.shields.io/badge/Estado-Producción-success)
-![Versión](https://img.shields.io/badge/Versión-1.0.0-blue)
-![Licencia](https://img.shields.io/badge/Licencia-MIT-green)
+Plataforma web para el monitoreo ambiental en tiempo real, desarrollada para el Instituto de Investigaciones de la Amazonía Peruana (IIAP). Este sistema consolida datos capturados internamente por dispositivos IoT (ESP32) para medir parámetros críticos como temperatura, humedad, calidad del aire y geoperfil espacial.
 
 ---
 
-## 📋 Tabla de Contenidos
+## Índice
 
-- [Descripción del Proyecto](#-descripción-del-proyecto)
-- [Características Principales](#-características-principales)
-- [Tecnologías Utilizadas](#-tecnologías-utilizadas)
-- [Requisitos Previos](#-requisitos-previos)
-- [Instalación](#-instalación)
-- [Uso](#-uso)
-- [Estructura del Proyecto](#-estructura-del-proyecto)
-- [Documentación](#-documentación)
-- [Comandos Principales](#-comandos-principales)
-- [Testing](#-testing)
-- [Despliegue](#-despliegue)
-- [Contribución](#-contribución)
-- [Licencia](#-licencia)
-- [Contacto](#-contacto)
+- [Descripción del Proyecto](#descripción-del-proyecto)
+- [Estructura y Módulos](#estructura-y-módulos)
+- [Tecnologías Utilizadas](#tecnologías-utilizadas)
+- [Requisitos del Entorno](#requisitos-del-entorno)
+- [Instalación y Configuración](#instalación-y-configuración)
+- [Estructura del Repositorio](#estructura-del-repositorio)
 
 ---
 
-## 🌿 Descripción del Proyecto
+## Descripción del Proyecto
 
-El **Sistema de Monitoreo Ambiental IIAP** es una plataforma web que permite la recolección, visualización y análisis de datos ambientales en tiempo real de la región amazónica peruana. El sistema integra sensores IoT ESP32 que miden variables ambientales críticas y las transmite a través de una API REST para su visualización en un dashboard interactivo.
+El Sistema de Monitoreo Ambiental IIAP abstrae la recolección, consolidación y representación cartográfica de datos ambientales en la región amazónica. Utiliza protocolos RESTful para sincronizar información levantada por hardware autónomo (sensores MQ, DHT y GPS) y la entrega a un panel analítico integral para coadyuvar a la toma de decisiones ecológicas y la gestión de la investigación.
 
-### Objetivos
+## Estructura y Módulos
 
-- Monitorear en tiempo real la calidad del aire, temperatura y humedad en la Amazonía peruana
-- Proveer datos ambientales abiertos para investigadores, estudiantes y público general
-- Generar alertas automáticas cuando se superen umbrales críticos de contaminación
-- Facilitar la toma de decisiones basadas en datos ambientales precisos
+El proyecto está dividido en interfaces públicas y privadas con los siguientes módulos principales:
 
-### Alcance
+### Panel de Control (Dashboard)
+- **Mapa en Tiempo Real:** Interfaz geográfica (Leaflet) para observar los nodos fijos y en movimiento.
+- **Mapas de Calor:** Agregación estadística espacial para las métricas de Temperatura, Monóxido de Carbono (CO) y Dióxido de Carbono (CO2).
+- **Control de Recorridos:** Visualización topológica para dispositivos de telemetría móvil mediante trazado histórico y reducción de ruido geográfico.
 
-- **Frontend Web:** Dashboard público y panel administrativo
-- **Backend API REST:** 32 endpoints para gestión de sensores, lecturas y alertas
-- **Base de Datos:** PostgreSQL con 8 tablas relacionales
-- **Hardware IoT:** Sensores ESP32 con DHT22, MQ-135, MQ-7 y GPS
-
----
-
-## ✨ Características Principales
-
-### Dashboard Público
-
-- 🗺️ **Mapa interactivo** con ubicación de sensores en tiempo real (Leaflet)
-- 📊 **Gráficos dinámicos** de temperatura, humedad y calidad del aire (Chart.js)
-- 📈 **Estadísticas ambientales** con promedios, máximos y mínimos
-- 📥 **Exportación de datos** en formatos CSV, JSON y PDF
-- 🔍 **Filtros avanzados** por sensor, rango de fechas y tipo de medición
-
-### Panel Administrativo
-
-- 🔐 **Autenticación segura** con JWT (8 horas de expiración)
-- 🛠️ **Gestión de sensores** (CRUD completo)
-- ⚙️ **Configuración de umbrales** de alertas personalizados
-- 🚨 **Sistema de alertas** automáticas por SMS/Email
-- 📍 **Recorridos móviles** guardados con geolocalización
-- 👤 **Gestión de usuarios** y logs de actividad
-
-### Características Técnicas
-
-- ⚡ **Rendimiento optimizado:** Carga de página <2s, API <500ms
-- 📱 **100% Responsivo:** Mobile-first (375px - 1920px)
-- 🌐 **Compatibilidad total:** Chrome, Firefox, Edge, Safari
-- 🔒 **Seguridad robusta:** Bcrypt, JWT, sanitización de inputs
-- 📊 **Alta disponibilidad:** 99.5% uptime
+### Módulo Administrativo
+- **Gestión de Sensores:** Mantenimiento (CRUD) y categorización de dispositivos IoT en zonas geográficas administradas.
+- **Configuración de Alertas:** Parametrización de tolerancias ambientales que activan notificaciones ante escenarios críticos.
+- **Administración de Acceso:** Rol based access control (RBAC) con autenticación basada en estándares JWT orientada a investigadores.
 
 ---
 
-## 🚀 Tecnologías Utilizadas
+## Tecnologías Utilizadas
+
+La arquitectura de la solución se basa en una división monolítica separada (Backend/Frontend):
 
 ### Backend
-
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **Node.js** | 22.16.0 | Runtime de JavaScript |
-| **Express.js** | 4.21.2 | Framework web |
-| **Prisma ORM** | 6.14.0 | ORM para PostgreSQL |
-| **PostgreSQL** | 12+ | Base de datos relacional |
-| **JWT** | 9.0.2 | Autenticación y autorización |
-| **Bcrypt** | 5.1.1 | Hashing de contraseñas |
+* **Entorno de Ejecución:** Node.js (v22.16.0 o superior).
+* **Framework Web:** Express.js (v4.21.2)
+* **Acceso a Datos:** Prisma ORM (v6.14.0)
+* **Base de Datos:** PostgreSQL (v12 o superior)
+* **Seguridad:** JSON Web Tokens (JWT) y Bcrypt local.
 
 ### Frontend
-
-| Tecnología | Versión | Propósito |
-|------------|---------|-----------|
-| **React** | 19.1.1 | Biblioteca de UI |
-| **Vite** | 7.1.7 | Build tool y dev server |
-| **Tailwind CSS** | 3.4.17 | Framework de estilos |
-| **Leaflet** | 1.9.4 | Mapas interactivos |
-| **Chart.js** | 4.5.0 | Gráficos dinámicos |
-| **React Router** | 7.3.0 | Enrutamiento SPA |
-
-### Hardware IoT
-
-| Componente | Modelo | Función |
-|------------|--------|---------|
-| **Microcontrolador** | ESP32-WROOM-32 | Procesamiento y WiFi |
-| **Sensor Temp/Hum** | DHT22 | Temperatura y humedad |
-| **Sensor CO₂** | MQ-135 | Calidad del aire (CO₂) |
-| **Sensor CO** | MQ-7 | Monóxido de carbono |
-| **GPS** | NEO-6M | Geolocalización |
+* **Core:** React (v19.1.1) ejecutado en Vite.
+* **Estilización:** Tailwind CSS (v3.4.17)
+* **Cartografía:** Leaflet (v1.9.4) junto con React-Leaflet.
+* **Gráficas:** Chart.js 
 
 ---
 
-## 📦 Requisitos Previos
+## Requisitos del Entorno
 
-Antes de instalar el proyecto, asegúrate de tener:
+Antes de iniciar la instalación de este proyecto, asegúrese de tener configurados los siguientes paquetes en su sistema operativo:
 
-- **Node.js** ≥ 22.16.0 ([Descargar](https://nodejs.org/))
-- **npm** ≥ 10.0.0 (incluido con Node.js)
-- **PostgreSQL** ≥ 12.0 ([Descargar](https://www.postgresql.org/download/))
-- **Git** ([Descargar](https://git-scm.com/))
-- **Editor de código** (VS Code recomendado)
-
-### Verificación de versiones
-
-```bash
-node --version   # Debe ser >= 22.16.0
-npm --version    # Debe ser >= 10.0.0
-psql --version   # Debe ser >= 12.0
-```
+* Node.js (Versión 22.16.0 como mínimo).
+* Gestor de paquetes npm (Versión 10.0.0 o superior).
+* Servidor PostgreSQL local o remoto (Versión 12+).
+* Git para la clonación del repositorio original.
 
 ---
 
-## 🛠️ Instalación
+## Instalación y Configuración
 
-### 1. Clonar el Repositorio
+Siga los siguientes pasos para ejecutar el proyecto en su ambiente de desarrollo local:
 
-```bash
+### 1. Clonación del Repositorio
+\`\`\`bash
 git clone https://github.com/iiap/sensor_monitoreo.git
 cd sensor_monitoreo
-```
+\`\`\`
 
-### 2. Configurar el Backend
+### 2. Despliegue del Backend
+El directorio contenedor de la API engloba la lógica de base de datos.
+\`\`\`bash
+# Posicionarse en el directorio del API
+cd sensor_monitoreo_api
 
-```bash
-cd backend
-
-# Instalar dependencias
+# Instalación de pre-requisitos de Node
 npm install
 
-# Crear archivo .env
+# Creación de variables de entorno recomendadas
 cp .env.example .env
 
-# Editar .env con tus credenciales
-# DATABASE_URL="postgresql://usuario:password@localhost:5432/iiap_db"
-# JWT_SECRET="tu_clave_secreta_muy_segura"
-# PORT=3000
+# Configure obligatoriamente el archivo .env con las credenciales de PSQL. Ejemplo:
+# DATABASE_URL="postgresql://postgres:password@localhost:5432/iiap_db"
 
-# Crear base de datos
+# Aplicación de las migraciones SQL
 npx prisma migrate dev --name init
+\`\`\`
 
-# Poblar base de datos con datos de prueba (opcional)
-npx prisma db seed
-```
+### 3. Despliegue del Frontend
+El directorio frontend se comunica mediante las variables de Vite.
+\`\`\`bash
+# Desde la raíz del repositorio
+cd environmental-monitoring-web
 
-### 3. Configurar el Frontend
-
-```bash
-cd ../frontend
-
-# Instalar dependencias
+# Instalación de dependencias React
 npm install
 
-# Crear archivo .env
+# Creación de variables de entorno
 cp .env.example .env
 
-# Editar .env con la URL del backend
+# Verifique que .env contenga el enlace al endpoint de desarrollo:
 # VITE_API_URL=http://localhost:3000/api
-```
+\`\`\`
 
-### 4. Iniciar el Sistema
-
-**Terminal 1 (Backend):**
-```bash
-cd backend
+### 4. Inicialización
+Necesitará requerir ambos subproyectos en terminales separadas.
+\`\`\`bash
+# En la consola del Backend:
 npm run dev
-```
 
-**Terminal 2 (Frontend):**
-```bash
-cd frontend
+# En la consola del Frontend:
 npm run dev
-```
+\`\`\`
 
-El sistema estará disponible en:
-- **Frontend:** http://localhost:5173
-- **Backend API:** http://localhost:3000/api
-- **Documentación API:** http://localhost:3000/api-docs (Swagger)
+Acceda al navegador de su red local dirigido a \`http://localhost:5173\`.
 
 ---
 
-## 💻 Uso
+## Estructura del Repositorio
 
-### Dashboard Público
+La arquitectura del proyecto separa estrictamente las responsabilidades del cliente y del servidor del siguiente modo:
 
-1. Abre http://localhost:5173 en tu navegador
-2. Visualiza el mapa con sensores activos
-3. Haz clic en un sensor para ver datos en tiempo real
-4. Usa los filtros para consultar datos históricos
-5. Exporta reportes en CSV, JSON o PDF
-
-### Panel Administrativo
-
-1. Accede a http://localhost:5173/login
-2. Inicia sesión con credenciales de administrador:
-   - **Usuario:** admin@iiap.gob.pe
-   - **Contraseña:** Admin123! (cambiar en producción)
-3. Gestiona sensores, configura umbrales y revisa alertas
-
-### API REST
-
-Consulta la documentación completa de la API en:
-- **Swagger UI:** http://localhost:3000/api-docs
-- **Manual API:** [docs/Entregable_04_Manual_API.md](docs/Entregable_04_Manual_API.md)
-
-**Ejemplo de petición:**
-
-```bash
-# Obtener lecturas recientes
-curl http://localhost:3000/api/lecturas/recientes?limit=10
-
-# Autenticación
-curl -X POST http://localhost:3000/api/auth/login \
-  -H "Content-Type: application/json" \
-  -d '{"email":"admin@iiap.gob.pe","password":"Admin123!"}'
-```
-
----
-
-## 📁 Estructura del Proyecto
-
-```
+\`\`\`
 sensor_monitoreo/
-├── backend/                    # Servidor Node.js + Express
+├── environmental-monitoring-web/   # Aplicación Frontend React.js (Vite)
+│   ├── public/                     # Archivos estáticos accesibles directamente
 │   ├── src/
-│   │   ├── controllers/       # Lógica de negocio (10 controladores)
-│   │   ├── routes/            # Rutas de API (10 routers)
-│   │   ├── middlewares/       # Autenticación, validación, errores
-│   │   ├── utils/             # Funciones auxiliares
-│   │   └── server.js          # Punto de entrada
-│   ├── prisma/
-│   │   ├── schema.prisma      # Esquema de base de datos (8 tablas)
-│   │   └── migrations/        # Migraciones SQL
-│   ├── .env.example           # Variables de entorno
-│   └── package.json           # Dependencias backend
+│   │   ├── assets/                 # Imágenes, iconos y recursos multimedia
+│   │   ├── components/             # Componentes React Re-usables
+│   │   │   ├── auth/               # Formularios de autenticación
+│   │   │   ├── common/             # Botones, Modales, Tarjetas aisladas
+│   │   │   ├── dashboard/          # MapView.jsx, Estadisticas e Indicadores
+│   │   │   └── layout/             # Sidebar, Navbar y Contenedor Principal
+│   │   ├── config/                 # Constantes globales y variables predefinidas
+│   │   ├── context/                # Estados globales (AuthContext)
+│   │   ├── hooks/                  # Custom React Hooks
+│   │   ├── pages/                  # Vistas enrutadas (Dashboard, Login, Admin, Perfil)
+│   │   ├── services/               # Consumidores Axios hacia Endpoints de la API
+│   │   └── utils/                  # Herramientas matemáticas y formateadores
+│   ├── index.html                  # Punto de montaje del Virtual DOM
+│   ├── package.json                # Dependencias Frontend
+│   ├── tailwind.config.js          # Directrices de Diseño Tailwind
+│   └── vite.config.js              # Configuración de compilador y puerto local
 │
-├── frontend/                   # Aplicación React
+├── sensor_monitoreo_api/           # Servidor Backend RESTful API (Node.js)
+│   ├── prisma/                     # Motor Relacional ORM
+│   │   ├── migrations/             # Historial de cambios SQL de Base de Datos
+│   │   └── schema.prisma           # Modelaje de Tablas (Lecturas, Sensores, Usuarios)
+│   ├── rutas/                      # Respaldos de archivos CSV de módulos GPS
+│   ├── scripts/                    # Rutinas asíncronas de base de datos
+│   │   ├── delete_sensor.js        # Purga de sensores por consola
+│   │   ├── importar_datos.js       # Migradores en bloque
+│   │   └── importar_rutas.js       # Sanitizador relacional de GPS CSV
 │   ├── src/
-│   │   ├── components/        # Componentes reutilizables
-│   │   ├── pages/             # Páginas principales (10 rutas)
-│   │   ├── services/          # Llamadas a API
-│   │   ├── context/           # Context API (AuthContext)
-│   │   ├── utils/             # Helpers y constantes
-│   │   └── App.jsx            # Componente raíz
-│   ├── public/                # Archivos estáticos
-│   ├── .env.example           # Variables de entorno
-│   └── package.json           # Dependencias frontend
+│   │   ├── config/                 # Pasarelas de conexión
+│   │   ├── controllers/            # Lógica de Negocio 
+│   │   │   ├── alertaController.js
+│   │   │   ├── authController.js
+│   │   │   ├── lecturaController.js
+│   │   │   ├── recorridosController.js
+│   │   │   ├── sensorController.js
+│   │   │   └── usuarioController.js
+│   │   ├── middlewares/            # Interceptores Express
+│   │   │   ├── auth.js             # Verificador JWT
+│   │   │   └── validator.js        # Inspector de Payloads
+│   │   ├── routes/                 # Exposición de Rutas al cliente
+│   │   │   └── [endpoints].js      
+│   │   └── app.js                  # Orquestador de Express JS
+│   ├── server.js                   # Ejecutor de Puerto HTTP
+│   └── package.json                # Dependencias Backend
 │
-├── docs/                       # Documentación completa
-│   ├── Actividad_01_Analisis_Requerimientos.md
-│   ├── Actividad_04_Desarrollo_Backend.md
-│   ├── Actividad_05_Desarrollo_Frontend.md
-│   ├── Actividad_06_Pruebas_Usabilidad_Finales.md
-│   ├── Entregable_01_Informe_Requerimientos.md
-│   ├── Entregable_04_Manual_Tecnico_Backend.md
-│   ├── Entregable_04_Manual_API.md
-│   ├── Entregable_05_Guia_Usuario.md
-│   ├── Entregable_06_Informe_Pruebas_Usabilidad.md
-│   └── Entregable_06_Informe_Pruebas_Finales.md
-│
-└── README.md                   # Este archivo
-```
-
----
-
-## 📚 Documentación
-
-### Documentos de Análisis y Diseño
-
-- **[Actividad 01: Análisis de Requerimientos](docs/Actividad_01_Analisis_Requerimientos.md)** - Análisis inicial de requisitos funcionales y no funcionales
-- **[Entregable 01: Informe de Requerimientos](docs/Entregable_01_Informe_Requerimientos.md)** - Especificación completa de requisitos (26 user stories, 10 casos de uso)
-
-### Documentos de Desarrollo
-
-- **[Actividad 04: Desarrollo del Backend](docs/Actividad_04_Desarrollo_Backend.md)** - Desarrollo de API REST con Node.js y Prisma
-- **[Entregable 04: Manual Técnico Backend](docs/Entregable_04_Manual_Tecnico_Backend.md)** - Arquitectura, UML, diagramas de secuencia
-- **[Entregable 04: Manual de API](docs/Entregable_04_Manual_API.md)** - Documentación de 32 endpoints RESTful
-
-### Documentos de Frontend
-
-- **[Actividad 05: Desarrollo del Frontend](docs/Actividad_05_Desarrollo_Frontend.md)** - Desarrollo de interfaz React con Tailwind
-- **[Entregable 05: Guía de Usuario](docs/Entregable_05_Guia_Usuario.md)** - Manual de uso para usuarios finales
-
-### Documentos de Testing
-
-- **[Actividad 06: Pruebas de Usabilidad y Pruebas Finales](docs/Actividad_06_Pruebas_Usabilidad_Finales.md)** - Plan de pruebas (32 casos de prueba)
-- **[Entregable 06: Informe de Pruebas de Usabilidad](docs/Entregable_06_Informe_Pruebas_Usabilidad.md)** - Resultados de pruebas con usuarios (SUS: 82.5/100)
-- **[Entregable 06: Informe de Pruebas Finales](docs/Entregable_06_Informe_Pruebas_Finales.md)** - Resultados finales (96.9% de éxito)
-
----
-
-## ⚙️ Comandos Principales
-
-### Backend
-
-```bash
-# Desarrollo (nodemon con auto-reload)
-npm run dev
-
-# Producción
-npm start
-
-# Migrar base de datos
-npx prisma migrate dev
-
-# Abrir Prisma Studio (GUI de BD)
-npx prisma studio
-
-# Formatear código
-npm run format
-
-# Limpiar y reinstalar
-npm run clean-install
-```
-
-### Frontend
-
-```bash
-# Desarrollo (Vite dev server)
-npm run dev
-
-# Build para producción
-npm run build
-
-# Preview de producción
-npm run preview
-
-# Linting
-npm run lint
-
-# Formatear código
-npm run format
-```
-
-### Base de Datos
-
-```bash
-# Conectar a PostgreSQL
-psql -U postgres
-
-# Crear base de datos
-CREATE DATABASE iiap_db;
-
-# Restaurar backup
-psql -U postgres iiap_db < backup.sql
-
-# Crear backup
-pg_dump -U postgres iiap_db > backup.sql
-```
-
----
-
-## 🧪 Testing
-
-### Pruebas Manuales
-
-El proyecto ha pasado **32 casos de prueba** con una tasa de éxito del **96.9%**.
-
-**Áreas cubiertas:**
-- ✅ Autenticación y autorización (3 casos)
-- ✅ Gestión de sensores (5 casos)
-- ✅ Gestión de lecturas (6 casos)
-- ✅ Sistema de alertas y umbrales (6 casos)
-- ✅ Reportes y exportación (4 casos)
-- ✅ Perfil y configuración (3 casos)
-- ✅ Visualizaciones (5 casos)
-
-### Métricas de Calidad
-
-| Métrica | Objetivo | Resultado |
-|---------|----------|-----------|
-| **Casos de prueba pasados** | ≥95% | ✅ 96.9% (31/32) |
-| **SUS Score (Usabilidad)** | ≥70/100 | ✅ 82.5/100 (Excelente) |
-| **Tiempo de carga** | <3s | ✅ 1.8s promedio |
-| **Tiempo de respuesta API** | <500ms | ✅ 285ms promedio |
-| **Compatibilidad navegadores** | 100% | ✅ Chrome, Firefox, Edge, Safari |
-| **Cobertura de código** | ≥75% | ✅ 78% backend |
-
-### Ejecutar Pruebas de API
-
-```bash
-# Usar Postman Collection (recomendado)
-# Importar: backend/tests/postman_collection.json
-
-# O usar curl
-cd backend/tests
-./test_api.sh
-```
-
----
-
-## 🚀 Despliegue
-
-### Despliegue en Producción
-
-**Backend (Railway/Render/Heroku):**
-
-```bash
-# 1. Configurar variables de entorno
-DATABASE_URL=postgresql://user:pass@host:5432/db
-JWT_SECRET=clave_secreta_produccion
-NODE_ENV=production
-
-# 2. Build y deploy
-npm run build
-npm start
-```
-
-**Frontend (Vercel/Netlify):**
-
-```bash
-# 1. Build
-npm run build
-
-# 2. Deploy
-vercel --prod
-# O
-netlify deploy --prod
-```
-
-**Base de Datos (Supabase/Railway):**
-
-1. Crear instancia de PostgreSQL 12+
-2. Ejecutar migraciones: `npx prisma migrate deploy`
-3. Configurar backups automáticos diarios
-
-### Variables de Entorno en Producción
-
-**Backend (.env):**
-```env
-DATABASE_URL=postgresql://user:pass@prod-host:5432/iiap_db
-JWT_SECRET=clave_ultra_secreta_de_produccion_minimo_32_caracteres
-PORT=3000
-NODE_ENV=production
-CORS_ORIGIN=https://iiap.gob.pe
-```
-
-**Frontend (.env):**
-```env
-VITE_API_URL=https://api.iiap.gob.pe
-VITE_ENV=production
-```
-
-### Checklist de Producción
-
-- [ ] Cambiar credenciales de administrador por defecto
-- [ ] Configurar HTTPS (certificado SSL)
-- [ ] Habilitar CORS solo para dominios permitidos
-- [ ] Configurar backups automáticos de base de datos
-- [ ] Activar logs de auditoría
-- [ ] Configurar monitoreo de errores (Sentry)
-- [ ] Optimizar imágenes y assets
-- [ ] Activar compresión gzip
-- [ ] Configurar CDN para assets estáticos
-
----
-
-## 🤝 Contribución
-
-Las contribuciones son bienvenidas. Por favor sigue estos pasos:
-
-1. **Fork** el repositorio
-2. **Crea una rama** para tu feature (`git checkout -b feature/nueva-funcionalidad`)
-3. **Commit** tus cambios (`git commit -m 'Agregar nueva funcionalidad'`)
-4. **Push** a la rama (`git push origin feature/nueva-funcionalidad`)
-5. **Abre un Pull Request**
-
-### Guía de Estilo
-
-- **JavaScript/React:** ESLint + Prettier (configuración incluida)
-- **Commits:** Conventional Commits (`feat:`, `fix:`, `docs:`, etc.)
-- **Ramas:** `feature/`, `bugfix/`, `hotfix/`, `docs/`
-
----
-
-## 📄 Licencia
-
-Este proyecto está bajo la Licencia MIT. Ver [LICENSE](LICENSE) para más detalles.
-
-```
-MIT License
-
-Copyright (c) 2025 Instituto de Investigaciones de la Amazonía Peruana (IIAP)
-
-Se concede permiso, libre de cargos, a cualquier persona que obtenga una copia
-de este software y de los archivos de documentación asociados (el "Software"),
-para utilizar el Software sin restricción...
-```
-
----
-
-## 📞 Contacto
-
-**Instituto de Investigaciones de la Amazonía Peruana (IIAP)**
-
-- **Website:** [https://www.iiap.gob.pe](https://www.iiap.gob.pe)
-- **Email:** monitoreo@iiap.gob.pe
-- **Teléfono:** +51 65 265515
-- **Dirección:** Av. José Abelardo Quiñones km 2.5, Iquitos, Perú
-
-**Equipo de Desarrollo:**
-- **Project Manager:** [Nombre]
-- **Backend Developer:** [Nombre]
-- **Frontend Developer:** [Nombre]
-- **Hardware Engineer:** [Nombre]
-
-**Soporte Técnico:**
-- **Issues:** [GitHub Issues](https://github.com/iiap/sensor_monitoreo/issues)
-- **Email:** soporte.monitoreo@iiap.gob.pe
-
----
-
-## 🙏 Agradecimientos
-
-- Instituto de Investigaciones de la Amazonía Peruana (IIAP)
-- Comunidad Open Source de Node.js y React
-- Investigadores ambientales del IIAP
-- Usuarios beta testers que participaron en las pruebas de usabilidad
-
----
-
-## 📊 Estado del Proyecto
-
-| Aspecto | Estado |
-|---------|--------|
-| **Desarrollo Backend** | ✅ Completado |
-| **Desarrollo Frontend** | ✅ Completado |
-| **Pruebas de Usabilidad** | ✅ Aprobado (SUS: 82.5/100) |
-| **Pruebas Finales** | ✅ Aprobado (96.9% éxito) |
-| **Documentación** | ✅ Completada |
-| **Despliegue Producción** | 🚀 Listo para deploy |
-
----
-
-**Última actualización:** 16 de Noviembre de 2025
-
-**Versión del Sistema:** 1.0.0
-
-**Desarrollado con ❤️ por el equipo IIAP**
+├── docs/                           # Central de archivos documentales (UML, Pruebas y Specs)
+│   ├── Actividades/
+│   └── Entregables/
+├── .gitignore                      # Reglas de exclusión Git
+└── README.md                       # Documentación inicial de proyecto
+\`\`\`

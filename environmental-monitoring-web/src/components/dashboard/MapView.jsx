@@ -13,7 +13,7 @@ import {
   XMarkIcon,
   TrashIcon
 } from '@heroicons/react/24/outline';
-import { recorridosAPI } from '../../services/api';
+import { lecturasAPI, recorridosAPI } from '../../services/api';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -35,7 +35,7 @@ const fijoIcon = createCustomIcon('#3B82F6');
 const movilIcon = createCustomIcon('#8B5CF6');
 
 
-export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
+export default function MapView({ sensores, lecturasActuales, onFilterChange }) {
   const [tipoMapa, setTipoMapa] = useState('sensores');
   const center = [-3.7491, -73.2538];
 
@@ -51,8 +51,10 @@ export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
   const [modalGuardar, setModalGuardar] = useState(false);
   const [modalListado, setModalListado] = useState(false); // ✅ Nuevo modal para ver guardados
   const [nombreRecorrido, setNombreRecorrido] = useState('');
+  
   const [fechasConLecturas, setFechasConLecturas] = useState([]); // ✅ Fechas disponibles
-  const [fechasPorSensor, setFechasPorSensor] = useState({}); // ✅ Fechas por cada sensor
+  const [lecturasHeatmap, setLecturasHeatmap] = useState([]); // ✅ Lecturas para mapa de calor
+  
   const [mesActual, setMesActual] = useState(new Date().getMonth());
   const [anioActual, setAnioActual] = useState(new Date().getFullYear());
   const [calendarioAbierto, setCalendarioAbierto] = useState(false);
@@ -72,38 +74,48 @@ export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
     }
   }, [calendarioAbierto]);
 
-  // Obtener sensores móviles y fechas con lecturas
+  // 1. Obtener sensores móviles y fechas con lecturas
   useEffect(() => {
-    const moviles = [...new Set(
-      lecturas
-        .filter(l => l.is_movil && l.latitud && l.longitud)
-        .map(l => l.id_sensor)
-    )];
-    setSensoresMoviles(moviles);
+    if (sensores) {
+      const moviles = sensores.filter(s => s.is_movil).map(s => s.id_sensor);
+      setSensoresMoviles(moviles);
+    }
 
-    // ✅ Calcular fechas únicas con lecturas (TODOS los sensores para mapas de calor)
-    const fechasUnicas = [...new Set(
-      lecturas
-        .filter(l => l.latitud && l.longitud && l.lectura_datetime)
-        .map(l => new Date(l.lectura_datetime).toISOString().split('T')[0])
-    )].sort().reverse(); // Más reciente primero
+    const cargarFechas = async () => {
+      try {
+        const res = await lecturasAPI.getFechasDisponibles();
+        if (res.data.success) {
+          setFechasConLecturas(res.data.data);
+        }
+      } catch (error) {
+        console.error("Error al cargar fechas", error);
+      }
+    };
+    cargarFechas();
+  }, [sensores]);
 
-    setFechasConLecturas(fechasUnicas);
+  // 2. Cargar datos de calor usando el nuevo endpoint agrupado SQL
+  useEffect(() => {
+    const cargarLecturasParaCalor = async () => {
+      if (!tipoMapa.startsWith('calor') || !fechaSeleccionada) return;
+      
+      try {
+        const params = {
+          fecha: fechaSeleccionada
+        };
+        if (sensorRecorrido !== 'todos') params.id_sensor = sensorRecorrido;
 
-    // ✅ Calcular fechas por cada sensor (TODOS los sensores)
-    const todosSensores = [...new Set(lecturas.map(l => l.id_sensor))];
-    const fechasPorSensorObj = {};
-    todosSensores.forEach(sensorId => {
-      const fechasSensor = [...new Set(
-        lecturas
-          .filter(l => l.id_sensor === sensorId && l.latitud && l.longitud && l.lectura_datetime)
-          .map(l => new Date(l.lectura_datetime).toISOString().split('T')[0])
-      )].sort().reverse();
-      fechasPorSensorObj[sensorId] = fechasSensor;
-    });
-
-    setFechasPorSensor(fechasPorSensorObj);
-  }, [lecturas]);
+        const res = await lecturasAPI.getAgrupadasCalor(params);
+        if (res.data.success) {
+          setLecturasHeatmap(res.data.data);
+        }
+      } catch (error) {
+        console.error("Error al cargar datos agrupados para el mapa de calor", error);
+      }
+    };
+    
+    cargarLecturasParaCalor();
+  }, [tipoMapa, fechaSeleccionada, sensorRecorrido]);
 
   // ✅ Notificar al padre cuando cambien los filtros
   useEffect(() => {
@@ -121,6 +133,7 @@ export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
     if (tipoMapa === 'recorridos' && fechaSeleccionada) {
       cargarRecorridosFecha();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipoMapa, sensorRecorrido, fechaSeleccionada]);
 
   //Autorefrescar cada 30 secs
@@ -129,10 +142,11 @@ export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
     const interval = setInterval(() => {
       console.log('🔄 Actualizando recorridos en tiempo real...');
       cargarRecorridosFecha();
-    }, 3000);
+    }, 30000); // ✅ Modificado de 3000 a 30000 para evitar DDOS al navegador
 
     return () => clearInterval(interval);
   }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
 }, [tipoMapa, fechaSeleccionada, sensoresMoviles]);
 
   const cargarRecorridosFecha = async () => {
@@ -266,6 +280,7 @@ export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
     if (tipoMapa === 'recorridos') {
       cargarRecorridosGuardados();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tipoMapa, sensorRecorrido]);
 
   const getColorByTemp = (temp) => {
@@ -310,35 +325,7 @@ export default function MapView({ lecturas, lecturasUnicas, onFilterChange }) {
     return 50 + (co * 15);
   };
 
-  // ✅ Función para agrupar lecturas por sensor y calcular promedios
-  const agruparLecturasPorSensor = (lecturasFiltradas, campo) => {
-    const grupos = {};
 
-    lecturasFiltradas.forEach(lectura => {
-      if (lectura.latitud && lectura.longitud && lectura[campo]) {
-        if (!grupos[lectura.id_sensor]) {
-          grupos[lectura.id_sensor] = {
-            id_sensor: lectura.id_sensor,
-            lecturas: [],
-            latitudes: [],
-            longitudes: []
-          };
-        }
-        grupos[lectura.id_sensor].lecturas.push(parseFloat(lectura[campo]));
-        grupos[lectura.id_sensor].latitudes.push(parseFloat(lectura.latitud));
-        grupos[lectura.id_sensor].longitudes.push(parseFloat(lectura.longitud));
-      }
-    });
-
-    // Calcular promedios
-    return Object.values(grupos).map(grupo => ({
-      id_sensor: grupo.id_sensor,
-      [campo]: grupo.lecturas.reduce((a, b) => a + b, 0) / grupo.lecturas.length,
-      latitud: grupo.latitudes.reduce((a, b) => a + b, 0) / grupo.latitudes.length,
-      longitud: grupo.longitudes.reduce((a, b) => a + b, 0) / grupo.longitudes.length,
-      cantidad_lecturas: grupo.lecturas.length
-    }));
-  };
 
   const coloresRecorrido = ['#8B5CF6', '#EC4899', '#F59E0B', '#10B981', '#3B82F6', '#F97316'];
 
@@ -512,7 +499,7 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
           />
 
           {/* MAPA DE SENSORES */}
-          {tipoMapa === 'sensores' && lecturasUnicas.map((lectura, index) => {
+          {tipoMapa === 'sensores' && lecturasActuales.map((lectura, index) => {
             if (lectura.latitud && lectura.longitud) {
               const icon = lectura.is_movil ? movilIcon : fijoIcon;
               return (
@@ -630,20 +617,11 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
 
           {/* MAPAS DE CALOR */}
           {tipoMapa === 'calor-temp' && (() => {
-            // Filtrar lecturas por fecha y sensor
-            const lecturasFiltradas = lecturas.filter(lectura => {
-              const fechaLectura = lectura.lectura_datetime
-                ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
-                : null;
-              const cumpleFecha = fechaLectura === fechaSeleccionada;
-              const cumpleSensor = sensorRecorrido === 'todos' || lectura.id_sensor === sensorRecorrido;
-              return cumpleFecha && cumpleSensor;
-            });
-
             // Agrupar por sensor y calcular promedios
-            const lecturasAgrupadas = agruparLecturasPorSensor(lecturasFiltradas, 'temperatura');
+            // Ya vienen agrupados por el Backend
+            const lecturasAgrupadas = lecturasHeatmap.filter(l => l.temperatura !== null);
 
-            return lecturasAgrupadas.map((lectura, index) => {
+            return lecturasAgrupadas.map((lectura) => {
               const color = getColorByTemp(lectura.temperatura);
               const radius = getRadiusByTemp(lectura.temperatura);
 
@@ -684,18 +662,8 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
           })()}
 
           {tipoMapa === 'calor-co2' && (() => {
-            // Filtrar lecturas por fecha y sensor
-            const lecturasFiltradas = lecturas.filter(lectura => {
-              const fechaLectura = lectura.lectura_datetime
-                ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
-                : null;
-              const cumpleFecha = fechaLectura === fechaSeleccionada;
-              const cumpleSensor = sensorRecorrido === 'todos' || lectura.id_sensor === sensorRecorrido;
-              return cumpleFecha && cumpleSensor;
-            });
-
-            // Agrupar por sensor y calcular promedios
-            const lecturasAgrupadas = agruparLecturasPorSensor(lecturasFiltradas, 'co2_nivel');
+            // Ya vienen agrupados por el Backend
+            const lecturasAgrupadas = lecturasHeatmap.filter(l => l.co2_nivel !== null);
 
             return lecturasAgrupadas.map((lectura) => {
               const co2Value = Math.round(lectura.co2_nivel);
@@ -739,18 +707,8 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
           })()}
 
           {tipoMapa === 'calor-co' && (() => {
-            // Filtrar lecturas por fecha y sensor
-            const lecturasFiltradas = lecturas.filter(lectura => {
-              const fechaLectura = lectura.lectura_datetime
-                ? new Date(lectura.lectura_datetime).toISOString().split('T')[0]
-                : null;
-              const cumpleFecha = fechaLectura === fechaSeleccionada;
-              const cumpleSensor = sensorRecorrido === 'todos' || lectura.id_sensor === sensorRecorrido;
-              return cumpleFecha && cumpleSensor;
-            });
-
-            // Agrupar por sensor y calcular promedios
-            const lecturasAgrupadas = agruparLecturasPorSensor(lecturasFiltradas, 'co_nivel');
+            // Ya vienen agrupados por el Backend
+            const lecturasAgrupadas = lecturasHeatmap.filter(l => l.co_nivel !== null);
 
             return lecturasAgrupadas.map((lectura) => {
               const coValue = lectura.co_nivel;
@@ -808,13 +766,8 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                 value={sensorRecorrido}
                 onChange={(e) => {
                   setSensorRecorrido(e.target.value);
-                  // Si selecciona un sensor específico, ajustar fecha si no tiene lecturas
-                  if (e.target.value !== 'todos') {
-                    const fechasSensor = fechasPorSensor[e.target.value] || [];
-                    if (!fechasSensor.includes(fechaSeleccionada)) {
-                      setFechaSeleccionada(fechasSensor[0] || new Date().toISOString().split('T')[0]);
-                    }
-                  }
+                  // Eliminado: La lógica de buscar fechas por sensor fue descontinuada por rendimiento
+                  // Ahora el usuario retiene la libertad de ver el sensor en la fecha que ya estaba viendo.
                 }}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary text-sm"
               >
@@ -826,7 +779,7 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                     <option key={id} value={id}>{id}</option>
                   ))
                 ) : (
-                  lecturasUnicas.map(l => (
+                  lecturasActuales.map(l => (
                     <option key={l.id_sensor} value={l.id_sensor}>{l.id_sensor}</option>
                   ))
                 )}
@@ -835,7 +788,7 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
                 {sensorRecorrido === 'todos'
                   ? tipoMapa === 'recorridos'
                     ? `${sensoresMoviles.length} sensores móviles`
-                    : `${lecturasUnicas.length} sensores`
+                    : `${lecturasActuales.length} sensores`
                   : 'Sensor seleccionado'}
               </p>
             </div>
@@ -870,9 +823,8 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
 
               {/* Calendario Desplegable */}
               {calendarioAbierto && (() => {
-                const fechasDisponibles = sensorRecorrido === 'todos'
-                  ? fechasConLecturas
-                  : (fechasPorSensor[sensorRecorrido] || []);
+                // Ahora usamos las fechas globales para todos los sensores para prevenir bloqueo del calendario
+                const fechasDisponibles = fechasConLecturas;
 
                 const hoy = new Date();
 
@@ -1380,34 +1332,22 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
       )}
 
       <div className="mt-2 text-center text-xs text-gray-500">
-        {tipoMapa === 'sensores' && `${lecturasUnicas.filter(l => l.latitud && l.longitud).length} sensores visibles`}
+        {tipoMapa === 'sensores' && `${lecturasActuales.length} sensores visibles`}
         {tipoMapa === 'recorridos' && Object.keys(recorridosDia).length > 0 && (
           sensorRecorrido === 'todos'
             ? `${Object.keys(recorridosDia).length} sensores con lecturas móviles`
             : `${recorridosDia[sensorRecorrido]?.length || 0} puntos de lectura`
         )}
         {tipoMapa === 'calor-temp' && (() => {
-          const lecturasFiltradas = lecturas.filter(l => {
-            const fechaLectura = l.lectura_datetime ? new Date(l.lectura_datetime).toISOString().split('T')[0] : null;
-            return fechaLectura === fechaSeleccionada && l.latitud && l.longitud && l.temperatura && (sensorRecorrido === 'todos' || l.id_sensor === sensorRecorrido);
-          });
-          const sensoresUnicos = new Set(lecturasFiltradas.map(l => l.id_sensor));
+          const sensoresUnicos = new Set(lecturasHeatmap.map(l => l.id_sensor));
           return `${sensoresUnicos.size} sensor(es) con temperatura`;
         })()}
         {tipoMapa === 'calor-co2' && (() => {
-          const lecturasFiltradas = lecturas.filter(l => {
-            const fechaLectura = l.lectura_datetime ? new Date(l.lectura_datetime).toISOString().split('T')[0] : null;
-            return fechaLectura === fechaSeleccionada && l.latitud && l.longitud && l.co2_nivel && (sensorRecorrido === 'todos' || l.id_sensor === sensorRecorrido);
-          });
-          const sensoresUnicos = new Set(lecturasFiltradas.map(l => l.id_sensor));
+          const sensoresUnicos = new Set(lecturasHeatmap.map(l => l.id_sensor));
           return `${sensoresUnicos.size} sensor(es) con CO₂`;
         })()}
         {tipoMapa === 'calor-co' && (() => {
-          const lecturasFiltradas = lecturas.filter(l => {
-            const fechaLectura = l.lectura_datetime ? new Date(l.lectura_datetime).toISOString().split('T')[0] : null;
-            return fechaLectura === fechaSeleccionada && l.latitud && l.longitud && l.co_nivel && (sensorRecorrido === 'todos' || l.id_sensor === sensorRecorrido);
-          });
-          const sensoresUnicos = new Set(lecturasFiltradas.map(l => l.id_sensor));
+          const sensoresUnicos = new Set(lecturasHeatmap.map(l => l.id_sensor));
           return `${sensoresUnicos.size} sensor(es) con CO`;
         })()}
       </div>
