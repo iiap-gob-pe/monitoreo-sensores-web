@@ -5,6 +5,7 @@ docs
 # Variables de entorno (SECRETOS - NUNCA SUBIR)
 .env
 .env.local
+.env.production
 
 # Base de datos local
 *.db
