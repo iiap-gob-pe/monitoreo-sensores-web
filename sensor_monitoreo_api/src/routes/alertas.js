@@ -2,13 +2,13 @@
 const express = require('express');
 const router = express.Router();
 const alertaController = require('../controllers/alertaController');
-const { verificarTokenOpcional, verificarToken, verificarRol } = require('../middleware/auth');
+const { verificarAccesoPublico, verificarToken, verificarRol } = require('../middleware/auth');
 
-// Rutas públicas de solo lectura
-router.get('/', verificarTokenOpcional, alertaController.obtenerTodas);                     // GET /api/alertas - Público
-router.get('/activas', verificarTokenOpcional, alertaController.obtenerActivas);            // GET /api/alertas/activas - Público
-router.get('/estadisticas', verificarTokenOpcional, alertaController.obtenerEstadisticas);  // GET /api/alertas/estadisticas - Público
-router.get('/sensor/:id', verificarTokenOpcional, alertaController.obtenerPorSensor);       // GET /api/alertas/sensor/:id - Público
+// Rutas protegidas de lectura (requieren JWT o clave pública del frontend)
+router.get('/', verificarAccesoPublico, alertaController.obtenerTodas);                     // GET /api/alertas
+router.get('/activas', verificarAccesoPublico, alertaController.obtenerActivas);            // GET /api/alertas/activas
+router.get('/estadisticas', verificarAccesoPublico, alertaController.obtenerEstadisticas);  // GET /api/alertas/estadisticas
+router.get('/sensor/:id', verificarAccesoPublico, alertaController.obtenerPorSensor);       // GET /api/alertas/sensor/:id
 
 // Rutas protegidas (solo admin)
 router.post('/', verificarToken, verificarRol('admin'), alertaController.crear);                           // POST /api/alertas (crear alerta manual)

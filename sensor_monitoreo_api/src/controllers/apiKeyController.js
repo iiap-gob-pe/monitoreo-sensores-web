@@ -69,7 +69,7 @@ exports.obtenerTodas = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al obtener API Keys',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -157,7 +157,7 @@ exports.crear = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al crear API Key',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -226,7 +226,7 @@ exports.toggleEstado = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al cambiar estado de API Key',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -266,7 +266,7 @@ exports.eliminar = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al eliminar API Key',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };
@@ -339,7 +339,7 @@ exports.actualizar = async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Error al actualizar API Key',
-      error: error.message
+      ...(process.env.NODE_ENV === 'development' && { error: error.message })
     });
   }
 };

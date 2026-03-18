@@ -2,10 +2,11 @@
 const express = require('express');
 const router = express.Router();
 const umbralController = require('../controllers/umbralController');
-const { verificarToken, verificarRol } = require('../middleware/auth');
+const { verificarToken, verificarRol, verificarAccesoPublico } = require('../middleware/auth');
 
-// Rutas públicas (solo lectura)
-router.get('/', umbralController.obtenerTodos);
+// Rutas protegidas de lectura (requieren JWT o clave pública del frontend)
+router.get('/', verificarAccesoPublico, umbralController.obtenerTodos);
+
 // Rutas protegidas (solo Admin)
 router.post('/', verificarToken, verificarRol('admin'), umbralController.crear);
 router.patch('/:id', verificarToken, verificarRol('admin'), umbralController.actualizar);

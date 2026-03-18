@@ -33,7 +33,7 @@ const usuarioController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener usuarios',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -126,7 +126,7 @@ const usuarioController = {
       res.status(500).json({
         success: false,
         message: 'Error al crear usuario',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -189,7 +189,7 @@ const usuarioController = {
       res.status(500).json({
         success: false,
         message: 'Error al actualizar usuario',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -238,7 +238,7 @@ const usuarioController = {
       res.status(500).json({
         success: false,
         message: 'Error al eliminar usuario',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -280,7 +280,7 @@ const usuarioController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener logs',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   }

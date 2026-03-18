@@ -109,7 +109,8 @@ export const AuthProvider = ({ children }) => {
     verLecturas: () => true,
     verAlertas: () => true,
     verReportes: () => true,
-    exportarDatos: () => true
+    // Exportar/descargar requiere login
+    exportarDatos: () => !!token
   };
 
   const value = {

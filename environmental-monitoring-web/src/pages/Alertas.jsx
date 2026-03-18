@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { alertasAPI, sensoresAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext'; // ✅ Importar
+import { useToast } from '../components/common/Toast';
+import { useConfirm } from '../components/common/ConfirmModal';
 import { 
   MagnifyingGlassIcon,
   FunnelIcon,
@@ -18,6 +20,8 @@ import {
 
 export default function Alertas() {
   const { permisos, usuario } = useAuth(); // ✅ Obtener permisos y usuario
+  const toast = useToast();
+  const confirm = useConfirm();
   const [alertas, setAlertas] = useState([]);
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -94,18 +98,19 @@ export default function Alertas() {
   const handleResolverAlerta = async (alerta) => {
     // ✅ Verificar permisos antes de resolver
     if (!permisos.resolverAlertas()) {
-      alert('No tienes permisos para resolver alertas. Solo los administradores pueden realizar esta acción.');
+      toast.error('No tienes permisos para resolver alertas. Solo los administradores pueden realizar esta acción.');
       return;
     }
 
-    if (window.confirm(`¿Marcar como resuelta la alerta: ${alerta.mensaje}?`)) {
+    const confirmado = await confirm(`¿Marcar como resuelta la alerta: ${alerta.mensaje}?`, { title: 'Confirmar', type: 'danger' });
+    if (confirmado) {
       try {
         await alertasAPI.resolver(alerta.id_alerta);
         cargarDatos();
-        alert('Alerta marcada como resuelta');
+        toast.success('Alerta marcada como resuelta');
       } catch (error) {
         console.error('Error al resolver alerta:', error);
-        alert('Error al resolver la alerta');
+        toast.error('Error al resolver la alerta');
       }
     }
   };

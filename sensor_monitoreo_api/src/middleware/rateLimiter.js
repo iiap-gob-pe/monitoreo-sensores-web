@@ -23,6 +23,26 @@ const apiLimiter = rateLimit({
   }
 });
 
+/**
+ * Limitador estricto para login (anti fuerza bruta)
+ * Máximo 5 intentos de login por IP cada 15 minutos
+ */
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // Ventana de 15 minutos
+  max: 5, // Máximo 5 intentos por IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (req, res) => {
+    console.warn(`🛑 ALERTA: IP ${req.ip} bloqueada por demasiados intentos de login.`);
+    return res.status(429).json({
+      success: false,
+      message: 'Demasiados intentos de inicio de sesión. Intenta de nuevo en 15 minutos.',
+      code: 'LOGIN_RATE_LIMIT_EXCEEDED'
+    });
+  }
+});
+
 module.exports = {
-  apiLimiter
+  apiLimiter,
+  loginLimiter
 };

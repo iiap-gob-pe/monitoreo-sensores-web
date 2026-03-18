@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react';
 import { KeyIcon, PlusIcon, PowerIcon, TrashIcon } from '@heroicons/react/24/outline';
 import { apiKeysAPI } from '../services/api';
+import { useToast } from '../components/common/Toast';
+import { useConfirm } from '../components/common/ConfirmModal';
 
 const GestionApiKeys = () => {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [apiKeys, setApiKeys] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -24,7 +28,7 @@ const GestionApiKeys = () => {
       setApiKeys(response.data.data);
     } catch (error) {
       console.error('Error al cargar API Keys:', error);
-      alert('Error al cargar API Keys: ' + (error.response?.data?.message || error.message));
+      toast.error('Error al cargar API Keys: ' + (error.response?.data?.message || error.message));
     } finally {
       setLoading(false);
     }
@@ -34,7 +38,7 @@ const GestionApiKeys = () => {
     e.preventDefault();
 
     if (!formData.key_name.trim()) {
-      alert('El nombre es requerido');
+      toast.info('El nombre es requerido');
       return;
     }
 
@@ -51,37 +55,37 @@ const GestionApiKeys = () => {
       cargarApiKeys();
     } catch (error) {
       console.error('Error al crear API Key:', error);
-      alert('Error al crear API Key: ' + (error.response?.data?.message || error.message));
+      toast.error('Error al crear API Key: ' + (error.response?.data?.message || error.message));
     }
   };
 
   const handleToggleEstado = async (id, nombreActual) => {
-    if (!confirm(`¿Confirmas cambiar el estado de "${nombreActual}"?`)) return;
+    if (!await confirm(`¿Confirmas cambiar el estado de "${nombreActual}"?`)) return;
 
     try {
       await apiKeysAPI.toggleEstado(id);
       cargarApiKeys();
     } catch (error) {
       console.error('Error al cambiar estado:', error);
-      alert('Error al cambiar estado: ' + (error.response?.data?.message || error.message));
+      toast.error('Error al cambiar estado: ' + (error.response?.data?.message || error.message));
     }
   };
 
   const handleEliminar = async (id, nombre) => {
-    if (!confirm(`¿Estás seguro de eliminar permanentemente la API Key "${nombre}"?\n\nEsta acción no se puede deshacer y los dispositivos con esta key dejarán de funcionar.`)) return;
+    if (!await confirm(`¿Estás seguro de eliminar permanentemente la API Key "${nombre}"? Esta acción no se puede deshacer y los dispositivos con esta key dejarán de funcionar.`)) return;
 
     try {
       await apiKeysAPI.eliminar(id);
       cargarApiKeys();
     } catch (error) {
       console.error('Error al eliminar:', error);
-      alert('Error al eliminar: ' + (error.response?.data?.message || error.message));
+      toast.error('Error al eliminar: ' + (error.response?.data?.message || error.message));
     }
   };
 
   const copiarAlPortapapeles = (texto) => {
     navigator.clipboard.writeText(texto);
-    alert('✅ API Key copiada al portapapeles');
+    toast.success('API Key copiada al portapapeles');
   };
 
   const formatearFecha = (fecha) => {

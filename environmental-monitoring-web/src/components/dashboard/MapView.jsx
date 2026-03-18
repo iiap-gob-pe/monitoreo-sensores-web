@@ -14,6 +14,8 @@ import {
   TrashIcon
 } from '@heroicons/react/24/outline';
 import { lecturasAPI, recorridosAPI } from '../../services/api';
+import { useToast } from '../common/Toast';
+import { useConfirm } from '../common/ConfirmModal';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -36,6 +38,8 @@ const movilIcon = createCustomIcon('#8B5CF6');
 
 
 export default function MapView({ sensores, lecturasActuales, onFilterChange }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [tipoMapa, setTipoMapa] = useState('sensores');
   const center = [-3.7491, -73.2538];
 
@@ -206,17 +210,17 @@ export default function MapView({ sensores, lecturasActuales, onFilterChange }) 
   // Guardar recorrido
   const guardarRecorrido = async () => {
     if (!nombreRecorrido.trim()) {
-      alert('Ingresa un nombre para el recorrido');
+      toast.info('Ingresa un nombre para el recorrido');
       return;
     }
 
     if (Object.keys(recorridosDia).length === 0) {
-      alert('No hay datos de recorrido para guardar');
+      toast.info('No hay datos de recorrido para guardar');
       return;
     }
 
     if (sensorRecorrido === 'todos') {
-      alert('Selecciona un sensor específico para guardar el recorrido');
+      toast.info('Selecciona un sensor específico para guardar el recorrido');
       return;
     }
 
@@ -239,13 +243,13 @@ export default function MapView({ sensores, lecturasActuales, onFilterChange }) 
         metadata: metadataRecorrido
       });
 
-      alert('✅ Recorrido guardado exitosamente');
+      toast.success('Recorrido guardado exitosamente');
       setModalGuardar(false);
       setNombreRecorrido('');
       cargarRecorridosGuardados();
     } catch (error) {
       console.error('Error al guardar:', error);
-      alert('Error al guardar el recorrido');
+      toast.error('Error al guardar el recorrido');
     }
   };
 
@@ -264,15 +268,15 @@ export default function MapView({ sensores, lecturasActuales, onFilterChange }) 
 
   // Eliminar recorrido guardado
   const eliminarRecorrido = async (id, nombre) => {
-    if (!confirm(`¿Eliminar el recorrido "${nombre}"?`)) return;
+    if (!await confirm(`¿Eliminar el recorrido "${nombre}"?`)) return;
     
     try {
       await recorridosAPI.eliminar(id);
-      alert('✅ Recorrido eliminado');
+      toast.success('Recorrido eliminado');
       cargarRecorridosGuardados();
     } catch (error) {
       console.error('Error al eliminar:', error);
-      alert('Error al eliminar el recorrido');
+      toast.error('Error al eliminar el recorrido');
     }
   };
 
@@ -357,12 +361,12 @@ export default function MapView({ sensores, lecturasActuales, onFilterChange }) 
         
         // Notificar al usuario
         setTimeout(() => {
-          alert(`✅ Visualizando: ${datosCompletos.nombre_recorrido}\n\nSensor: ${datosCompletos.id_sensor}\nFecha: ${new Date(datosCompletos.fecha_recorrido).toLocaleDateString('es-PE')}`);
+          toast.success('Recorrido cargado: ' + datosCompletos.nombre_recorrido);
         }, 300);
       }
     } catch (error) {
       console.error('Error al visualizar:', error);
-      alert('Error al cargar el recorrido');
+      toast.error('Error al cargar el recorrido');
     }
   };
 
@@ -407,11 +411,11 @@ export default function MapView({ sensores, lecturasActuales, onFilterChange }) 
         link.click();
         window.URL.revokeObjectURL(url);
 
-        alert('✅ Archivo CSV descargado');
+        toast.success('Archivo CSV descargado');
       }
     } catch (error) {
       console.error('Error al descargar CSV:', error);
-      alert('Error al descargar el archivo');
+      toast.error('Error al descargar el archivo');
     }
   };
 
@@ -454,11 +458,11 @@ ${puntos.map(p => `      <trkpt lat="${p.latitud}" lon="${p.longitud}">
         link.click();
         window.URL.revokeObjectURL(url);
 
-        alert('✅ Archivo GPX descargado\n\nPuedes abrir este archivo en Google Earth, GPS o apps de mapas');
+        toast.success('Archivo GPX descargado. Puedes abrir este archivo en Google Earth, GPS o apps de mapas');
       }
     } catch (error) {
       console.error('Error al descargar GPX:', error);
-      alert('Error al descargar el archivo');
+      toast.error('Error al descargar el archivo');
     }
   };
   

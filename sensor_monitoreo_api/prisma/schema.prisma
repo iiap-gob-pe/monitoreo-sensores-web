@@ -7,25 +7,96 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// ============================================================================
+// SITIOS - Lugares fijos donde se instalan sensores estacionarios
+// ============================================================================
+model sitios {
+  id_sitio              Int       @id @default(autoincrement())
+  nombre                String    @db.VarChar(100)
+  descripcion           String?
+  referencia_ubicacion  String?   @db.VarChar(255)   // Referencia textual (ej: "Frente al parque central")
+  latitud               Decimal?  @db.Decimal(10, 8)
+  longitud              Decimal?  @db.Decimal(11, 8)
+  altitud               Decimal?  @db.Decimal(8, 2)
+  zona                  String    @db.VarChar(50)     // Urbana, Rural, Bosque, Rio
+  estado                String?   @default("activo") @db.VarChar(20)
+  created_at            DateTime? @default(now()) @db.Timestamp(6)
+
+  sensores              sensores[]
+
+  @@map("sitios")
+}
+
+// ============================================================================
+// CAMPANAS DE MONITOREO - Campañas de campo con sensores móviles
+// ============================================================================
+model campanas_monitoreo {
+  id_campana    Int       @id @default(autoincrement())
+  nombre        String    @db.VarChar(100)
+  descripcion   String?
+  zona          String    @db.VarChar(50)
+  fecha_inicio  DateTime  @db.Date
+  fecha_fin     DateTime? @db.Date
+  estado        String?   @default("planificada") @db.VarChar(20)  // planificada, activa, finalizada
+  created_by    Int?
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+
+  usuario_creador usuarios?        @relation(fields: [created_by], references: [id_usuario], onDelete: SetNull, onUpdate: NoAction)
+  campana_sensor  campana_sensor[]
+
+  @@map("campanas_monitoreo")
+}
+
+// ============================================================================
+// CAMPANA_SENSOR - Relacion N:N entre campañas y sensores móviles
+// ============================================================================
+model campana_sensor {
+  id          Int      @id @default(autoincrement())
+  id_campana  Int
+  id_sensor   String   @db.VarChar(50)
+  asignado_at DateTime @default(now()) @db.Timestamp(6)
+
+  campana campanas_monitoreo @relation(fields: [id_campana], references: [id_campana], onDelete: Cascade, onUpdate: NoAction)
+  sensor  sensores           @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_campana, id_sensor])
+  @@map("campana_sensor")
+}
+
+// ============================================================================
+// SENSORES - Dispositivos IoT (estacionarios o móviles)
+// ============================================================================
 model sensores {
   id_sensor            String                   @id @db.VarChar(50)
   nombre_sensor        String                   @db.VarChar(100)
-  zona                 String                   @db.VarChar(20)
   is_movil             Boolean?                 @default(false)
   description          String?
+  // Estacionarios: ubicación fija vinculada a un sitio
+  id_sitio             Int?
+  // Móviles: ubicación GPS del dispositivo (se actualiza con cada lectura)
+  latitud              Decimal?                 @db.Decimal(10, 8)
+  longitud             Decimal?                 @db.Decimal(11, 8)
+  altitud              Decimal?                 @db.Decimal(8, 2)
+  zona                 String?                  @db.VarChar(50)
   installation_date    DateTime?                @default(dbgenerated("CURRENT_DATE")) @db.Date
   created_at           DateTime?                @default(now()) @db.Timestamp(6)
   last_seen            DateTime?                @db.Timestamp(6)
   estado               String?                  @default("Activo") @db.VarChar(20)
+
+  sitio                sitios?                  @relation(fields: [id_sitio], references: [id_sitio], onDelete: SetNull, onUpdate: NoAction)
   alertas              alertas[]
   lecturas             lecturas[]
   sensor_umbral        sensor_umbral[]
   recorridos_guardados recorridos_guardados[]
-  api_keys             api_keys[]               // API Keys asignadas a este sensor
+  api_keys             api_keys[]
+  campana_sensor       campana_sensor[]
 
   @@map("sensores")
 }
 
+// ============================================================================
+// LECTURAS - Datos ambientales capturados por sensores
+// ============================================================================
 model lecturas {
   id_lectura       Int       @id @default(autoincrement())
   id_sensor        String?   @db.VarChar(50)
@@ -46,6 +117,9 @@ model lecturas {
   @@map("lecturas")
 }
 
+// ============================================================================
+// ALERTAS
+// ============================================================================
 model alertas {
   id_alerta        Int       @id @default(autoincrement())
   id_sensor        String?   @db.VarChar(50)
@@ -64,6 +138,9 @@ model alertas {
   @@map("alertas")
 }
 
+// ============================================================================
+// SENSOR_UMBRAL - Umbrales de alerta por sensor y parámetro
+// ============================================================================
 model sensor_umbral {
   id_sensor_umbral Int       @id @default(autoincrement())
   id_sensor        String?   @db.VarChar(50)
@@ -79,6 +156,9 @@ model sensor_umbral {
   @@map("sensor_umbral")
 }
 
+// ============================================================================
+// USUARIOS
+// ============================================================================
 model usuarios {
   id_usuario           Int                    @id @default(autoincrement())
   username             String                 @unique @db.VarChar(50)
@@ -92,12 +172,16 @@ model usuarios {
   updated_at           DateTime?              @default(now()) @updatedAt @db.Timestamp(6)
   logs_actividad       logs_actividad[]
   preferencias_sistema preferencias_sistema?
-  api_keys_creadas     api_keys[]             // API Keys creadas por este usuario
+  api_keys_creadas     api_keys[]
+  campanas_creadas     campanas_monitoreo[]
 
   @@index([email], map: "idx_usuarios_email")
   @@index([username], map: "idx_usuarios_username")
 }
 
+// ============================================================================
+// LOGS_ACTIVIDAD
+// ============================================================================
 model logs_actividad {
   id_log         Int       @id @default(autoincrement())
   id_usuario     Int?
@@ -114,6 +198,9 @@ model logs_actividad {
   @@index([id_usuario], map: "idx_logs_usuario")
 }
 
+// ============================================================================
+// RECORRIDOS_GUARDADOS
+// ============================================================================
 model recorridos_guardados {
   id_recorrido     Int       @id @default(autoincrement())
   id_sensor        String    @db.VarChar(50)
@@ -134,6 +221,9 @@ model recorridos_guardados {
   @@map("recorridos_guardados")
 }
 
+// ============================================================================
+// PREFERENCIAS_SISTEMA
+// ============================================================================
 model preferencias_sistema {
   id_preferencia           Int       @id @default(autoincrement())
   id_usuario               Int       @unique
@@ -150,22 +240,23 @@ model preferencias_sistema {
   @@map("preferencias_sistema")
 }
 
-// ✅ Tabla de API Keys - Una API Key por Sensor
+// ============================================================================
+// API_KEYS - Claves de autenticación por sensor
+// ============================================================================
 model api_keys {
   id_api_key       Int       @id @default(autoincrement())
-  key_name         String    @db.VarChar(100)                    // Nombre descriptivo (ej: "ESP32_Sensor_001")
-  api_key          String    @unique @db.VarChar(64)             // La API Key (hash SHA256)
-  id_sensor        String?   @db.VarChar(50)                     // ID del sensor asociado (OPCIONAL al inicio)
-  descripcion      String?                                       // Descripción adicional
-  esta_activo      Boolean   @default(true)                      // Permite deshabilitar sin eliminar
-  ultima_uso       DateTime? @db.Timestamp(6)                    // Última vez que se usó
+  key_name         String    @db.VarChar(100)
+  api_key          String    @unique @db.VarChar(64)
+  id_sensor        String?   @db.VarChar(50)
+  descripcion      String?
+  esta_activo      Boolean   @default(true)
+  ultima_uso       DateTime? @db.Timestamp(6)
   created_at       DateTime  @default(now()) @db.Timestamp(6)
-  created_by       Int?                                          // ID del admin que la creó
-  expires_at       DateTime? @db.Timestamp(6)                    // Opcional: fecha de expiración
+  created_by       Int?
+  expires_at       DateTime? @db.Timestamp(6)
   usuario_creador  usuarios? @relation(fields: [created_by], references: [id_usuario], onDelete: SetNull, onUpdate: NoAction)
   sensor           sensores? @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
 
-  // @@unique([id_sensor], map: "unique_sensor_api_key")           // ELIMINADO: Un sensor puede no tener key, o una key no tener sensor al inicio
   @@index([api_key], map: "idx_api_keys_key")
   @@index([esta_activo], map: "idx_api_keys_activo")
   @@index([created_by], map: "idx_api_keys_created_by")

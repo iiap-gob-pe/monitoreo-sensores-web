@@ -37,7 +37,7 @@ const preferenciasSistemaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -96,7 +96,7 @@ const preferenciasSistemaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -140,7 +140,7 @@ const preferenciasSistemaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   }

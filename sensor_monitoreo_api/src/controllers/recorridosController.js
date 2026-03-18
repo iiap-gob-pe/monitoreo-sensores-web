@@ -124,7 +124,7 @@ const recorridosController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener recorrido',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -190,7 +190,7 @@ const recorridosController = {
       res.status(500).json({
         success: false,
         message: 'Error al guardar recorrido',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -239,7 +239,7 @@ const recorridosController = {
       res.status(500).json({
         success: false,
         message: 'Error al listar recorridos',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -272,7 +272,7 @@ const recorridosController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener recorrido',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -298,7 +298,7 @@ const recorridosController = {
       res.status(500).json({
         success: false,
         message: 'Error al eliminar recorrido',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   }

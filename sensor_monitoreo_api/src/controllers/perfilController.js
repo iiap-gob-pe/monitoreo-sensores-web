@@ -44,7 +44,7 @@ const perfilController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener perfil',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -129,7 +129,7 @@ const perfilController = {
       res.status(500).json({
         success: false,
         message: 'Error al actualizar perfil',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -176,7 +176,7 @@ const perfilController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener historial de actividad',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -255,7 +255,7 @@ cambiarContrasena: async (req, res) => {
       res.status(500).json({
         success: false,
         message: 'Error al cambiar contraseña',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   }

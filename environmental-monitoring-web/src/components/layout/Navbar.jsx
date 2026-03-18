@@ -72,9 +72,9 @@ export default function Navbar() {
             </div>
             <div>
               <h1 className="text-lg font-bold text-gray-900 group-hover:text-primary transition-colors">
-                IIAP
+                IIAP Sense
               </h1>
-              <p className="text-xs text-gray-500">Monitoreo Ambiental</p>
+              <p className="text-xs text-gray-500">Sensores Ambientales</p>
             </div>
           </Link>
 
@@ -83,17 +83,23 @@ export default function Navbar() {
             <Link to="/" className={`${linkClass('/')} px-3 py-2`}>
               Dashboard
             </Link>
-            <Link to="/sensores" className={`${linkClass('/sensores')} px-3 py-2`}>
+            <Link to="/sensors" className={`${linkClass('/sensors')} px-3 py-2`}>
               Sensores
             </Link>
-            <Link to="/lecturas" className={`${linkClass('/lecturas')} px-3 py-2`}>
+            <Link to="/readings" className={`${linkClass('/readings')} px-3 py-2`}>
               Lecturas
             </Link>
-            <Link to="/alertas" className={`${linkClass('/alertas')} px-3 py-2`}>
+            <Link to="/alerts" className={`${linkClass('/alerts')} px-3 py-2`}>
               Alertas
             </Link>
-            <Link to="/reportes" className={`${linkClass('/reportes')} px-3 py-2`}>
+            <Link to="/reports" className={`${linkClass('/reports')} px-3 py-2`}>
               Reportes
+            </Link>
+            <Link to="/sites" className={`${linkClass('/sites')} px-3 py-2`}>
+              Sitios
+            </Link>
+            <Link to="/campaigns" className={`${linkClass('/campaigns')} px-3 py-2`}>
+              Campañas
             </Link>
           </div>
 
@@ -104,9 +110,9 @@ export default function Navbar() {
                 {/* Configuración (solo admin) */}
                 {isAdmin() && (
                   <Link 
-                    to="/configuracion"
+                    to="/settings"
                     className={`p-2 hover:bg-gray-100 rounded-lg transition-all ${
-                      isActive('/configuracion') ? 'text-primary bg-primary/5' : 'text-gray-600 hover:text-primary'
+                      isActive('/settings') ? 'text-primary bg-primary/5' : 'text-gray-600 hover:text-primary'
                     }`}
                     title="Configuración"
                   >
@@ -142,7 +148,7 @@ export default function Navbar() {
                     {/* Menu Items */}
                     <div className="p-2">
                       <Link
-                        to="/perfil"
+                        to="/profile"
                         className="w-full flex items-center space-x-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
                       >
                         <UserCircleIcon className="w-5 h-5 text-gray-500" />
@@ -201,17 +207,23 @@ export default function Navbar() {
             <Link to="/" className={mobileLinkClass('/')} onClick={toggleMenuMovil}>
               Dashboard
             </Link>
-            <Link to="/sensores" className={mobileLinkClass('/sensores')} onClick={toggleMenuMovil}>
+            <Link to="/sensors" className={mobileLinkClass('/sensors')} onClick={toggleMenuMovil}>
               Sensores
             </Link>
-            <Link to="/lecturas" className={mobileLinkClass('/lecturas')} onClick={toggleMenuMovil}>
+            <Link to="/readings" className={mobileLinkClass('/readings')} onClick={toggleMenuMovil}>
               Lecturas
             </Link>
-            <Link to="/alertas" className={mobileLinkClass('/alertas')} onClick={toggleMenuMovil}>
+            <Link to="/alerts" className={mobileLinkClass('/alerts')} onClick={toggleMenuMovil}>
               Alertas
             </Link>
-            <Link to="/reportes" className={mobileLinkClass('/reportes')} onClick={toggleMenuMovil}>
+            <Link to="/reports" className={mobileLinkClass('/reports')} onClick={toggleMenuMovil}>
               Reportes
+            </Link>
+            <Link to="/sites" className={mobileLinkClass('/sites')} onClick={toggleMenuMovil}>
+              Sitios
+            </Link>
+            <Link to="/campaigns" className={mobileLinkClass('/campaigns')} onClick={toggleMenuMovil}>
+              Campañas
             </Link>
 
             {isAuthenticated ? (
@@ -219,7 +231,7 @@ export default function Navbar() {
                 <div className="border-t border-gray-200 my-3"></div>
                 {isAdmin() && (
                   <>
-                    <Link to="/configuracion" className={mobileLinkClass('/configuracion')} onClick={toggleMenuMovil}>
+                    <Link to="/settings" className={mobileLinkClass('/configuracion')} onClick={toggleMenuMovil}>
                       Configuración
                     </Link>
                     <Link to="/api-keys" className={mobileLinkClass('/api-keys')} onClick={toggleMenuMovil}>
@@ -227,7 +239,7 @@ export default function Navbar() {
                     </Link>
                   </>
                 )}
-                <Link to="/perfil" className={mobileLinkClass('/perfil')} onClick={toggleMenuMovil}>
+                <Link to="/profile" className={mobileLinkClass('/perfil')} onClick={toggleMenuMovil}>
                     Mi Perfil
                 </Link>
                 <button

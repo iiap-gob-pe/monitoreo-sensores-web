@@ -1,173 +1,222 @@
-# 📡 Guía de Configuración - Sensores IoT con Conectividad Directa
+# Guia de Configuracion - Sensores IoT ESP32
 
-> **Versión**: 1.0
-> **Última actualización**: Noviembre 2024
-> **Flujo**: Sensor IoT (GPRS/WiFi) → API Web → Base de Datos
-> **Estado**: 🚧 **Funcionalidad futura** - Los sensores actuales usan Bluetooth
+> **Version**: 2.0
+> **Ultima actualizacion**: Marzo 2026
+> **Flujo**: Sensor IoT (WiFi/GPRS) → `POST /api/datos` (CSV) → Base de Datos
+> **Estado**: Activo
 
 ---
 
-## 📋 Tabla de Contenidos
+## Tabla de Contenidos
 
-1. [Introducción](#introducción)
+1. [Introduccion](#introduccion)
 2. [Requisitos de Hardware](#requisitos-de-hardware)
 3. [Obtener API Key](#obtener-api-key)
-4. [Configuración ESP32 + WiFi](#configuración-esp32--wifi)
-5. [Configuración ESP32 + GPRS](#configuración-esp32--gprs)
-6. [Código Arduino](#código-arduino)
+4. [Endpoint de Envio de Datos](#endpoint-de-envio-de-datos)
+5. [Configuracion ESP32 + WiFi](#configuracion-esp32--wifi)
+6. [Configuracion ESP32 + GPRS](#configuracion-esp32--gprs)
 7. [Pruebas y Debugging](#pruebas-y-debugging)
 8. [Troubleshooting](#troubleshooting)
 
 ---
 
-## 🎯 Introducción
+## Introduccion
 
-Este documento describe cómo configurar sensores IoT para que envíen datos **directamente** a la API, sin necesidad de una app móvil intermediaria.
+Los sensores ESP32 envian datos al servidor mediante el endpoint **`POST /api/datos`** en formato **CSV** (texto plano con separador `;`). Este es el unico endpoint que los ESP32 deben usar para ingesta de datos.
 
 ### Flujo de Datos
 
 ```
-┌─────────────────┐   HTTPS/API   ┌─────────────┐
-│  Sensor IoT     │ ────────────> │   API Web   │
-│ (ESP32 + GPRS)  │               │  (Backend)  │
-│ (ESP32 + WiFi)  │               │             │
-└─────────────────┘               └─────────────┘
-                                        │
-                                        v
-                                 ┌─────────────┐
-                                 │  PostgreSQL │
-                                 └─────────────┘
+┌─────────────────┐   POST /api/datos   ┌─────────────┐
+│  Sensor ESP32   │ ──────────────────> │   API Web   │
+│ (WiFi o GPRS)   │   CSV + API Key     │  (Backend)  │
+└─────────────────┘                     └─────────────┘
+                                              │
+                                              v
+                                       ┌─────────────┐
+                                       │  PostgreSQL  │
+                                       └─────────────┘
 ```
 
-### Ventajas vs Bluetooth
+### Resumen del Endpoint
 
-| Característica | Bluetooth + App | GPRS/WiFi Directo |
-|----------------|-----------------|-------------------|
-| **Rango** | ~10 metros | Ilimitado |
-| **Autonomía** | Depende de app | Totalmente autónomo |
-| **Latencia** | Alta (requiere app) | Baja (directo) |
-| **Cobertura** | Solo con smartphone cerca | Cobertura celular/WiFi |
-| **Costo** | Bajo (sin plan datos) | Medio (plan datos SIM) |
+| Propiedad | Valor |
+|-----------|-------|
+| **URL** | `http://tu-servidor:3000/api/datos` |
+| **Metodo** | `POST` |
+| **Content-Type** | `text/csv` |
+| **Autenticacion** | `X-API-Key: <api_key_del_sensor>` |
+| **Header adicional** | `X-Fecha: YYYYMMDD` (fecha del lote) |
+| **Rate Limit** | 30 peticiones por minuto por IP |
+| **Tamano maximo** | 5 MB |
+
+### Ventajas del formato CSV
+
+| Caracteristica | JSON (POST /api/lecturas) | CSV (POST /api/datos) |
+|----------------|---------------------------|------------------------|
+| **Uso principal** | App movil | ESP32 |
+| **Peso por lectura** | ~200 bytes | ~50 bytes |
+| **Envio por lotes** | 1 lectura por peticion | Multiples filas por peticion |
+| **Librerias** | Requiere ArduinoJson | Ninguna (String nativo) |
+| **Deduplicacion** | Manual | Automatica por Fecha+Hora |
 
 ---
 
-## 🔧 Requisitos de Hardware
+## Requisitos de Hardware
 
-### Opción A: ESP32 + WiFi
+### Opcion A: ESP32 + WiFi
 
 **Componentes**:
 - ESP32 DevKit v1 (o similar)
 - Sensor DHT22 (temperatura/humedad)
-- Sensor MQ-135 (CO2/CO)
+- Sensor MQ-135 (CO2)
 - GPS Module NEO-6M (opcional)
-- Fuente de alimentación 5V
+- Fuente de alimentacion 5V
 
-**Ventajas**:
-- ✅ Bajo costo
-- ✅ Fácil configuración
-- ✅ Bajo consumo energético
+**Ventajas**: Bajo costo, facil configuracion, bajo consumo
+**Desventajas**: Requiere red WiFi cercana
 
-**Desventajas**:
-- ❌ Requiere red WiFi cercana
-- ❌ No funciona en áreas remotas
-
----
-
-### Opción B: ESP32 + GPRS (SIM800L)
+### Opcion B: ESP32 + GPRS (SIM800L)
 
 **Componentes**:
 - ESP32 DevKit v1
-- Módulo GPRS SIM800L
+- Modulo GPRS SIM800L
 - Tarjeta SIM con plan de datos
-- Sensor DHT22
-- Sensor MQ-135
-- GPS Module NEO-6M (opcional)
-- Batería LiPo 3.7V 2000mAh + cargador
+- Sensor DHT22 + MQ-135
+- Bateria LiPo 3.7V 2000mAh + cargador
 - Panel solar 5V (opcional)
 
-**Ventajas**:
-- ✅ Funciona en cualquier lugar con cobertura celular
-- ✅ Totalmente autónomo
-- ✅ Ideal para áreas remotas
-
-**Desventajas**:
-- ❌ Mayor costo (SIM + plan datos)
-- ❌ Mayor consumo energético
-- ❌ Más complejo de configurar
-
----
-
-## 🔑 Obtener API Key
-
-### Paso 1: Registrar el Sensor en el Sistema
-
-Primero debes crear el sensor en la base de datos:
-
-1. Acceder al panel web → **Sensores** → **Nuevo Sensor**
-2. Completar información:
-   - **ID Sensor**: `SENSOR_001` (único, usar este ID en el código)
-   - **Nombre**: `Sensor Plaza de Armas`
-   - **Zona**: `Urbana`
-   - **Tipo**: `Fijo` (si no es móvil)
-   - **Descripción**: `Sensor con GPRS en plaza principal`
-
-### Paso 2: Crear API Key Asociada
-
-**Vía Interfaz Web**:
-1. Ir a **Gestión API Keys** → **Nueva API Key**
-2. Seleccionar tipo: **📡 Sensor IoT Directo (GPRS/WiFi → API)**
-3. Completar:
-   - **Nombre**: `ESP32_Plaza_Armas`
-   - **Sensor Asociado**: Seleccionar `SENSOR_001`
-   - **Descripción**: `Sensor con SIM800L en plaza`
-4. **Copiar la API Key** (se muestra una sola vez)
-
-**Vía CLI**:
-```bash
-cd sensor_monitoreo_api
-
-# Crear API Key para sensor específico
-node scripts/generarApiKey.js crear "ESP32_Plaza_Armas" sensor "SENSOR_001" "Sensor con GPRS"
-```
-
-⚠️ **IMPORTANTE**:
-- Una API Key de tipo "sensor" está **permanentemente vinculada** a un `id_sensor` específico
-- No se puede reutilizar para otros sensores
-- El sensor **NO debe** enviar `id_sensor` en el cuerpo de la petición (se identifica automáticamente)
-
----
-
-## 📶 Configuración ESP32 + WiFi
+**Ventajas**: Funciona en areas remotas, totalmente autonomo
+**Desventajas**: Mayor costo (SIM + plan), mayor consumo
 
 ### Conexiones de Hardware
 
 ```
-ESP32          DHT22
-------         -----
+ESP32          DHT22          MQ-135
+------         -----          ------
 3.3V    ----   VCC
 GND     ----   GND
 GPIO4   ----   DATA
-
-ESP32          MQ-135
-------         ------
-3.3V    ----   VCC
-GND     ----   GND
-GPIO34  ----   AOUT
+3.3V    ----                  VCC
+GND     ----                  GND
+GPIO34  ----                  AOUT
 ```
 
-### Código Arduino (WiFi)
+---
+
+## Obtener API Key
+
+### Paso 1: Crear el sensor desde el panel de administracion
+
+1. Iniciar sesion como **admin** en el panel web
+2. Ir a **Sensores** → **Nuevo Sensor**
+3. Completar:
+   - **ID Sensor**: `SENSOR_001` (unico)
+   - **Nombre**: `Sensor Plaza de Armas`
+   - **Zona**: `Urbana`
+   - **Tipo**: `Fijo` o `Movil`
+
+### Paso 2: Copiar la API Key generada
+
+Al crear el sensor, el sistema **genera automaticamente una API Key** y la muestra en la respuesta. **Esta clave se muestra una sola vez**, copiala inmediatamente.
+
+Ejemplo de respuesta:
+```json
+{
+  "success": true,
+  "message": "Sensor creado exitosamente con API Key",
+  "data": { "id_sensor": "SENSOR_001", "nombre_sensor": "Sensor Plaza de Armas" },
+  "api_key": {
+    "api_key_plain": "a1b2c3d4e5f6...tu_api_key_aqui",
+    "mensaje": "Guarda esta API Key, no se mostrara de nuevo."
+  }
+}
+```
+
+### Regenerar API Key (si se pierde)
+
+Un admin puede generar una nueva API Key (la anterior se desactiva automaticamente):
+
+```
+POST /api/sensores/SENSOR_001/regenerar-apikey
+Authorization: Bearer <jwt_token_admin>
+```
+
+---
+
+## Endpoint de Envio de Datos
+
+### `POST /api/datos`
+
+**Headers obligatorios:**
+
+```
+Content-Type: text/csv
+X-API-Key: tu_api_key_del_sensor
+X-Fecha: 20260317
+```
+
+**Body (texto CSV):**
+
+```
+17/03/2026;08:00:00 AM;25.3;65.1;410
+17/03/2026;08:03:00 AM;25.5;64.8;415
+17/03/2026;08:06:00 AM;25.7;64.5;420
+```
+
+> **Sin fila de cabecera.** Solo filas de datos. No enviar "Fecha;Hora;Temperatura..." como primera linea.
+
+**Campos por fila (separados por `;`):**
+
+| Posicion | Campo | Formato | Ejemplo |
+|----------|-------|---------|---------|
+| 1 | Fecha | `DD/MM/YYYY` | `17/03/2026` |
+| 2 | Hora | `HH:MM:SS AM/PM` o `HH:MM:SS` | `08:30:00 AM` |
+| 3 | Temperatura | Decimal (°C) | `25.5` |
+| 4 | Humedad | Decimal (%) | `68.2` |
+| 5 | CO2 | Entero (ppm) | `420` |
+
+**Respuesta exitosa (HTTP 200):**
+
+```json
+{
+  "status": "ok",
+  "mensaje": "3 registros guardados",
+  "fecha": "20260317",
+  "filas_procesadas": 3,
+  "duplicadas": 0,
+  "archivo": "20260317.csv"
+}
+```
+
+**Codigos de respuesta:**
+
+| HTTP | Significado | Accion |
+|------|-------------|--------|
+| 200 | Datos procesados | Continuar normalmente |
+| 400 | CSV invalido | Revisar formato |
+| 401 | API Key faltante o invalida | Verificar header X-API-Key |
+| 403 | API Key deshabilitada/expirada | Contactar admin |
+| 429 | Rate limit (>30 req/min) | Esperar 1 minuto |
+| 500 | Error del servidor | Reintentar en 5 minutos |
+
+---
+
+## Configuracion ESP32 + WiFi
+
+### Codigo Arduino Completo
 
 ```cpp
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <DHT.h>
-#include <ArduinoJson.h>
 
-// ========== CONFIGURACIÓN ==========
-const char* WIFI_SSID = "TU_RED_WIFI";
+// ============ CONFIGURACION ============
+const char* WIFI_SSID     = "TU_RED_WIFI";
 const char* WIFI_PASSWORD = "TU_PASSWORD_WIFI";
-const char* API_URL = "https://api.monitoreo.iiap.org.pe/api/lecturas";
-const char* API_KEY = "TU_API_KEY_AQUI";  // ← Copiar desde panel web
+const char* API_URL       = "http://tu-servidor:3000/api/datos";
+const char* API_KEY       = "TU_API_KEY_AQUI";  // Obtenida al crear el sensor
+// ========================================
 
 // Sensores
 #define DHT_PIN 4
@@ -176,107 +225,175 @@ const char* API_KEY = "TU_API_KEY_AQUI";  // ← Copiar desde panel web
 
 DHT dht(DHT_PIN, DHT_TYPE);
 
-// Intervalo de envío (milisegundos)
-const unsigned long INTERVALO_ENVIO = 60000; // 1 minuto
-unsigned long ultimoEnvio = 0;
+// Buffer para acumular lecturas CSV
+String csvBuffer = "";
+int lecturasEnBuffer = 0;
+const int MAX_LECTURAS_BUFFER = 10;  // Enviar cada 10 lecturas
 
-// ========== SETUP ==========
+// Intervalo de lectura (3 minutos)
+const unsigned long INTERVALO_LECTURA = 180000;
+unsigned long ultimaLectura = 0;
+
+// ============ SETUP ============
 void setup() {
   Serial.begin(115200);
   dht.begin();
+  conectarWiFi();
+}
 
-  // Conectar a WiFi
+void conectarWiFi() {
   Serial.println("Conectando a WiFi...");
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
 
-  while (WiFi.status() != WL_CONNECTED) {
+  int intentos = 0;
+  while (WiFi.status() != WL_CONNECTED && intentos < 20) {
     delay(500);
     Serial.print(".");
+    intentos++;
   }
 
-  Serial.println("\n✅ WiFi conectado");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\nWiFi conectado - IP: " + WiFi.localIP().toString());
+  } else {
+    Serial.println("\nFallo WiFi, reiniciando...");
+    ESP.restart();
+  }
 }
 
-// ========== LOOP PRINCIPAL ==========
+// ============ LOOP ============
 void loop() {
   unsigned long ahora = millis();
 
-  // Enviar cada X minutos
-  if (ahora - ultimoEnvio >= INTERVALO_ENVIO) {
-    enviarLectura();
-    ultimoEnvio = ahora;
+  if (ahora - ultimaLectura >= INTERVALO_LECTURA) {
+    leerYAcumular();
+    ultimaLectura = ahora;
+  }
+
+  // Enviar cuando el buffer tenga suficientes lecturas
+  if (lecturasEnBuffer >= MAX_LECTURAS_BUFFER) {
+    enviarDatosCSV();
   }
 
   delay(1000);
 }
 
-// ========== FUNCIONES ==========
-void enviarLectura() {
-  if (WiFi.status() != WL_CONNECTED) {
-    Serial.println("❌ WiFi desconectado, reconectando...");
-    WiFi.reconnect();
-    return;
-  }
-
-  // Leer sensores
+// ============ LEER SENSORES Y ACUMULAR CSV ============
+void leerYAcumular() {
   float temperatura = dht.readTemperature();
   float humedad = dht.readHumidity();
   int co2_raw = analogRead(MQ135_PIN);
-  float co2_ppm = map(co2_raw, 0, 4095, 400, 2000); // Calibración aproximada
+  int co2_ppm = map(co2_raw, 0, 4095, 400, 2000);  // Calibracion aproximada
 
-  // Validar lecturas
   if (isnan(temperatura) || isnan(humedad)) {
-    Serial.println("❌ Error al leer DHT22");
+    Serial.println("Error al leer DHT22");
     return;
   }
 
-  // Crear JSON
-  StaticJsonDocument<256> doc;
-  // ⚠️ NO incluir "id_sensor" - se identifica por API Key
-  doc["temperatura"] = temperatura;
-  doc["humedad"] = humedad;
-  doc["co2_nivel"] = (int)co2_ppm;
-  // Opcional: agregar ubicación GPS si tienes módulo GPS
-  // doc["latitud"] = gps.latitude;
-  // doc["longitud"] = gps.longitude;
+  // Obtener fecha y hora actual (requiere NTP o RTC)
+  // Ejemplo con formato esperado: DD/MM/YYYY;HH:MM:SS AM
+  String fechaHora = obtenerFechaHora();  // Implementar segun tu fuente de tiempo
 
-  String jsonString;
-  serializeJson(doc, jsonString);
+  // Agregar fila CSV al buffer
+  // Formato: Fecha;Hora;Temperatura;Humedad;CO2
+  csvBuffer += fechaHora + ";";
+  csvBuffer += String(temperatura, 1) + ";";
+  csvBuffer += String(humedad, 1) + ";";
+  csvBuffer += String(co2_ppm) + "\n";
+  lecturasEnBuffer++;
 
-  Serial.println("\n📤 Enviando lectura:");
-  Serial.println(jsonString);
+  Serial.printf("Lectura #%d: T=%.1f H=%.1f CO2=%d\n",
+    lecturasEnBuffer, temperatura, humedad, co2_ppm);
+}
 
-  // Enviar POST a API
+// ============ ENVIAR CSV AL SERVIDOR ============
+void enviarDatosCSV() {
+  if (WiFi.status() != WL_CONNECTED) {
+    Serial.println("WiFi desconectado, reconectando...");
+    conectarWiFi();
+    return;
+  }
+
+  if (csvBuffer.length() == 0) {
+    return;
+  }
+
+  // Obtener fecha actual en formato YYYYMMDD para header X-Fecha
+  String xFecha = obtenerFechaYYYYMMDD();  // Implementar segun tu fuente de tiempo
+
   HTTPClient http;
   http.begin(API_URL);
-  http.addHeader("Content-Type", "application/json");
+
+  // === HEADERS OBLIGATORIOS ===
+  http.addHeader("Content-Type", "text/csv");
   http.addHeader("X-API-Key", API_KEY);
+  http.addHeader("X-Fecha", xFecha);
 
-  int httpCode = http.POST(jsonString);
+  Serial.println("\nEnviando " + String(lecturasEnBuffer) + " lecturas CSV...");
 
-  if (httpCode > 0) {
-    Serial.printf("✅ Respuesta HTTP: %d\n", httpCode);
+  int httpCode = http.POST(csvBuffer);
+  String response = http.getString();
 
-    if (httpCode == 201) {
-      String payload = http.getString();
-      Serial.println("✅ Lectura guardada exitosamente");
-      Serial.println(payload);
-    } else {
-      Serial.printf("⚠️ Código inesperado: %d\n", httpCode);
-    }
+  if (httpCode == 200) {
+    Serial.println("OK: Datos enviados correctamente");
+    Serial.println(response);
+    // Limpiar buffer solo si el envio fue exitoso
+    csvBuffer = "";
+    lecturasEnBuffer = 0;
+  } else if (httpCode == 401) {
+    Serial.println("ERROR 401: API Key invalida o faltante");
+  } else if (httpCode == 403) {
+    Serial.println("ERROR 403: API Key deshabilitada o expirada");
+  } else if (httpCode == 429) {
+    Serial.println("ERROR 429: Rate limit, esperar 1 minuto");
+    delay(60000);
   } else {
-    Serial.printf("❌ Error de conexión: %s\n", http.errorToString(httpCode).c_str());
+    Serial.printf("ERROR: HTTP %d\n", httpCode);
+    Serial.println(response);
+    // No limpiar buffer para reintentar en el proximo ciclo
   }
 
   http.end();
 }
+
+// ============ FUNCIONES DE TIEMPO ============
+// Implementar segun tu fuente de tiempo (NTP o RTC DS3231)
+
+String obtenerFechaHora() {
+  // Ejemplo con NTP (requiere configTime previamente):
+  // struct tm timeinfo;
+  // getLocalTime(&timeinfo);
+  // char buf[30];
+  // strftime(buf, sizeof(buf), "%d/%m/%Y;%I:%M:%S %p", &timeinfo);
+  // return String(buf);
+
+  // Placeholder - reemplazar con implementacion real
+  return "17/03/2026;08:00:00 AM";
+}
+
+String obtenerFechaYYYYMMDD() {
+  // Ejemplo con NTP:
+  // struct tm timeinfo;
+  // getLocalTime(&timeinfo);
+  // char buf[9];
+  // strftime(buf, sizeof(buf), "%Y%m%d", &timeinfo);
+  // return String(buf);
+
+  // Placeholder - reemplazar con implementacion real
+  return "20260317";
+}
 ```
+
+### Librerias Necesarias (Arduino IDE)
+
+Instalar desde **Sketch → Include Library → Manage Libraries**:
+- **DHT sensor library** (Adafruit)
+- **Adafruit Unified Sensor**
+
+> No se necesita ArduinoJson. El CSV se construye con String nativo.
 
 ---
 
-## 📱 Configuración ESP32 + GPRS (SIM800L)
+## Configuracion ESP32 + GPRS (SIM800L)
 
 ### Conexiones de Hardware
 
@@ -285,297 +402,251 @@ ESP32          SIM800L
 ------         -------
 GPIO17  ----   TX
 GPIO16  ----   RX
-5V      ----   VCC (requiere mínimo 2A!)
+5V      ----   VCC (requiere minimo 2A!)
 GND     ----   GND
 
-⚠️ IMPORTANTE: El SIM800L consume hasta 2A en picos de transmisión.
-   Usar fuente externa de 5V/2A, NO alimentar desde ESP32.
+IMPORTANTE: El SIM800L consume hasta 2A en picos de transmision.
+Usar fuente externa de 5V/2A, NO alimentar desde ESP32.
 ```
 
-### Código Arduino (GPRS)
+### Codigo Arduino (GPRS)
 
 ```cpp
 #include <TinyGsmClient.h>
 #include <DHT.h>
-#include <ArduinoJson.h>
 
-// ========== CONFIGURACIÓN ==========
+// ============ CONFIGURACION ============
 #define TINY_GSM_MODEM_SIM800
-#define SerialAT Serial1  // ESP32: Serial1 para comunicación con SIM800L
+#define SerialAT Serial1
 
-const char* APN = "movistar.pe";  // ← Cambiar según operador
-const char* API_URL = "api.monitoreo.iiap.org.pe";
-const char* API_PATH = "/api/lecturas";
-const int API_PORT = 443;  // HTTPS
-const char* API_KEY = "TU_API_KEY_AQUI";
+const char* APN      = "movistar.pe";  // Cambiar segun operador
+const char* API_HOST = "tu-servidor";
+const int   API_PORT = 3000;
+const char* API_PATH = "/api/datos";
+const char* API_KEY  = "TU_API_KEY_AQUI";
 
-// Pines
 #define SIM800_RX 16
 #define SIM800_TX 17
 #define DHT_PIN 4
 #define DHT_TYPE DHT22
+#define MQ135_PIN 34
 
 TinyGsm modem(SerialAT);
 TinyGsmClient client(modem);
 DHT dht(DHT_PIN, DHT_TYPE);
 
-// ========== SETUP ==========
+// ============ SETUP ============
 void setup() {
   Serial.begin(115200);
   SerialAT.begin(9600, SERIAL_8N1, SIM800_RX, SIM800_TX);
   dht.begin();
 
   delay(3000);
-
   Serial.println("Inicializando SIM800L...");
-
-  // Reiniciar modem
   modem.restart();
 
-  String modemInfo = modem.getModemInfo();
-  Serial.print("Modem: ");
-  Serial.println(modemInfo);
-
-  // Conectar a red GPRS
-  Serial.println("Conectando a red GPRS...");
+  Serial.println("Conectando a GPRS...");
   if (!modem.gprsConnect(APN, "", "")) {
-    Serial.println("❌ Fallo al conectar GPRS");
-    return;
+    Serial.println("Fallo GPRS, reiniciando...");
+    ESP.restart();
   }
-
-  Serial.println("✅ GPRS conectado");
-  Serial.print("IP: ");
-  Serial.println(modem.getLocalIP());
+  Serial.println("GPRS conectado - IP: " + String(modem.getLocalIP()));
 }
 
-// ========== LOOP ==========
+// ============ LOOP ============
 void loop() {
-  enviarLectura();
-  delay(60000); // Enviar cada 1 minuto
+  enviarCSV();
+  delay(180000);  // Cada 3 minutos
 }
 
-// ========== ENVIAR LECTURA ==========
-void enviarLectura() {
-  // Verificar conexión
+// ============ ENVIAR CSV ============
+void enviarCSV() {
   if (!modem.isGprsConnected()) {
-    Serial.println("❌ GPRS desconectado, reconectando...");
+    Serial.println("GPRS desconectado, reconectando...");
     modem.gprsConnect(APN, "", "");
     return;
   }
 
   // Leer sensores
-  float temperatura = dht.readTemperature();
-  float humedad = dht.readHumidity();
+  float temp = dht.readTemperature();
+  float hum = dht.readHumidity();
+  int co2 = map(analogRead(MQ135_PIN), 0, 4095, 400, 2000);
 
-  if (isnan(temperatura) || isnan(humedad)) {
-    Serial.println("❌ Error al leer DHT22");
+  if (isnan(temp) || isnan(hum)) {
+    Serial.println("Error DHT22");
     return;
   }
 
-  // Crear JSON
-  StaticJsonDocument<256> doc;
-  doc["temperatura"] = temperatura;
-  doc["humedad"] = humedad;
+  // Construir CSV (sin cabecera)
+  // Formato: Fecha;Hora;Temperatura;Humedad;CO2
+  String csv = "17/03/2026;08:00:00 AM;" + String(temp, 1) + ";" + String(hum, 1) + ";" + String(co2);
+  String xFecha = "20260317";  // Reemplazar con fecha real de RTC
 
-  String jsonString;
-  serializeJson(doc, jsonString);
+  Serial.println("Enviando: " + csv);
 
-  Serial.println("\n📤 Enviando lectura:");
-  Serial.println(jsonString);
-
-  // Conectar a servidor
-  if (!client.connect(API_URL, API_PORT)) {
-    Serial.println("❌ Error al conectar al servidor");
+  // Conectar al servidor
+  if (!client.connect(API_HOST, API_PORT)) {
+    Serial.println("Error de conexion al servidor");
     return;
   }
 
-  // Enviar petición HTTP POST
-  client.print("POST ");
-  client.print(API_PATH);
-  client.println(" HTTP/1.1");
-  client.print("Host: ");
-  client.println(API_URL);
-  client.print("X-API-Key: ");
-  client.println(API_KEY);
-  client.println("Content-Type: application/json");
-  client.print("Content-Length: ");
-  client.println(jsonString.length());
-  client.println();
-  client.println(jsonString);
+  // Enviar peticion HTTP POST con CSV
+  client.print("POST " + String(API_PATH) + " HTTP/1.1\r\n");
+  client.print("Host: " + String(API_HOST) + "\r\n");
+  client.print("Content-Type: text/csv\r\n");
+  client.print("X-API-Key: " + String(API_KEY) + "\r\n");
+  client.print("X-Fecha: " + xFecha + "\r\n");
+  client.print("Content-Length: " + String(csv.length()) + "\r\n");
+  client.print("\r\n");
+  client.print(csv);
 
   // Leer respuesta
   unsigned long timeout = millis();
   while (client.connected() && millis() - timeout < 10000L) {
     while (client.available()) {
-      char c = client.read();
-      Serial.print(c);
+      Serial.print((char)client.read());
       timeout = millis();
     }
   }
 
   client.stop();
-  Serial.println("\n✅ Petición completada");
+  Serial.println("\nEnvio completado");
 }
 ```
 
-### Librerías Necesarias
+### Librerias Necesarias
 
-Instalar desde Arduino IDE → Manage Libraries:
 - **TinyGSM** (para SIM800L)
 - **DHT sensor library** (Adafruit)
-- **ArduinoJson** (by Benoit Blanchon)
+
+### Proveedores de SIM recomendados (Peru)
+
+| Operador | APN |
+|----------|-----|
+| Movistar | `movistar.pe` |
+| Claro | `claro.pe` |
+| Entel | `entel.pe` |
+| Bitel | `bitel.pe` |
 
 ---
 
-## 🧪 Pruebas y Debugging
+## Pruebas y Debugging
 
-### Monitor Serial
+### Test con cURL (desde PC)
 
-```
-Inicializando SIM800L...
-Modem: SIM800L R14.18
-Conectando a red GPRS...
-✅ GPRS conectado
-IP: 10.123.45.67
+Antes de programar el ESP32, prueba el endpoint con cURL:
 
-📤 Enviando lectura:
-{"temperatura":25.5,"humedad":65.0}
-
-HTTP/1.1 201 Created
-Content-Type: application/json
-
-{"success":true,"message":"Lectura guardada exitosamente",...}
-
-✅ Petición completada
+```bash
+# Enviar una lectura CSV de prueba
+curl -X POST http://localhost:3000/api/datos \
+  -H "Content-Type: text/csv" \
+  -H "X-API-Key: tu_api_key_aqui" \
+  -H "X-Fecha: 20260317" \
+  -d "17/03/2026;08:00:00 AM;25.3;65.1;410"
 ```
 
-### Test de Conectividad (WiFi)
-
-```cpp
-void testConexion() {
-  HTTPClient http;
-  http.begin("https://api.monitoreo.iiap.org.pe/api/health");
-
-  int httpCode = http.GET();
-  Serial.printf("Health check: %d\n", httpCode);
-
-  if (httpCode == 200) {
-    String payload = http.getString();
-    Serial.println(payload);
-  }
-
-  http.end();
+Respuesta esperada:
+```json
+{
+  "status": "ok",
+  "mensaje": "1 registros guardados",
+  "fecha": "20260317",
+  "filas_procesadas": 1,
+  "duplicadas": 0,
+  "archivo": "20260317.csv"
 }
 ```
 
-### Test de Conectividad (GPRS)
+### Test de conectividad (Health Check)
 
-```cpp
-void testModem() {
-  Serial.println("Testing modem...");
+```bash
+curl http://localhost:3000/api/health
+```
 
-  // Test AT
-  modem.sendAT("+CSQ");  // Signal quality
-  modem.waitResponse();
+### Monitor Serial esperado
 
-  modem.sendAT("+COPS?");  // Operator
-  modem.waitResponse();
+```
+WiFi conectado - IP: 192.168.1.50
+Lectura #1: T=25.3 H=65.1 CO2=410
+Lectura #2: T=25.5 H=64.8 CO2=415
+...
+Lectura #10: T=25.7 H=64.5 CO2=420
 
-  modem.sendAT("+CIFSR");  // Get IP
-  modem.waitResponse();
-}
+Enviando 10 lecturas CSV...
+OK: Datos enviados correctamente
+{"status":"ok","mensaje":"10 registros guardados","fecha":"20260317","filas_procesadas":10,"duplicadas":0}
 ```
 
 ---
 
-## ⚠️ Troubleshooting
+## Troubleshooting
 
 ### WiFi no conecta
 
 ```cpp
-// Agregar retry con timeout
+// Retry con reinicio automatico
 int intentos = 0;
 while (WiFi.status() != WL_CONNECTED && intentos < 20) {
   delay(500);
-  Serial.print(".");
   intentos++;
 }
-
 if (WiFi.status() != WL_CONNECTED) {
-  Serial.println("\n❌ No se pudo conectar a WiFi");
-  ESP.restart();  // Reiniciar ESP32
+  ESP.restart();
 }
 ```
 
 ### SIM800L no responde
 
-**Verificar**:
-1. ✅ Alimentación: Mínimo 5V/2A
-2. ✅ Tarjeta SIM insertada correctamente
-3. ✅ PIN de SIM deshabilitado
-4. ✅ Conexiones TX/RX correctas (cruzadas)
-5. ✅ Antena GSM conectada
+1. Alimentacion: Minimo 5V/2A (fuente externa, NO desde ESP32)
+2. Tarjeta SIM insertada correctamente
+3. PIN de SIM deshabilitado
+4. Conexiones TX/RX cruzadas
+5. Antena GSM conectada
 
-**Test manual**:
+### Error 400: CSV invalido
+
+- Verificar que el separador sea `;` (punto y coma)
+- Verificar formato de fecha: `DD/MM/YYYY`
+- Verificar formato de hora: `HH:MM:SS AM/PM` o `HH:MM:SS`
+- No enviar fila de cabecera
+- Verificar que temperatura, humedad y CO2 sean numericos
+
+### Error 401: API Key invalida
+
+- Verificar que la API Key este correctamente copiada (sin espacios)
+- Verificar que el header sea `X-API-Key` (con guion, case-sensitive)
+- Comprobar en panel web que la key este activa
+
+### Error 403: API Key deshabilitada o expirada
+
+- Contactar al administrador para reactivar o regenerar la API Key
+- Regenerar desde: `POST /api/sensores/:id/regenerar-apikey`
+
+### Error 429: Rate limit excedido
+
+- Maximo 30 peticiones por minuto por IP
+- Recomendacion: enviar lotes cada 3 minutos (no cada lectura individual)
+- Si se excede, esperar 1 minuto antes de reintentar
+
 ```cpp
-void setup() {
-  SerialAT.begin(9600);
-  SerialAT.println("AT");       // ¿Responde OK?
-  delay(1000);
-  SerialAT.println("AT+CSQ");   // Señal (debería ser >10)
-  delay(1000);
-  SerialAT.println("AT+CREG?"); // Registrado en red?
+if (httpCode == 429) {
+  delay(60000);  // Esperar 1 minuto
 }
 ```
 
-### Error 401: API Key inválida
+### Datos duplicados
 
-- ✅ Verificar que la API Key esté correctamente copiada
-- ✅ Verificar que no tenga espacios al inicio/final
-- ✅ Comprobar en panel web que la key esté activa
-- ✅ Verificar que no haya expirado
-
-### Error 403: Sensor mismatch
-
-Si recibes este error, significa que:
-- La API Key está asociada a un `id_sensor` diferente
-- El código está enviando `id_sensor` en el body (NO debe hacerlo)
-
-**Solución**: Eliminar cualquier referencia a `id_sensor` en el JSON:
-
-```cpp
-// ❌ MAL
-doc["id_sensor"] = "SENSOR_001";  // NO incluir esto
-
-// ✅ BIEN
-doc["temperatura"] = temp;
-doc["humedad"] = hum;
-// La API Key identifica automáticamente el sensor
-```
-
-### Error 429: Too Many Requests
-
-La API tiene límite de 100 peticiones/15min. Reducir frecuencia de envío:
-
-```cpp
-const unsigned long INTERVALO_ENVIO = 120000; // 2 minutos en vez de 1
-```
+El servidor descarta automaticamente filas con la misma combinacion Fecha+Hora del mismo dia. No es necesario controlar duplicados desde el ESP32.
 
 ---
 
-## 📞 Soporte
+## Documentacion adicional
 
-**Documentación adicional**:
-- [Integración App Móvil](INTEGRACION_APP_MOVIL.md)
+- [Integracion App Movil](INTEGRACION_APP_MOVIL.md) (usa `POST /api/lecturas` con JSON)
 - [Seguridad y API Keys](SEGURIDAD_API_KEYS.md)
-
-**Proveedores de SIM recomendados (Perú)**:
-- **Movistar**: APN `movistar.pe`
-- **Claro**: APN `claro.pe`
-- **Entel**: APN `entel.pe`
-- **Bitel**: APN `bitel.pe`
+- [Autenticacion API Keys](AUTENTICACION_API_KEYS.md)
 
 ---
 
-**Última revisión**: Noviembre 2024
-**Estado**: 🚧 Funcionalidad futura
+**Ultima revision**: Marzo 2026
+**Estado**: Activo

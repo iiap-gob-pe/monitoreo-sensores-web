@@ -12,6 +12,7 @@ docs
 *.postgresql
 
 # Logs
+logs/
 *.log
 npm-debug.log*
 
@@ -26,6 +27,9 @@ Thumbs.db
 # Build
 dist/
 build/
+
+# Datos CSV de sensores
+datos/
 
 # Prisma
 prisma/migrations/dev/

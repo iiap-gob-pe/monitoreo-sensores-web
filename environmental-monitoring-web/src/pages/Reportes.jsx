@@ -1,6 +1,7 @@
 // src/pages/Reportes.jsx
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { lecturasAPI, sensoresAPI, alertasAPI } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 import { 
   CalendarIcon,
   ChartBarIcon,
@@ -27,8 +28,11 @@ import { saveAs } from 'file-saver';
 import {jsPDF} from 'jspdf';
 import autoTable from'jspdf-autotable';
 import html2canvas from 'html2canvas';
+import { useToast } from '../components/common/Toast';
 
 export default function Reportes() {
+  const { isAuthenticated } = useAuth();
+  const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [lecturas, setLecturas] = useState([]);
   const [sensores, setSensores] = useState([]);
@@ -759,11 +763,11 @@ export default function Reportes() {
       const nombreArchivo = `reporte_${tipoReporte}_${new Date().toISOString().split('T')[0]}.csv`;
       XLSX.writeFile(wb, nombreArchivo, { FS: ';' });
 
-      alert('Archivo CSV descargado exitosamente');
+      toast.success('Archivo CSV descargado exitosamente');
       setMenuExportarAbierto(false);
     } catch (error) {
       console.error('Error al exportar CSV:', error);
-      alert('Error al exportar el archivo CSV');
+      toast.error('Error al exportar el archivo CSV');
     }
   };
 
@@ -825,11 +829,11 @@ export default function Reportes() {
       const nombreArchivo = `reporte_completo_${tipoReporte}_${new Date().toISOString().split('T')[0]}.xlsx`;
       XLSX.writeFile(wb, nombreArchivo);
 
-      alert('Archivo Excel descargado exitosamente');
+      toast.success('Archivo Excel descargado exitosamente');
       setMenuExportarAbierto(false);
     } catch (error) {
       console.error('Error al exportar Excel:', error);
-      alert('Error al exportar el archivo Excel');
+      toast.error('Error al exportar el archivo Excel');
     }
   };
 
@@ -837,7 +841,7 @@ export default function Reportes() {
   const exportarPDF = async () => {
   try {
     setMenuExportarAbierto(false);
-    alert('Generando PDF con gráficos... Este proceso puede tardar unos segundos.');
+    toast.info('Generando PDF con graficos...');
 
     const doc = new jsPDF();
     let yPos = 20;
@@ -1119,10 +1123,10 @@ export default function Reportes() {
     const nombreArchivo = `reporte_completo_${tipoReporte}_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(nombreArchivo);
 
-    alert('Reporte PDF con gráficos descargado exitosamente');
+    toast.success('Reporte PDF con gráficos descargado exitosamente');
   } catch (error) {
     console.error('Error al exportar PDF:', error);
-    alert(`Error al exportar el archivo PDF: ${error.message}`);
+    toast.error(`Error al exportar el archivo PDF: ${error.message}`);
   }
 };
   // ============ FIN FUNCIONES DE EXPORTACIÓN ============
@@ -1148,38 +1152,44 @@ export default function Reportes() {
         </div>
         
         <div className="relative w-full sm:w-auto">
-          <button 
-            onClick={() => setMenuExportarAbierto(!menuExportarAbierto)}
-            className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md text-sm sm:text-base"
-          >
-            <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
-            <span>Exportar</span>
-            <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4" />
-          </button>
+          {isAuthenticated ? (
+            <>
+              <button
+                onClick={() => setMenuExportarAbierto(!menuExportarAbierto)}
+                className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors shadow-md text-sm sm:text-base"
+              >
+                <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+                <span>Exportar</span>
+                <ChevronDownIcon className="w-3 h-3 sm:w-4 sm:h-4" />
+              </button>
 
-          {menuExportarAbierto && (
-            <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-              <button
-                onClick={exportarCSV}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 text-sm"
-              >
-                <span>📄</span>
-                <span>CSV</span>
-              </button>
-              <button
-                onClick={exportarExcel}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t text-sm"
-              >
-                <span>📊</span>
-                <span>Excel</span>
-              </button>
-              <button
-                onClick={exportarPDF}
-                className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t rounded-b-lg text-sm"
-              >
-                <span>📑</span>
-                <span>PDF</span>
-              </button>
+              {menuExportarAbierto && (
+                <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+                  <button
+                    onClick={exportarCSV}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 text-sm"
+                  >
+                    <span>CSV</span>
+                  </button>
+                  <button
+                    onClick={exportarExcel}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t text-sm"
+                  >
+                    <span>Excel</span>
+                  </button>
+                  <button
+                    onClick={exportarPDF}
+                    className="w-full text-left px-4 py-3 hover:bg-gray-50 transition flex items-center space-x-2 border-t rounded-b-lg text-sm"
+                  >
+                    <span>PDF</span>
+                  </button>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="w-full sm:w-auto flex items-center justify-center space-x-2 px-4 py-2.5 sm:py-2 bg-gray-300 text-gray-500 rounded-lg cursor-not-allowed text-sm sm:text-base" title="Inicia sesion para descargar reportes">
+              <ArrowDownTrayIcon className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span>Inicia sesion para exportar</span>
             </div>
           )}
         </div>

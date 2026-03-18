@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const recorridosController = require('../controllers/recorridosController');
-const { verificarTokenOpcional, verificarToken, verificarRol } = require('../middleware/auth');
+const { verificarAccesoPublico, verificarToken, verificarRol } = require('../middleware/auth');
 
-// Rutas públicas de solo lectura
-router.get('/fecha', verificarTokenOpcional, recorridosController.obtenerPorFecha);        // GET /api/recorridos/fecha - Público
-router.get('/lista', verificarTokenOpcional, recorridosController.listar);                 // GET /api/recorridos/lista - Público
-router.get('/:id', verificarTokenOpcional, recorridosController.obtenerPorId);            // GET /api/recorridos/:id - Público
+// Rutas protegidas de lectura (requieren JWT o clave pública del frontend)
+router.get('/fecha', verificarAccesoPublico, recorridosController.obtenerPorFecha);        // GET /api/recorridos/fecha
+router.get('/lista', verificarAccesoPublico, recorridosController.listar);                 // GET /api/recorridos/lista
+router.get('/:id', verificarAccesoPublico, recorridosController.obtenerPorId);            // GET /api/recorridos/:id
 
 // Rutas protegidas
 router.post('/guardar', verificarToken, recorridosController.guardar);                     // POST /api/recorridos/guardar - Requiere login

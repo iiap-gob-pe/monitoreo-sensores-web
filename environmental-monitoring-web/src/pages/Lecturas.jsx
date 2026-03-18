@@ -1,9 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
 import { usePreferencias } from '../hooks/usePreferencias';
 import { ChevronDownIcon } from '@heroicons/react/24/outline';
+import { useToast } from '../components/common/Toast';
+import api from '../services/api';
 
 export default function Lecturas() {
   const { preferencias, formatearFechaHora, formatearFecha, formatearHora } = usePreferencias();
+  const toast = useToast();
 
   // Estados
   const [lecturas, setLecturas] = useState([]);
@@ -61,16 +64,9 @@ export default function Lecturas() {
   useEffect(() => {
     const fetchSensores = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/sensores');
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data)) {
-          setSensores(data.data);
-        } else if (Array.isArray(data)) {
-          setSensores(data);
-        } else {
-          setSensores([]);
-        }
+        const response = await api.get('/sensores');
+        const data = response.data;
+        setSensores(data.data || []);
       } catch (err) {
         console.error('Error al cargar sensores:', err);
         setSensores([]);
@@ -83,11 +79,9 @@ export default function Lecturas() {
   useEffect(() => {
     const cargarFechasDisponibles = async () => {
       try {
-        const response = await fetch('http://localhost:3000/api/lecturas/fechas');
-        const result = await response.json();
-
-        if (result.success && Array.isArray(result.data)) {
-          setFechasConLecturas(result.data);
+        const response = await api.get('/lecturas/fechas');
+        if (response.data.success && Array.isArray(response.data.data)) {
+          setFechasConLecturas(response.data.data);
         }
       } catch (error) {
         console.error('Error al cargar fechas disponibles:', error);
@@ -154,8 +148,8 @@ export default function Lecturas() {
         }
       });
 
-      const response = await fetch(`http://localhost:3000/api/lecturas/avanzado?${params}`);
-      const result = await response.json();
+      const response = await api.get(`/lecturas/avanzado?${params}`);
+      const result = response.data;
 
       if (result.success) {
         setLecturas(result.data);
@@ -284,11 +278,11 @@ export default function Lecturas() {
       if (filtros.fecha_fin) params.append('fecha_fin', filtros.fecha_fin);
       if (filtros.tipo_sensor) params.append('tipo_sensor', filtros.tipo_sensor);
 
-      const response = await fetch(`http://localhost:3000/api/lecturas/exportar?${params}`);
-      const result = await response.json();
+      const response = await api.get(`/lecturas/exportar?${params}`);
+      const result = response.data;
 
       if (!result.success) {
-        alert('Error al exportar datos');
+        toast.error('Error al exportar datos');
         return;
       }
 
@@ -346,11 +340,11 @@ export default function Lecturas() {
       a.click();
       window.URL.revokeObjectURL(url);
 
-      alert(`✅ Se exportaron ${todasLecturas.length} registros exitosamente`);
+      toast.success(`Se exportaron ${todasLecturas.length} registros exitosamente`);
 
     } catch (error) {
       console.error('Error al exportar:', error);
-      alert('❌ Error al exportar los datos');
+      toast.error('Error al exportar los datos');
     } finally {
       const exportBtn = document.getElementById('export-all-btn');
       if (exportBtn) {

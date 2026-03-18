@@ -189,7 +189,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor al procesar la lectura',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -258,7 +258,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -305,7 +305,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -363,7 +363,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -418,7 +418,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -447,7 +447,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -506,7 +506,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error interno del servidor',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -640,7 +640,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener lecturas avanzadas',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -713,7 +713,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error al agrupar lecturas',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   },
@@ -825,7 +825,7 @@ const lecturaController = {
       res.status(500).json({
         success: false,
         message: 'Error al obtener lecturas',
-        error: error.message
+        ...(process.env.NODE_ENV === 'development' && { error: error.message })
       });
     }
   }

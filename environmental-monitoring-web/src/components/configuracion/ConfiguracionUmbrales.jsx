@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import { sensoresAPI } from '../../services/api';
 import axios from 'axios';
+import { useToast } from '../common/Toast';
+import { useConfirm } from '../common/ConfirmModal';
 import { 
   PlusIcon,
   PencilIcon,
@@ -16,6 +18,8 @@ import {
 } from '@heroicons/react/24/solid';
 
 export default function ConfiguracionUmbrales() {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [umbrales, setUmbrales] = useState([]);
   const [sensores, setSensores] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,14 +88,14 @@ export default function ConfiguracionUmbrales() {
   };
 
   const handleEliminar = async (umbral) => {
-    if (window.confirm(`¿Eliminar umbral de ${umbral.parametro_nombre} para ${umbral.id_sensor}?`)) {
+    if (await confirm(`¿Eliminar umbral de ${umbral.parametro_nombre} para ${umbral.id_sensor}?`)) {
       try {
         await axios.delete(`http://localhost:3000/api/umbrales/${umbral.id_sensor_umbral}`);
         cargarDatos();
-        alert('Umbral eliminado exitosamente');
+        toast.success('Umbral eliminado exitosamente');
       } catch (error) {
         console.error('Error al eliminar umbral:', error);
-        alert('Error al eliminar el umbral');
+        toast.error('Error al eliminar el umbral');
       }
     }
   };
@@ -313,6 +317,7 @@ export default function ConfiguracionUmbrales() {
 
 // Componente Modal Crear Umbral
 function ModalCrearUmbral({ sensores, onClose, onSuccess }) {
+  const toast = useToast();
   const [formData, setFormData] = useState({
     id_sensor: '',
     parametro_nombre: 'Temperatura',
@@ -332,12 +337,12 @@ function ModalCrearUmbral({ sensores, onClose, onSuccess }) {
         min_umbral: formData.min_umbral ? parseFloat(formData.min_umbral) : null,
         max_umbral: formData.max_umbral ? parseFloat(formData.max_umbral) : null
       });
-      alert('Umbral creado exitosamente');
+      toast.success('Umbral creado exitosamente');
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Error al crear umbral:', error);
-      alert(error.response?.data?.message || 'Error al crear el umbral');
+      toast.error(error.response?.data?.message || 'Error al crear el umbral');
     } finally {
       setGuardando(false);
     }
@@ -453,6 +458,7 @@ function ModalCrearUmbral({ sensores, onClose, onSuccess }) {
 
 // Componente Modal Editar Umbral
 function ModalEditarUmbral({ umbral, onClose, onSuccess }) {
+  const toast = useToast();
   const [formData, setFormData] = useState({
     min_umbral: umbral.min_umbral || '',
     max_umbral: umbral.max_umbral || '',
@@ -470,12 +476,12 @@ function ModalEditarUmbral({ umbral, onClose, onSuccess }) {
         max_umbral: formData.max_umbral ? parseFloat(formData.max_umbral) : null,
         alerta_habilitar: formData.alerta_habilitar
       });
-      alert('Umbral actualizado exitosamente');
+      toast.success('Umbral actualizado exitosamente');
       onSuccess();
       onClose();
     } catch (error) {
       console.error('Error al actualizar umbral:', error);
-      alert('Error al actualizar el umbral');
+      toast.error('Error al actualizar el umbral');
     } finally {
       setGuardando(false);
     }

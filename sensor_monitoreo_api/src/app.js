@@ -4,7 +4,15 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
+
+// Crear directorio de logs si no existe
+const logsDir = path.join(__dirname, '..', 'logs');
+if (!fs.existsSync(logsDir)) {
+  fs.mkdirSync(logsDir, { recursive: true });
+}
 
 // Importar rutas
 const sensoresRoutes = require('./routes/sensores');
@@ -17,6 +25,9 @@ const recorridosRoutes = require('./routes/recorridos');
 const umbralesRoutes = require('./routes/umbrales');
 const preferenciasSistemaRoutes = require('./routes/preferencias-sistema');
 const adminApiKeysRoutes = require('./routes/admin/apiKeys');
+const datosRoutes = require('./routes/datos');
+const sitiosRoutes = require('./routes/sitios');
+const campanasRoutes = require('./routes/campanas');
 
 
 const app = express();
@@ -56,17 +67,30 @@ app.use(cors({
     // Headers personalizados de la app móvil
     'X-Client-Type',
     'X-Client-Version',
-    'X-Device-ID'
+    'X-Device-ID',
+    'X-Fecha'
   ],
   credentials: true
 }));
 
 // Middleware de logging
+// Log a consola
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 } else {
   app.use(morgan('combined'));
 }
+
+// Log a archivo (persistente) - guarda TODOS los requests
+const accessLogStream = fs.createWriteStream(path.join(logsDir, 'access.log'), { flags: 'a' });
+app.use(morgan('[:date[iso]] :remote-addr :method :url :status :res[content-length] :response-time ms - :user-agent', { stream: accessLogStream }));
+
+// Log separado para errores (4xx y 5xx)
+const errorLogStream = fs.createWriteStream(path.join(logsDir, 'error.log'), { flags: 'a' });
+app.use(morgan('[:date[iso]] :remote-addr :method :url :status :res[content-length] - Body: :req[content-type] :req[x-api-key] :req[x-fecha]', {
+  stream: errorLogStream,
+  skip: (req, res) => res.statusCode < 400
+}));
 
 // Middleware para parsear JSON
 app.use(express.json({ limit: '10mb' }));
@@ -84,11 +108,8 @@ const apiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   skip: (req) => {
-    // Excluir rutas de administración del rate limit
-    return req.path.startsWith('/api/admin') ||
-      req.path.startsWith('/api/auth') ||
-      req.path.startsWith('/api/usuarios') ||
-      req.path.startsWith('/api/perfil');
+    // Auth tiene su propio loginLimiter más estricto
+    return req.path.startsWith('/api/auth');
   }
 });
 
@@ -110,6 +131,13 @@ app.use('/api/usuarios', usuariosRoutes);
 
 // Rutas de administración (solo admins)
 app.use('/api/admin/api-keys', adminApiKeysRoutes);
+
+// Ruta de ingesta CSV desde ESP32
+app.use('/api/datos', datosRoutes);
+
+// Gestión de sitios y campañas
+app.use('/api/sitios', sitiosRoutes);
+app.use('/api/campanas', campanasRoutes);
 
 // Ruta de salud del servidor
 app.get('/api/health', (req, res) => {
@@ -144,6 +172,9 @@ app.get('/api/docs', (req, res) => {
         'GET /api/alertas': 'Obtener todas las alertas',
         'GET /api/alertas/activas': 'Obtener alertas no resueltas',
         'PUT /api/alertas/:id/resolver': 'Marcar alerta como resuelta'
+      },
+      datos: {
+        'POST /api/datos': 'Ingesta CSV desde ESP32 (Content-Type: text/csv, Header: X-Fecha)'
       },
       utilidades: {
         'GET /api/health': 'Estado de salud del servidor',

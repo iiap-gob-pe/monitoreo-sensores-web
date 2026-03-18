@@ -9,6 +9,12 @@
 export const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 /**
+ * Clave pública para acceso a endpoints de lectura de la API
+ * Se envía en el header X-Public-Key cuando el usuario no tiene sesión JWT
+ */
+export const PUBLIC_API_KEY = import.meta.env.VITE_PUBLIC_API_KEY || '';
+
+/**
  * Nombre de la aplicación
  */
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'IIAP Monitoreo Ambiental';

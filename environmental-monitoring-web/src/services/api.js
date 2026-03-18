@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { API_URL, STORAGE_KEYS } from '../config/constants';
+import { API_URL, PUBLIC_API_KEY, STORAGE_KEYS } from '../config/constants';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -8,12 +8,16 @@ const api = axios.create({
   },
 });
 
-// Interceptor para agregar el token automáticamente a todas las peticiones
+// Interceptor para agregar autenticación automáticamente a todas las peticiones
+// Prioridad: 1) JWT token si el usuario tiene sesión, 2) Clave pública del frontend
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    } else if (PUBLIC_API_KEY) {
+      // Sin sesión JWT: usar clave pública para endpoints de lectura
+      config.headers['X-Public-Key'] = PUBLIC_API_KEY;
     }
     return config;
   },
@@ -41,7 +45,8 @@ export const sensoresAPI = {
   getById: (id) => api.get(`/sensores/${id}`),
   create: (data) => api.post('/sensores', data),
   update: (id, data) => api.patch(`/sensores/${id}`, data),
-  delete: (id) => api.delete(`/sensores/${id}`)
+  delete: (id) => api.delete(`/sensores/${id}`),
+  regenerarApiKey: (id) => api.post(`/sensores/${id}/regenerar-apikey`)
 };
 
 export const lecturasAPI = {
@@ -60,7 +65,7 @@ export const alertasAPI = {
   resolver: (id) => api.patch(`/alertas/${id}/resolver`)
 };
 
-// ✅ Nueva API de Recorridos
+// API de Recorridos
 export const recorridosAPI = {
   obtenerPorFecha: (id_sensor, fecha) =>
     api.get('/recorridos/fecha', { params: { id_sensor, fecha } }),
@@ -78,7 +83,7 @@ export const recorridosAPI = {
     api.delete(`/recorridos/${id}`)
 };
 
-// ✅ API de Perfil
+// API de Perfil
 export const perfilAPI = {
   obtenerPerfil: (userId) => api.get(`/perfil/${userId}`),
   actualizarPerfil: (userId, data) => api.patch(`/perfil/${userId}`, data),
@@ -86,13 +91,33 @@ export const perfilAPI = {
   obtenerHistorial: (userId, limite = 10) => api.get(`/perfil/${userId}/historial`, { params: { limite } })
 };
 
-// ✅ API de Gestión de API Keys (solo admins)
+// API de Gestión de API Keys (solo admins)
 export const apiKeysAPI = {
   obtenerTodas: () => api.get('/admin/api-keys'),
   crear: (data) => api.post('/admin/api-keys', data),
   toggleEstado: (id) => api.patch(`/admin/api-keys/${id}/toggle`),
   actualizar: (id, data) => api.patch(`/admin/api-keys/${id}`, data),
   eliminar: (id) => api.delete(`/admin/api-keys/${id}`)
+};
+
+// API de Sitios
+export const sitiosAPI = {
+  getAll: () => api.get('/sitios'),
+  getById: (id) => api.get(`/sitios/${id}`),
+  create: (data) => api.post('/sitios', data),
+  update: (id, data) => api.patch(`/sitios/${id}`, data),
+  delete: (id) => api.delete(`/sitios/${id}`)
+};
+
+// API de Campañas de Monitoreo
+export const campanasAPI = {
+  getAll: () => api.get('/campanas'),
+  getById: (id) => api.get(`/campanas/${id}`),
+  create: (data) => api.post('/campanas', data),
+  update: (id, data) => api.patch(`/campanas/${id}`, data),
+  delete: (id) => api.delete(`/campanas/${id}`),
+  agregarSensor: (id, id_sensor) => api.post(`/campanas/${id}/sensores`, { id_sensor }),
+  quitarSensor: (id, id_sensor) => api.delete(`/campanas/${id}/sensores/${id_sensor}`)
 };
 
 export default api;
