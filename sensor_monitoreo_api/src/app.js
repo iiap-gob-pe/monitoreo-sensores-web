@@ -6,7 +6,11 @@ const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
+// Cargar .env.production si NODE_ENV=production, sino .env
+const envFile = process.env.NODE_ENV === 'production' ? '.env.production' : '.env';
+require('dotenv').config({ path: require('path').join(__dirname, '..', envFile) });
+// Fallback: cargar .env si el archivo específico no tiene todas las variables
+require('dotenv').config({ path: require('path').join(__dirname, '..', '.env') });
 
 // Crear directorio de logs si no existe
 const logsDir = path.join(__dirname, '..', 'logs');
