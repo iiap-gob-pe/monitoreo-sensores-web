@@ -234,7 +234,7 @@ X-Fecha: 20240315
 
 El formato del CSV depende de la configuración de variables del sensor:
 
-**Formato legacy** (sin configuración de variables):
+**Formato legacy** (sin configuración de variables): en el envio se omite la cabecera
 ```csv
 DD/MM/YYYY;HH:MM:SS;Temperatura;Humedad;CO2
 15/03/2024;10:30:00;25.5;65.0;450
@@ -242,7 +242,7 @@ DD/MM/YYYY;HH:MM:SS;Temperatura;Humedad;CO2
 15/03/2024;10:40:00;25.8;64.5;448
 ```
 
-**Formato dinámico** (con variables configuradas en `sensor_variable`):
+**Formato dinámico** (con variables configuradas en `sensor_variable`):  en el envio se omite la cabecera
 ```csv
 DD/MM/YYYY;HH:MM:SS;Variable1;Variable2;...VariableN
 15/03/2024;10:30:00;25.5;65.0;450;2.5
