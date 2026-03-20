@@ -289,43 +289,87 @@ export default function SitioFicha() {
         </div>
       </div>
 
-      {/* Mapa de ubicación del sitio */}
+      {/* Mapa de ubicación del sitio y sensores */}
       {sitio.latitud != null && sitio.longitud != null && (
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <MapPinIcon className="h-5 w-5 text-blue-600" />
-            Ubicación del Sitio
+            Ubicación del Sitio y Sensores
           </h2>
-          <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: '350px' }}>
+          <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: '400px' }}>
             <MapContainer
               center={[Number(sitio.latitud), Number(sitio.longitud)]}
-              zoom={15}
+              zoom={16}
               style={{ height: '100%', width: '100%' }}
-              scrollWheelZoom={false}
+              scrollWheelZoom={true}
             >
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; OpenStreetMap'
               />
-              {/* Marcador del sitio */}
+              {/* Marcador del sitio (azul grande) */}
               <Marker
                 position={[Number(sitio.latitud), Number(sitio.longitud)]}
                 icon={L.divIcon({
                   className: '',
-                  html: `<div style="background:#2563eb;width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
-                  iconSize: [14, 14],
-                  iconAnchor: [7, 7]
+                  html: `<div style="background:#2563eb;width:18px;height:18px;border-radius:50%;border:3px solid white;box-shadow:0 2px 8px rgba(0,0,0,0.4)"></div>`,
+                  iconSize: [18, 18],
+                  iconAnchor: [9, 9]
                 })}
               >
                 <Popup>
                   <div className="text-sm">
-                    <p className="font-bold">{sitio.nombre}</p>
+                    <p className="font-bold text-blue-700">{sitio.nombre}</p>
                     <p className="text-gray-500">{sitio.referencia_ubicacion}</p>
                     <p className="text-xs text-gray-400 mt-1">{Number(sitio.latitud).toFixed(6)}, {Number(sitio.longitud).toFixed(6)}</p>
                   </div>
                 </Popup>
               </Marker>
+              {/* Marcadores de sensores (verde) */}
+              {(sitio.sensores || []).map((sensor, idx) => {
+                const lat = sensor.latitud || sitio.latitud;
+                const lon = sensor.longitud || sitio.longitud;
+                if (!lat || !lon) return null;
+                // Offset pequeño si el sensor no tiene coords propias para que no se solape con el sitio
+                const offsetLat = sensor.latitud ? 0 : (idx + 1) * 0.0001;
+                const offsetLon = sensor.longitud ? 0 : (idx + 1) * 0.00008;
+                return (
+                  <Marker
+                    key={sensor.id_sensor}
+                    position={[Number(lat) + offsetLat, Number(lon) + offsetLon]}
+                    icon={L.divIcon({
+                      className: '',
+                      html: `<div style="background:${SENSOR_COLORS[idx % SENSOR_COLORS.length]};width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`,
+                      iconSize: [12, 12],
+                      iconAnchor: [6, 6]
+                    })}
+                  >
+                    <Popup>
+                      <div className="text-sm">
+                        <p className="font-bold text-green-700">{sensor.nombre_sensor || sensor.id_sensor}</p>
+                        <p className="text-xs text-gray-500">{sensor.id_sensor}</p>
+                        <p className={`text-xs mt-1 ${sensor.estado === 'Activo' ? 'text-green-600' : 'text-red-500'}`}>
+                          {sensor.estado || 'N/A'}
+                        </p>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
             </MapContainer>
+          </div>
+          {/* Leyenda */}
+          <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <div className="w-3 h-3 rounded-full bg-blue-600 border-2 border-white shadow"></div>
+              <span>Sitio</span>
+            </div>
+            {(sitio.sensores || []).map((sensor, idx) => (
+              <div key={sensor.id_sensor} className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full border border-white shadow" style={{ background: SENSOR_COLORS[idx % SENSOR_COLORS.length] }}></div>
+                <span>{sensor.nombre_sensor || sensor.id_sensor}</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
@@ -511,31 +555,39 @@ export default function SitioFicha() {
             <p className="text-gray-500">No se encontraron lecturas para los sensores de este sitio</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-3 font-semibold text-gray-600">Sensor</th>
-                  <th className="text-left py-3 px-3 font-semibold text-gray-600">Fecha/Hora</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Temp.</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Humedad</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">CO2</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">CO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lecturasRecientes.map((l, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2.5 px-3 text-gray-700 font-medium">{l.nombre_sensor || `Sensor ${l.id_sensor}`}</td>
-                    <td className="py-2.5 px-3 text-gray-500">{fmt(getFecha(l))}</td>
-                    <td className="py-2.5 px-3 text-right text-orange-600 font-medium">{l.temperatura != null ? `${parseFloat(l.temperatura).toFixed(1)}°C` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-blue-600 font-medium">{l.humedad != null ? `${parseFloat(l.humedad).toFixed(1)}%` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-green-700 font-medium">{(l.co2_nivel ?? l.co2) != null ? `${l.co2_nivel ?? l.co2} ppm` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-red-600 font-medium">{(l.co_nivel ?? l.co) != null ? `${parseFloat(l.co_nivel ?? l.co).toFixed(2)} ppm` : '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {lecturasRecientes.map((l, idx) => {
+              const dyn = l.valores_dinamicos || {};
+              const vars = Object.keys(dyn).length > 0
+                ? Object.entries(dyn).filter(([, v]) => v.valor != null).map(([codigo, v]) => ({
+                    nombre: v.nombre || codigo, unidad: v.unidad || '', color: v.color || '#6b7280', valor: v.valor
+                  }))
+                : [
+                    ...(l.temperatura != null ? [{ nombre: 'Temperatura', unidad: '°C', color: '#f97316', valor: l.temperatura }] : []),
+                    ...(l.humedad != null ? [{ nombre: 'Humedad', unidad: '%', color: '#3b82f6', valor: l.humedad }] : []),
+                    ...((l.co2_nivel ?? l.co2) != null ? [{ nombre: 'CO2', unidad: 'ppm', color: '#16a34a', valor: l.co2_nivel ?? l.co2 }] : []),
+                    ...((l.co_nivel ?? l.co) != null ? [{ nombre: 'CO', unidad: 'ppm', color: '#ef4444', valor: l.co_nivel ?? l.co }] : [])
+                  ];
+              return (
+                <div key={idx} className="flex flex-col lg:flex-row bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition overflow-hidden">
+                  <div className="lg:w-52 flex-shrink-0 px-4 py-2.5 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white">
+                    <p className="text-sm font-medium text-gray-900">{l.nombre_sensor || l.id_sensor}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{fmt(getFecha(l))}</p>
+                  </div>
+                  <div className="flex-1 px-4 py-2.5 flex flex-wrap gap-3">
+                    {vars.filter(v => v.valor != null).map((v, i) => (
+                      <div key={i} className="bg-white rounded-lg px-3 py-1.5 min-w-[100px] flex-1">
+                        <p className="text-[10px] text-gray-500 uppercase font-medium">{v.nombre}</p>
+                        <span className="text-lg font-bold" style={{ color: v.color }}>
+                          {parseFloat(v.valor).toFixed(1)}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-1">{v.unidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

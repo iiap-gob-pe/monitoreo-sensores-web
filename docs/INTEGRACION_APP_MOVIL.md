@@ -1,7 +1,7 @@
 # 📱 Guía de Integración - App Móvil con Sensores Bluetooth
 
-> **Versión**: 1.0
-> **Última actualización**: Noviembre 2024
+> **Versión**: 1.1
+> **Última actualización**: Marzo 2026
 > **Flujo**: Sensor (Bluetooth) → App Móvil → API Web → Base de Datos
 
 ---
@@ -37,8 +37,9 @@ El sistema de monitoreo ambiental actual funciona con **sensores IoT que transmi
 
 ### Funcionalidades de la App
 
-✅ **Actual**: Leer datos de sensores vía Bluetooth y enviarlos a la API
-🔜 **Futuro**: Los sensores tendrán GPRS y enviarán datos directamente (la app solo monitorearáen tiempo real)
+✅ **Actual**: Leer datos de sensores vía Bluetooth y enviarlos a la API (`POST /api/lecturas`)
+✅ **Actual**: Sensores ESP32 envían CSV directamente vía GPRS (`POST /api/datos`)
+🔜 **Futuro**: La app solo monitoreará en tiempo real
 
 ---
 
@@ -207,6 +208,100 @@ Content-Type: application/json
 | `403` | API Key expirada | Solicitar nueva API Key |
 | `429` | Demasiadas peticiones | Esperar antes de reintentar |
 | `500` | Error del servidor | Reintentar más tarde |
+
+---
+
+### 📡 POST /api/datos
+
+Recibir datos CSV crudos desde sensores ESP32 (vía GPRS o app intermediaria).
+
+**Autenticación**: API Key requerida (vinculada al sensor)
+
+**Headers**:
+```http
+X-API-Key: api-key-del-sensor
+Content-Type: text/csv
+X-Fecha: 20240315
+```
+
+| Header | Requerido | Descripción |
+|--------|-----------|-------------|
+| `X-API-Key` | Sí | API Key asociada al sensor |
+| `Content-Type` | Sí | Debe ser `text/csv` |
+| `X-Fecha` | Sí | Fecha del lote en formato `YYYYMMDD` |
+
+**Body** (texto CSV con separador `;`):
+
+El formato del CSV depende de la configuración de variables del sensor:
+
+**Formato legacy** (sin configuración de variables):
+```csv
+DD/MM/YYYY;HH:MM:SS;Temperatura;Humedad;CO2
+15/03/2024;10:30:00;25.5;65.0;450
+15/03/2024;10:35:00;26.1;63.2;455
+15/03/2024;10:40:00;25.8;64.5;448
+```
+
+**Formato dinámico** (con variables configuradas en `sensor_variable`):
+```csv
+DD/MM/YYYY;HH:MM:SS;Variable1;Variable2;...VariableN
+15/03/2024;10:30:00;25.5;65.0;450;2.5
+15/03/2024;10:35:00;26.1;63.2;455;2.3
+```
+
+El orden de las variables en el CSV debe coincidir con el campo `orden_csv` de la tabla `sensor_variable`.
+
+**Respuesta Exitosa** (200 OK):
+```json
+{
+  "status": "ok",
+  "mensaje": "3 registros guardados",
+  "fecha": "20240315",
+  "filas_procesadas": 3,
+  "duplicadas": 0,
+  "archivo": "20240315.csv",
+  "formato": "legacy (Fecha;Hora;Temp;Hum;CO2)"
+}
+```
+
+**Respuesta con errores parciales** (200 OK):
+```json
+{
+  "status": "ok",
+  "mensaje": "2 registros guardados",
+  "fecha": "20240315",
+  "filas_procesadas": 2,
+  "duplicadas": 0,
+  "archivo": "20240315.csv",
+  "formato": "legacy (Fecha;Hora;Temp;Hum;CO2)",
+  "filas_con_error": 1,
+  "errores": [
+    {
+      "linea": 3,
+      "error": "Valores numéricos inválidos",
+      "contenido": "15/03/2024;10:40:00;abc;64.5;448"
+    }
+  ]
+}
+```
+
+**Errores posibles**:
+
+| Código | Descripción | Solución |
+|--------|-------------|----------|
+| `400` | Header X-Fecha faltante o formato inválido | Enviar X-Fecha con formato YYYYMMDD |
+| `400` | Body vacío | Enviar texto CSV con separador ";" |
+| `400` | Ninguna fila válida en el CSV | Verificar formato de fecha (DD/MM/YYYY), hora (HH:MM:SS) y valores numéricos |
+| `401` | API Key faltante o inválida | Verificar header X-API-Key |
+| `403` | API Key deshabilitada/expirada | Contactar al administrador |
+| `429` | Demasiadas peticiones | Esperar antes de reintentar |
+| `500` | Error del servidor | Reintentar más tarde |
+
+**Notas importantes**:
+- Las filas duplicadas (misma Fecha+Hora) se detectan y omiten automáticamente
+- Los datos se guardan tanto en la base de datos como en archivos CSV en el servidor (`datos/YYYYMMDD.csv`)
+- El límite de tamaño del body es **5 MB**
+- El `last_seen` y estado del sensor se actualizan automáticamente
 
 ---
 
@@ -606,5 +701,5 @@ class RateLimiter(private val maxPorMinuto: Int = 10) {
 
 ---
 
-**Última revisión**: Noviembre 2024
-**Versión API**: 1.0.0
+**Última revisión**: Marzo 2026
+**Versión API**: 1.1.0

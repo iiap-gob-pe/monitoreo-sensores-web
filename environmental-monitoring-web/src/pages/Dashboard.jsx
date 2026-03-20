@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { lecturasAPI, alertasAPI, sensoresAPI, sitiosAPI, campanasAPI } from '../services/api';
+import { lecturasAPI, alertasAPI, sensoresAPI, sitiosAPI, campanasAPI, variablesAPI } from '../services/api';
 import { usePreferencias } from '../hooks/usePreferencias';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -26,6 +26,7 @@ export default function Dashboard() {
   const [sensores, setSensores] = useState([]);
   const [sitios, setSitios] = useState([]);
   const [campanas, setCampanas] = useState([]);
+  const [variablesList, setVariablesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [limite, setLimite] = useState(5);
   const [tipoFiltro, setTipoFiltro] = useState('todos');
@@ -43,13 +44,14 @@ export default function Dashboard() {
   const fetchData = async (mostrarLoading = true) => {
     try {
       if (mostrarLoading) setLoading(true);
-      const [lecturasRes, actualesRes, alertasRes, sensoresRes, sitiosRes, campanasRes] = await Promise.all([
+      const [lecturasRes, actualesRes, alertasRes, sensoresRes, sitiosRes, campanasRes, variablesRes] = await Promise.all([
         lecturasAPI.getUltimas(100),
         lecturasAPI.getActuales(),
         alertasAPI.getActivas(),
         sensoresAPI.getAll(),
         sitiosAPI.getAll(),
-        campanasAPI.getAll()
+        campanasAPI.getAll(),
+        variablesAPI.getAll()
       ]);
       setLecturas(lecturasRes.data.data || []);
       setLecturasActuales(actualesRes.data.data || []);
@@ -57,6 +59,7 @@ export default function Dashboard() {
       setSensores(sensoresRes.data.data || []);
       setSitios(sitiosRes.data.data || []);
       setCampanas(campanasRes.data.data || []);
+      setVariablesList(variablesRes.data.data || []);
       setUltimaActualizacion(new Date());
     } catch (error) {
       console.error('Error fetching data:', error);
@@ -187,34 +190,16 @@ export default function Dashboard() {
           Variables Monitoreadas
         </h3>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div className="bg-orange-50 rounded-lg p-4 border border-orange-100">
-            <div className="flex items-center space-x-2 mb-2">
-              <FireIcon className="w-5 h-5 text-orange-500" />
-              <span className="text-sm font-medium text-gray-700">Temperatura</span>
+          {variablesList.filter(v => v.estado === 'activo').map(variable => (
+            <div key={variable.id_variable} className="bg-gray-50 rounded-lg p-4 border" style={{ borderLeftWidth: '4px', borderLeftColor: variable.color }}>
+              <div className="flex items-center space-x-2 mb-2">
+                <span className="w-3 h-3 rounded-full inline-block flex-shrink-0" style={{ backgroundColor: variable.color }}></span>
+                <span className="text-sm font-medium text-gray-700">{variable.nombre}</span>
+              </div>
+              <p className="text-[10px] text-gray-400 mb-1">{variable.unidad} | Rango: {variable.rango_min} - {variable.rango_max}</p>
+              <p className="text-xs text-gray-500">{variable.descripcion}</p>
             </div>
-            <p className="text-xs text-gray-500">Medicion en grados Celsius (°C). Rango tipico: 20-35°C en la region amazonica.</p>
-          </div>
-          <div className="bg-blue-50 rounded-lg p-4 border border-blue-100">
-            <div className="flex items-center space-x-2 mb-2">
-              <CloudIcon className="w-5 h-5 text-blue-500" />
-              <span className="text-sm font-medium text-gray-700">Humedad Relativa</span>
-            </div>
-            <p className="text-xs text-gray-500">Porcentaje de humedad en el aire (%). Rango tipico: 60-95% en zonas tropicales.</p>
-          </div>
-          <div className="bg-green-50 rounded-lg p-4 border border-green-100">
-            <div className="flex items-center space-x-2 mb-2">
-              <svg className="w-5 h-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" /></svg>
-              <span className="text-sm font-medium text-gray-700">CO2</span>
-            </div>
-            <p className="text-xs text-gray-500">Dioxido de carbono en partes por millon (ppm). Nivel normal exterior: 400-450 ppm.</p>
-          </div>
-          <div className="bg-red-50 rounded-lg p-4 border border-red-100">
-            <div className="flex items-center space-x-2 mb-2">
-              <ExclamationTriangleIcon className="w-5 h-5 text-red-500" />
-              <span className="text-sm font-medium text-gray-700">CO</span>
-            </div>
-            <p className="text-xs text-gray-500">Monoxido de carbono en partes por millon (ppm). Toxico a niveles superiores a 35 ppm.</p>
-          </div>
+          ))}
         </div>
       </div>
 
@@ -335,58 +320,54 @@ export default function Dashboard() {
           </span>
         </div>
 
-        <div className="overflow-x-auto -mx-4 sm:mx-0">
-          <div className="inline-block min-w-full align-middle">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Sensor</th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Tipo</th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Temp/Hum</th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">CO2/CO</th>
-                  <th className="hidden md:table-cell px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Ubicación</th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Fecha/Hora</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {lecturasTabla.map((lectura, index) => {
-                  const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
-                  return (
-                    <tr key={index} className="hover:bg-gray-50 cursor-pointer" onClick={() => navigate(`/sensors/${lectura.id_sensor}`)}>
-                      <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-xs sm:text-sm font-medium text-gray-900">
-                        {lectura.id_sensor}
-                      </td>
-                      <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
-                        <span className={`inline-flex px-1.5 sm:px-2 py-0.5 sm:py-1 text-[10px] sm:text-xs font-medium rounded-full ${sensor?.is_movil ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'}`}>
-                          {sensor?.is_movil ? 'Movil' : 'Fijo'}
-                        </span>
-                      </td>
-                      <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs sm:text-sm text-gray-900">{lectura.temperatura ? `${parseFloat(lectura.temperatura).toFixed(1)}°C` : 'N/A'}</div>
-                        <div className="text-[10px] sm:text-xs text-gray-500">{lectura.humedad ? `${parseFloat(lectura.humedad).toFixed(1)}%` : 'N/A'}</div>
-                      </td>
-                      <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs sm:text-sm text-gray-900">{lectura.co2_nivel || 'N/A'} ppm</div>
-                        <div className="text-[10px] sm:text-xs text-gray-500">{lectura.co_nivel ? `${parseFloat(lectura.co_nivel).toFixed(1)} ppm` : 'N/A'}</div>
-                      </td>
-                      <td className="hidden md:table-cell px-2 sm:px-4 py-3 whitespace-nowrap text-xs text-gray-500">
-                        {lectura.latitud && lectura.longitud ? (
-                          <div>
-                            <div>{parseFloat(lectura.latitud).toFixed(4)}°</div>
-                            <div>{parseFloat(lectura.longitud).toFixed(4)}°</div>
-                          </div>
-                        ) : 'N/A'}
-                      </td>
-                      <td className="px-2 sm:px-4 py-3 whitespace-nowrap">
-                        <div className="text-xs sm:text-sm text-gray-900">{lectura.lectura_datetime ? formatearFecha(lectura.lectura_datetime) : 'N/A'}</div>
-                        <div className="text-[10px] sm:text-xs text-gray-500">{lectura.lectura_datetime ? formatearHora(lectura.lectura_datetime) : 'N/A'}</div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+        <div className="space-y-2">
+          {lecturasTabla.map((lectura, index) => {
+            const sensor = sensores.find(s => s.id_sensor === lectura.id_sensor);
+            const dyn = lectura.valores_dinamicos || {};
+            const vars = Object.keys(dyn).length > 0
+              ? Object.entries(dyn).filter(([, v]) => v.valor != null).map(([codigo, v]) => ({
+                  nombre: v.nombre || codigo, unidad: v.unidad || '', color: v.color || '#6b7280', valor: v.valor
+                }))
+              : [
+                  ...(lectura.temperatura != null ? [{ nombre: 'Temperatura', unidad: '°C', color: '#f97316', valor: lectura.temperatura }] : []),
+                  ...(lectura.humedad != null ? [{ nombre: 'Humedad', unidad: '%', color: '#3b82f6', valor: lectura.humedad }] : []),
+                  ...(lectura.co2_nivel != null ? [{ nombre: 'CO2', unidad: 'ppm', color: '#16a34a', valor: lectura.co2_nivel }] : []),
+                  ...(lectura.co_nivel != null ? [{ nombre: 'CO', unidad: 'ppm', color: '#ef4444', valor: lectura.co_nivel }] : [])
+                ];
+            return (
+              <div
+                key={index}
+                onClick={() => navigate(`/sensors/${lectura.id_sensor}`)}
+                className="flex flex-col lg:flex-row bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 hover:shadow-sm cursor-pointer transition overflow-hidden"
+              >
+                <div className="lg:w-52 flex-shrink-0 px-4 py-2.5 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">{sensor?.nombre_sensor || lectura.id_sensor}</h3>
+                    <span className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${sensor?.is_movil ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                      {sensor?.is_movil ? 'Móvil' : 'Fijo'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 mt-1">
+                    {lectura.lectura_datetime ? `${formatearFecha(lectura.lectura_datetime)} ${formatearHora(lectura.lectura_datetime)}` : 'N/A'}
+                  </p>
+                  {lectura.latitud && lectura.longitud && (
+                    <p className="text-[10px] text-gray-400 mt-0.5">{parseFloat(lectura.latitud).toFixed(4)}, {parseFloat(lectura.longitud).toFixed(4)}</p>
+                  )}
+                </div>
+                <div className="flex-1 px-4 py-2.5 flex flex-wrap gap-3">
+                  {vars.filter(v => v.valor != null).map((v, i) => (
+                    <div key={i} className="bg-white rounded-lg px-3 py-1.5 min-w-[100px] flex-1">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">{v.nombre}</p>
+                      <span className="text-lg font-bold" style={{ color: v.color }}>
+                        {parseFloat(v.valor).toFixed(1)}
+                      </span>
+                      <span className="text-xs text-gray-400 ml-1">{v.unidad}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

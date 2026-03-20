@@ -5,6 +5,7 @@ import { sitiosAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmModal';
+import Pagination from '../components/common/Pagination';
 import {
   PlusIcon,
   PencilIcon,
@@ -27,6 +28,8 @@ export default function Sitios() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modalTipo, setModalTipo] = useState('');
   const [sitioSeleccionado, setSitioSeleccionado] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 12;
 
   useEffect(() => {
     cargarSitios();
@@ -58,6 +61,15 @@ export default function Sitios() {
     return cumpleBusqueda && cumpleZona;
   });
 
+  // Reset pagina cuando cambian filtros
+  useEffect(() => {
+    setPagina(1);
+  }, [busqueda, filtroZona]);
+
+  // Paginación
+  const totalPaginas = Math.ceil(sitiosFiltrados.length / porPagina);
+  const sitiosPaginados = sitiosFiltrados.slice((pagina - 1) * porPagina, pagina * porPagina);
+
   // Estadisticas
   const stats = {
     total: sitios.length,
@@ -87,7 +99,7 @@ export default function Sitios() {
     const ok = await confirm(`¿Estas seguro de eliminar el sitio "${sitio.nombre}"? Esta accion no se puede deshacer.`, { title: 'Confirmar', type: 'danger' });
     if (ok) {
       try {
-        await sitiosAPI.delete(sitio._id || sitio.id);
+        await sitiosAPI.delete(sitio.id_sitio);
         cargarSitios();
         toast.success('Sitio eliminado exitosamente');
       } catch (err) {
@@ -259,8 +271,8 @@ export default function Sitios() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sitiosFiltrados.length > 0 ? (
-                sitiosFiltrados.map((sitio) => (
+              {sitiosPaginados.length > 0 ? (
+                sitiosPaginados.map((sitio) => (
                   <tr key={sitio._id || sitio.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -314,6 +326,11 @@ export default function Sitios() {
                           : 'bg-red-100 text-red-800'
                       }`}>
                         {sitio.estado || 'Activo'}
+                      </span>
+                      <span className={`ml-1 px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                        sitio.visibilidad === 'privado' ? 'bg-gray-800 text-white' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {sitio.visibilidad === 'privado' ? 'Privado' : 'Público'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
@@ -375,6 +392,15 @@ export default function Sitios() {
             </tbody>
           </table>
         </div>
+        {totalPaginas > 1 && (
+          <Pagination
+            paginaActual={pagina}
+            totalPaginas={totalPaginas}
+            onChange={setPagina}
+            totalItems={sitiosFiltrados.length}
+            porPagina={porPagina}
+          />
+        )}
       </div>
 
       {/* Modales */}
@@ -409,7 +435,8 @@ function ModalFormSitio({ sitio = null, onClose, onSuccess }) {
     latitud: sitio?.latitud || '',
     longitud: sitio?.longitud || '',
     altitud: sitio?.altitud || '',
-    zona: sitio?.zona || ''
+    zona: sitio?.zona || '',
+    visibilidad: sitio?.visibilidad || 'publico'
   });
   const [guardando, setGuardando] = useState(false);
 
@@ -439,7 +466,7 @@ function ModalFormSitio({ sitio = null, onClose, onSuccess }) {
 
     try {
       if (esEdicion) {
-        await sitiosAPI.update(sitio._id || sitio.id, datos);
+        await sitiosAPI.update(sitio.id_sitio, datos);
         toast.success('Sitio actualizado exitosamente');
       } else {
         await sitiosAPI.create(datos);
@@ -582,6 +609,26 @@ function ModalFormSitio({ sitio = null, onClose, onSuccess }) {
                 <option value="Bosque">Bosque</option>
                 <option value="Rio">Rio</option>
               </select>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Visibilidad</label>
+                <p className="text-xs text-gray-500">
+                  {formData.visibilidad === 'publico' ? 'Visible para todos los visitantes' : 'Solo visible para usuarios autenticados'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, visibilidad: formData.visibilidad === 'publico' ? 'privado' : 'publico'})}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                  formData.visibilidad === 'publico' ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                  formData.visibilidad === 'publico' ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
 
             <div className="flex space-x-3 pt-4">

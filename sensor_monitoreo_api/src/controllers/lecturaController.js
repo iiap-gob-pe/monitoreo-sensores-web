@@ -269,6 +269,14 @@ const lecturaController = {
       const { id } = req.params;
       const { limite = 50 } = req.query;
 
+      // Verificar visibilidad del sensor
+      if (!req.usuario) {
+        const sensor = await prisma.sensores.findUnique({ where: { id_sensor: id }, select: { visibilidad: true } });
+        if (sensor && sensor.visibilidad === 'privado') {
+          return res.status(403).json({ success: false, message: 'Este sensor es privado' });
+        }
+      }
+
       const lecturas = await prisma.lecturas.findMany({
         where: { id_sensor: id },
         include: {
@@ -278,6 +286,9 @@ const lecturaController = {
               zona: true,
               is_movil: true
             }
+          },
+          valores: {
+            include: { variable: { select: { codigo: true, nombre: true, unidad: true, color: true } } }
           }
         },
         orderBy: {
@@ -286,18 +297,72 @@ const lecturaController = {
         take: parseInt(limite)
       });
 
-      if (lecturas.length === 0) {
-        return res.status(404).json({
-          success: false,
-          message: `No se encontraron lecturas para el sensor ${id}`
+      // Obtener config de variables del sensor para mapear legacy
+      const sensorConfig = await prisma.sensor_variable.findMany({
+        where: { id_sensor: id, estado: 'activo' },
+        include: { variable: true },
+        orderBy: { orden_csv: 'asc' }
+      });
+
+      // Mapeo de código de variable a campo legacy en tabla lecturas
+      const legacyMap = { temperatura: 'temperatura', humedad: 'humedad', co2: 'co2_nivel', co: 'co_nivel' };
+
+      // Aplanar valores dinámicos en cada lectura
+      const data = lecturas.map(l => {
+        const valoresDinamicos = {};
+
+        // 1. Valores desde lectura_valores (tabla dinámica)
+        (l.valores || []).forEach(v => {
+          valoresDinamicos[v.variable.codigo] = {
+            valor: parseFloat(v.valor),
+            nombre: v.variable.nombre,
+            unidad: v.variable.unidad,
+            color: v.variable.color
+          };
+        });
+
+        // 2. Rellenar desde campos legacy si no hay valor dinámico
+        sensorConfig.forEach(sv => {
+          const codigo = sv.variable.codigo;
+          if (!valoresDinamicos[codigo]) {
+            const legacyField = legacyMap[codigo];
+            const legacyValue = legacyField ? l[legacyField] : null;
+            if (legacyValue != null) {
+              valoresDinamicos[codigo] = {
+                valor: parseFloat(legacyValue),
+                nombre: sv.variable.nombre,
+                unidad: sv.variable.unidad,
+                color: sv.variable.color
+              };
+            }
+          }
+        });
+
+        // 3. Si no hay config de variables, crear dinámicos desde legacy
+        if (sensorConfig.length === 0) {
+          if (l.temperatura != null) valoresDinamicos.temperatura = { valor: parseFloat(l.temperatura), nombre: 'Temperatura', unidad: '°C', color: '#f97316' };
+          if (l.humedad != null) valoresDinamicos.humedad = { valor: parseFloat(l.humedad), nombre: 'Humedad', unidad: '%', color: '#3b82f6' };
+          if (l.co2_nivel != null) valoresDinamicos.co2 = { valor: parseFloat(l.co2_nivel), nombre: 'CO2', unidad: 'ppm', color: '#16a34a' };
+          if (l.co_nivel != null) valoresDinamicos.co = { valor: parseFloat(l.co_nivel), nombre: 'CO', unidad: 'ppm', color: '#ef4444' };
+        }
+
+        return { ...l, valores_dinamicos: valoresDinamicos, valores: undefined };
+      });
+
+      if (data.length === 0) {
+        return res.status(200).json({
+          success: true,
+          message: `No se encontraron lecturas para el sensor ${id}`,
+          data: [],
+          total: 0
         });
       }
 
       res.status(200).json({
         success: true,
         message: 'Lecturas del sensor obtenidas exitosamente',
-        data: lecturas,
-        total: lecturas.length
+        data,
+        total: data.length
       });
 
     } catch (error) {
@@ -313,10 +378,15 @@ const lecturaController = {
   // Obtener últimas N lecturas de todos los sensores
   obtenerUltimas: async (req, res) => {
     try {
-      // Límite interno máximo de 5000 para evitar que el request tumbe la BD/RAM
       const limite = Math.min(parseInt(req.query.limite) || 1000, 5000);
 
+      // Filtrar por visibilidad del sensor
+      const sensorFilter = req.usuario ? {} : { visibilidad: 'publico' };
+
       const lecturas = await prisma.lecturas.findMany({
+        where: {
+          sensor: sensorFilter
+        },
         include: {
           sensor: {
             select: {
@@ -324,8 +394,12 @@ const lecturaController = {
               nombre_sensor: true,
               zona: true,
               is_movil: true,
-              estado: true
+              estado: true,
+              visibilidad: true
             }
+          },
+          valores: {
+            include: { variable: { select: { codigo: true, nombre: true, unidad: true, color: true } } }
           }
         },
         orderBy: {
@@ -334,22 +408,33 @@ const lecturaController = {
         take: limite
       });
 
-      // Transformar datos para mantener compatibilidad con el frontend
-      const lecturasFormateadas = lecturas.map(lectura => ({
-        id_sensor: lectura.id_sensor,
-        nombre_sensor: lectura.sensor.nombre_sensor,
-        zona: lectura.zona || lectura.sensor.zona,
-        is_movil: lectura.sensor.is_movil,
-        estado: lectura.sensor.estado,
-        lectura_datetime: lectura.lectura_datetime,
-        temperatura: lectura.temperatura,
-        humedad: lectura.humedad,
-        co2_nivel: lectura.co2_nivel,
-        co_nivel: lectura.co_nivel,
-        latitud: lectura.latitud,
-        longitud: lectura.longitud,
-        altitud: lectura.altitud
-      }));
+      const lecturasFormateadas = lecturas.map(lectura => {
+        const valoresDinamicos = {};
+        (lectura.valores || []).forEach(v => {
+          valoresDinamicos[v.variable.codigo] = {
+            valor: parseFloat(v.valor),
+            nombre: v.variable.nombre,
+            unidad: v.variable.unidad,
+            color: v.variable.color
+          };
+        });
+        return {
+          id_sensor: lectura.id_sensor,
+          nombre_sensor: lectura.sensor?.nombre_sensor,
+          zona: lectura.zona || lectura.sensor?.zona,
+          is_movil: lectura.sensor?.is_movil,
+          estado: lectura.sensor?.estado,
+          lectura_datetime: lectura.lectura_datetime,
+          temperatura: lectura.temperatura,
+          humedad: lectura.humedad,
+          co2_nivel: lectura.co2_nivel,
+          co_nivel: lectura.co_nivel,
+          latitud: lectura.latitud,
+          longitud: lectura.longitud,
+          altitud: lectura.altitud,
+          valores_dinamicos: valoresDinamicos
+        };
+      });
 
       res.status(200).json({
         success: true,
@@ -372,7 +457,8 @@ const lecturaController = {
     try {
       // ✅ OPTIMIZADO: Consulta uno a uno los sensores activos con LIMIT 1 usando su Indexed Column
       // En vez de obligar a PostgreSQL a realizar un escaneo y agrupamiento (DISTINCT) de ~100k registros (Lento: +8 segundos)
-      const sensores = await prisma.sensores.findMany({ select: { id_sensor: true } });
+      const sensorWhere = req.usuario ? {} : { visibilidad: 'publico' };
+      const sensores = await prisma.sensores.findMany({ where: sensorWhere, select: { id_sensor: true } });
       const currentReadingsPromises = sensores.map(sensor => 
         prisma.lecturas.findFirst({
           where: { id_sensor: sensor.id_sensor },
@@ -566,10 +652,14 @@ const lecturaController = {
         }
       }
 
-      // ✅ Filtro por tipo de sensor (móvil o fijo)
+      // Filtro por tipo de sensor y visibilidad
       const sensorWhere = {};
       if (tipo_sensor !== undefined && tipo_sensor !== '') {
         sensorWhere.is_movil = tipo_sensor === 'movil';
+      }
+      // Solo sensores públicos si no está autenticado
+      if (!req.usuario) {
+        sensorWhere.visibilidad = 'publico';
       }
 
       // Determinar ordenamiento
@@ -596,6 +686,9 @@ const lecturaController = {
                 is_movil: true,
                 estado: true
               }
+            },
+            valores: {
+              include: { variable: { select: { codigo: true, nombre: true, unidad: true, color: true } } }
             }
           },
           orderBy: {
@@ -606,23 +699,36 @@ const lecturaController = {
         })
       ]);
 
-      // Formatear datos para compatibilidad con frontend
-      const lecturasFormateadas = lecturas.map(lectura => ({
-        id_lectura: lectura.id_lectura,
-        sensor_id: lectura.id_sensor,
-        nombre_sensor: lectura.sensor.nombre_sensor,
-        is_movil: lectura.sensor.is_movil,
-        tipo_sensor: lectura.sensor.is_movil ? 'Móvil' : 'Fijo',
-        sensor_estado: lectura.sensor.estado,
-        lectura_datetime: lectura.lectura_datetime,
-        temperatura: lectura.temperatura,
-        humedad: lectura.humedad,
-        co2_nivel: lectura.co2_nivel,
-        co_nivel: lectura.co_nivel,
-        latitud: lectura.latitud,
-        longitud: lectura.longitud,
-        altitud: lectura.altitud
-      }));
+      // Formatear datos con valores dinámicos
+      const lecturasFormateadas = lecturas.map(lectura => {
+        const valoresDinamicos = {};
+        (lectura.valores || []).forEach(v => {
+          valoresDinamicos[v.variable.codigo] = {
+            valor: parseFloat(v.valor),
+            nombre: v.variable.nombre,
+            unidad: v.variable.unidad,
+            color: v.variable.color
+          };
+        });
+        return {
+          id_lectura: lectura.id_lectura,
+          id_sensor: lectura.id_sensor,
+          sensor_id: lectura.id_sensor,
+          nombre_sensor: lectura.sensor?.nombre_sensor,
+          is_movil: lectura.sensor?.is_movil,
+          tipo_sensor: lectura.sensor?.is_movil ? 'Móvil' : 'Fijo',
+          sensor_estado: lectura.sensor?.estado,
+          lectura_datetime: lectura.lectura_datetime,
+          temperatura: lectura.temperatura,
+          humedad: lectura.humedad,
+          co2_nivel: lectura.co2_nivel,
+          co_nivel: lectura.co_nivel,
+          latitud: lectura.latitud,
+          longitud: lectura.longitud,
+          altitud: lectura.altitud,
+          valores_dinamicos: valoresDinamicos
+        };
+      });
 
       res.json({
         success: true,

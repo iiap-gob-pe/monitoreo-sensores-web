@@ -5,9 +5,10 @@ const lecturaController = require('../controllers/lecturaController');
 const { verificarAccesoPublico } = require('../middleware/auth');
 const { verificarApiKey } = require('../middleware/apiKey');
 const { apiLimiter } = require('../middleware/rateLimiter');
+const { registrarPeticion } = require('../middleware/apiLogger');
 
 // Ruta protegida para ESP32/Apps móviles - REQUIERE API Key y RATE LIMITING
-router.post('/', apiLimiter, verificarApiKey, lecturaController.crear);       // POST /api/lecturas (Para ESP32/Apps)
+router.post('/', apiLimiter, registrarPeticion, verificarApiKey, lecturaController.crear);       // POST /api/lecturas (Para ESP32/Apps)
 
 // Rutas protegidas de lectura (requieren JWT o clave pública del frontend)
 router.get('/', verificarAccesoPublico, lecturaController.obtenerTodas);                   // GET /api/lecturas

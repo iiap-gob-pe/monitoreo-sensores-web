@@ -464,46 +464,42 @@ export default function CampanaFicha() {
           <div className="text-center py-8">
             <ServerIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No hay lecturas disponibles para esta campaña</p>
-            <p className="text-gray-400 text-sm mt-1">Las lecturas apareceran aqui cuando los sensores comiencen a enviar datos</p>
+            <p className="text-gray-400 text-sm mt-1">Las lecturas aparecerán cuando los sensores comiencen a enviar datos</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-3 font-semibold text-gray-600">Sensor</th>
-                  <th className="text-left py-3 px-3 font-semibold text-gray-600">Fecha/Hora</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Temp.</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Humedad</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">CO2</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">CO</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lecturasRecientes.map((lectura, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2.5 px-3 font-medium text-gray-900 whitespace-nowrap">
-                      {lectura.sensor_nombre}
-                    </td>
-                    <td className="py-2.5 px-3 text-gray-700 whitespace-nowrap">
-                      {fmt(lectura.lectura_datetime || lectura.created_at)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-orange-600 font-medium whitespace-nowrap">
-                      {lectura.temperatura != null ? `${Number(lectura.temperatura).toFixed(1)}°C` : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-blue-600 font-medium whitespace-nowrap">
-                      {lectura.humedad != null ? `${Number(lectura.humedad).toFixed(1)}%` : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-green-700 font-medium whitespace-nowrap">
-                      {lectura.co2_nivel != null ? `${Number(lectura.co2_nivel).toFixed(0)} ppm` : '-'}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-red-600 font-medium whitespace-nowrap">
-                      {lectura.co_nivel != null ? `${Number(lectura.co_nivel).toFixed(2)} ppm` : '-'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {lecturasRecientes.map((lectura, idx) => {
+              const dyn = lectura.valores_dinamicos || {};
+              const vars = Object.keys(dyn).length > 0
+                ? Object.entries(dyn).filter(([, v]) => v.valor != null).map(([codigo, v]) => ({
+                    nombre: v.nombre || codigo, unidad: v.unidad || '', color: v.color || '#6b7280', valor: v.valor
+                  }))
+                : [
+                    ...(lectura.temperatura != null ? [{ nombre: 'Temperatura', unidad: '°C', color: '#f97316', valor: lectura.temperatura }] : []),
+                    ...(lectura.humedad != null ? [{ nombre: 'Humedad', unidad: '%', color: '#3b82f6', valor: lectura.humedad }] : []),
+                    ...(lectura.co2_nivel != null ? [{ nombre: 'CO2', unidad: 'ppm', color: '#16a34a', valor: lectura.co2_nivel }] : []),
+                    ...(lectura.co_nivel != null ? [{ nombre: 'CO', unidad: 'ppm', color: '#ef4444', valor: lectura.co_nivel }] : [])
+                  ];
+              return (
+                <div key={idx} className="flex flex-col lg:flex-row bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition overflow-hidden">
+                  <div className="lg:w-52 flex-shrink-0 px-4 py-2.5 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white">
+                    <p className="text-sm font-medium text-gray-900">{lectura.sensor_nombre}</p>
+                    <p className="text-[10px] text-gray-500 mt-0.5">{fmt(lectura.lectura_datetime || lectura.created_at)}</p>
+                  </div>
+                  <div className="flex-1 px-4 py-2.5 flex flex-wrap gap-3">
+                    {vars.filter(v => v.valor != null).map((v, i) => (
+                      <div key={i} className="bg-white rounded-lg px-3 py-1.5 min-w-[100px] flex-1">
+                        <p className="text-[10px] text-gray-500 uppercase font-medium">{v.nombre}</p>
+                        <span className="text-lg font-bold" style={{ color: v.color }}>
+                          {parseFloat(v.valor).toFixed(1)}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-1">{v.unidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

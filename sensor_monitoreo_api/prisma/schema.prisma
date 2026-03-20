@@ -20,6 +20,7 @@ model sitios {
   altitud               Decimal?  @db.Decimal(8, 2)
   zona                  String    @db.VarChar(50)     // Urbana, Rural, Bosque, Rio
   estado                String?   @default("activo") @db.VarChar(20)
+  visibilidad           String    @default("publico") @db.VarChar(10)  // publico, privado
   created_at            DateTime? @default(now()) @db.Timestamp(6)
 
   sensores              sensores[]
@@ -38,6 +39,7 @@ model campanas_monitoreo {
   fecha_inicio  DateTime  @db.Date
   fecha_fin     DateTime? @db.Date
   estado        String?   @default("planificada") @db.VarChar(20)  // planificada, activa, finalizada
+  visibilidad   String    @default("publico") @db.VarChar(10)  // publico, privado
   created_by    Int?
   created_at    DateTime? @default(now()) @db.Timestamp(6)
 
@@ -82,6 +84,7 @@ model sensores {
   created_at           DateTime?                @default(now()) @db.Timestamp(6)
   last_seen            DateTime?                @db.Timestamp(6)
   estado               String?                  @default("Activo") @db.VarChar(20)
+  visibilidad          String                   @default("publico") @db.VarChar(10)  // publico, privado
 
   sitio                sitios?                  @relation(fields: [id_sitio], references: [id_sitio], onDelete: SetNull, onUpdate: NoAction)
   alertas              alertas[]
@@ -90,6 +93,7 @@ model sensores {
   recorridos_guardados recorridos_guardados[]
   api_keys             api_keys[]
   campana_sensor       campana_sensor[]
+  sensor_variable      sensor_variable[]
 
   @@map("sensores")
 }
@@ -110,7 +114,8 @@ model lecturas {
   altitud          Decimal?  @db.Decimal(8, 2)
   zona             String?   @db.VarChar(20)
   created_at       DateTime? @default(now()) @db.Timestamp(6)
-  sensor           sensores? @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+  sensor           sensores?         @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+  valores          lectura_valores[]
 
   @@index([lectura_datetime(sort: Desc)], map: "idx_lecturas_lectura_datetime")
   @@index([id_sensor, lectura_datetime(sort: Desc)], map: "idx_lecturas_sensor_lectura_datetime")
@@ -262,4 +267,87 @@ model api_keys {
   @@index([created_by], map: "idx_api_keys_created_by")
   @@index([id_sensor], map: "idx_api_keys_id_sensor")
   @@map("api_keys")
+}
+
+// ============================================================================
+// API_LOGS - Registro de peticiones a endpoints de datos
+// ============================================================================
+model api_logs {
+  id_log         Int       @id @default(autoincrement())
+  timestamp      DateTime  @default(now()) @db.Timestamp(6)
+  method         String    @db.VarChar(10)     // POST, GET, etc.
+  endpoint       String    @db.VarChar(100)    // /api/datos, /api/lecturas
+  status_code    Int                            // 200, 401, 400, etc.
+  ip_address     String?   @db.VarChar(50)
+  id_sensor      String?   @db.VarChar(50)     // Sensor identificado por API Key
+  api_key_name   String?   @db.VarChar(100)    // Nombre de la API Key usada
+  request_body   String?                        // Resumen del body enviado
+  response_body  String?                        // Resumen de la respuesta
+  duration_ms    Int?                            // Duración en milisegundos
+  error_message  String?                        // Mensaje de error si falló
+  user_agent     String?   @db.VarChar(255)
+
+  @@index([timestamp(sort: Desc)], map: "idx_api_logs_timestamp")
+  @@index([endpoint], map: "idx_api_logs_endpoint")
+  @@index([status_code], map: "idx_api_logs_status")
+  @@index([id_sensor], map: "idx_api_logs_sensor")
+  @@map("api_logs")
+}
+
+// ============================================================================
+// VARIABLES - Variables ambientales que se pueden monitorear
+// ============================================================================
+model variables {
+  id_variable   Int       @id @default(autoincrement())
+  codigo        String    @unique @db.VarChar(30)      // slug: temperatura, humedad, co2, co, pm25, ruido...
+  nombre        String    @db.VarChar(100)              // Nombre legible: "Temperatura", "Humedad Relativa"
+  unidad        String    @db.VarChar(20)               // °C, %, ppm, dB, µg/m³
+  descripcion   String?
+  rango_min     Decimal?  @db.Decimal(10, 2)            // Rango esperado mínimo
+  rango_max     Decimal?  @db.Decimal(10, 2)            // Rango esperado máximo
+  color         String?   @db.VarChar(7)                // Color hex para gráficos: #f97316
+  icono         String?   @db.VarChar(30)               // Nombre de icono: fire, cloud, etc.
+  estado        String    @default("activo") @db.VarChar(20)
+  created_at    DateTime? @default(now()) @db.Timestamp(6)
+
+  sensor_variable  sensor_variable[]
+  lectura_valores  lectura_valores[]
+
+  @@map("variables")
+}
+
+// ============================================================================
+// SENSOR_VARIABLE - Qué variables mide cada sensor y en qué orden del CSV
+// ============================================================================
+model sensor_variable {
+  id            Int      @id @default(autoincrement())
+  id_sensor     String   @db.VarChar(50)
+  id_variable   Int
+  orden_csv     Int                                     // Posición en el CSV (1=primera columna después de Fecha;Hora, 2=segunda, etc.)
+  estado        String   @default("activo") @db.VarChar(20)
+
+  sensor   sensores  @relation(fields: [id_sensor], references: [id_sensor], onDelete: Cascade, onUpdate: NoAction)
+  variable variables @relation(fields: [id_variable], references: [id_variable], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_sensor, id_variable])
+  @@unique([id_sensor, orden_csv])
+  @@map("sensor_variable")
+}
+
+// ============================================================================
+// LECTURA_VALORES - Valores dinámicos por lectura y variable
+// ============================================================================
+model lectura_valores {
+  id            Int      @id @default(autoincrement())
+  id_lectura    Int
+  id_variable   Int
+  valor         Decimal  @db.Decimal(15, 4)
+
+  lectura  lecturas  @relation(fields: [id_lectura], references: [id_lectura], onDelete: Cascade, onUpdate: NoAction)
+  variable variables @relation(fields: [id_variable], references: [id_variable], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([id_lectura, id_variable])
+  @@index([id_lectura], map: "idx_lectura_valores_lectura")
+  @@index([id_variable], map: "idx_lectura_valores_variable")
+  @@map("lectura_valores")
 }

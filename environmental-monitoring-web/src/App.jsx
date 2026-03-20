@@ -19,6 +19,8 @@ import Campanas from './pages/Campanas';
 import SensorFicha from './pages/SensorFicha';
 import SitioFicha from './pages/SitioFicha';
 import CampanaFicha from './pages/CampanaFicha';
+import ApiLogs from './pages/ApiLogs';
+import Variables from './pages/Variables';
 
 function AppContent() {
   return (
@@ -36,11 +38,13 @@ function AppContent() {
       <Route path="/sites/:id" element={<Layout><SitioFicha /></Layout>} />
       <Route path="/campaigns" element={<Layout><Campanas /></Layout>} />
       <Route path="/campaigns/:id" element={<Layout><CampanaFicha /></Layout>} />
+      <Route path="/variables" element={<Layout><Variables /></Layout>} />
 
       {/* Protected routes - Admin only */}
       <Route path="/settings" element={<ProtectedRoute requiredRole="admin"><Layout><Configuracion /></Layout></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute requiredRole="admin"><Layout><Perfil /></Layout></ProtectedRoute>} />
       <Route path="/api-keys" element={<ProtectedRoute requiredRole="admin"><Layout><GestionApiKeys /></Layout></ProtectedRoute>} />
+      <Route path="/api-logs" element={<ProtectedRoute requiredRole="admin"><Layout><ApiLogs /></Layout></ProtectedRoute>} />
 
       {/* Redirects for old Spanish URLs */}
       <Route path="/sensores" element={<Navigate to="/sensors" replace />} />

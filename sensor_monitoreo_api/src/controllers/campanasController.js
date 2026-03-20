@@ -1,10 +1,12 @@
 // src/controllers/campanasController.js - Controlador para gestión de campañas de monitoreo
 const { prisma } = require('../config/database');
+const { filtroVisibilidad } = require('../middleware/visibilidad');
 
 const campanasController = {
   obtenerTodas: async (req, res) => {
     try {
       const campanas = await prisma.campanas_monitoreo.findMany({
+        where: filtroVisibilidad(req),
         include: {
           campana_sensor: {
             include: { sensor: { select: { id_sensor: true, nombre_sensor: true, estado: true } } }
@@ -53,7 +55,7 @@ const campanasController = {
 
   crear: async (req, res) => {
     try {
-      const { nombre, descripcion, zona, fecha_inicio, fecha_fin, sensores_ids } = req.body;
+      const { nombre, descripcion, zona, fecha_inicio, fecha_fin, sensores_ids, visibilidad } = req.body;
       if (!nombre || !zona || !fecha_inicio) {
         return res.status(400).json({ success: false, message: 'Campos requeridos: nombre, zona, fecha_inicio' });
       }
@@ -65,6 +67,7 @@ const campanasController = {
           fecha_inicio: new Date(fecha_inicio),
           fecha_fin: fecha_fin ? new Date(fecha_fin) : null,
           estado: 'planificada',
+          visibilidad: visibilidad || 'publico',
           created_by: req.usuario.id_usuario,
           ...(sensores_ids && sensores_ids.length > 0 && {
             campana_sensor: {
@@ -92,7 +95,7 @@ const campanasController = {
   actualizar: async (req, res) => {
     try {
       const { id } = req.params;
-      const { nombre, descripcion, zona, fecha_inicio, fecha_fin, estado, sensores_ids } = req.body;
+      const { nombre, descripcion, zona, fecha_inicio, fecha_fin, estado, sensores_ids, visibilidad } = req.body;
       const idCampana = parseInt(id);
 
       // Actualizar campos básicos
@@ -104,7 +107,8 @@ const campanasController = {
           ...(zona && { zona }),
           ...(fecha_inicio && { fecha_inicio: new Date(fecha_inicio) }),
           ...(fecha_fin !== undefined && { fecha_fin: fecha_fin ? new Date(fecha_fin) : null }),
-          ...(estado && { estado })
+          ...(estado && { estado }),
+          ...(visibilidad && { visibilidad })
         }
       });
 

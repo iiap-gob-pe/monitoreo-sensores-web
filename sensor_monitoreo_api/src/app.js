@@ -29,6 +29,8 @@ const recorridosRoutes = require('./routes/recorridos');
 const umbralesRoutes = require('./routes/umbrales');
 const preferenciasSistemaRoutes = require('./routes/preferencias-sistema');
 const adminApiKeysRoutes = require('./routes/admin/apiKeys');
+const apiLogsRoutes = require('./routes/apiLogs');
+const variablesRoutes = require('./routes/variables');
 const datosRoutes = require('./routes/datos');
 const sitiosRoutes = require('./routes/sitios');
 const campanasRoutes = require('./routes/campanas');
@@ -67,8 +69,8 @@ app.use(cors({
   allowedHeaders: [
     'Content-Type',
     'Authorization',
-    'X-API-Key',  // Header para autenticación de sensores y apps móviles
-    // Headers personalizados de la app móvil
+    'X-API-Key',        // Autenticación de sensores y apps móviles
+    'X-Public-Key',     // Clave pública del frontend (acceso sin login)
     'X-Client-Type',
     'X-Client-Version',
     'X-Device-ID',
@@ -135,6 +137,8 @@ app.use('/api/usuarios', usuariosRoutes);
 
 // Rutas de administración (solo admins)
 app.use('/api/admin/api-keys', adminApiKeysRoutes);
+app.use('/api/admin/logs', apiLogsRoutes);
+app.use('/api/variables', variablesRoutes);
 
 // Ruta de ingesta CSV desde ESP32
 app.use('/api/datos', datosRoutes);

@@ -17,6 +17,9 @@ import {
   LineChart, Line, AreaChart, Area,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 
 export default function SensorFicha() {
   const { id } = useParams();
@@ -58,49 +61,92 @@ export default function SensorFicha() {
     }
   };
 
+  // Detect dynamic variables config
+  const variablesConfig = sensor?.variables_config && sensor.variables_config.length > 0 ? sensor.variables_config : null;
+
   // Chart data (ultimas 100 ascendente)
   const chartData = lecturas
     .slice(0, 100)
     .sort((a, b) => new Date(a.lectura_datetime) - new Date(b.lectura_datetime))
     .map((l) => {
       const dt = new Date(l.lectura_datetime);
-      return {
+      const punto = {
         fecha: `${String(dt.getDate()).padStart(2,'0')}/${String(dt.getMonth()+1).padStart(2,'0')} ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`,
-        temperatura: parseFloat(l.temperatura) || 0,
-        humedad: parseFloat(l.humedad) || 0,
-        co2_nivel: parseInt(l.co2_nivel) || 0,
-        co_nivel: parseFloat(l.co_nivel) || 0
       };
+      if (variablesConfig) {
+        variablesConfig.forEach((v) => {
+          const dyn = l.valores_dinamicos?.[v.codigo];
+          punto[v.codigo] = dyn ? parseFloat(dyn.valor) || 0 : 0;
+        });
+      } else {
+        punto.temperatura = parseFloat(l.temperatura) || 0;
+        punto.humedad = parseFloat(l.humedad) || 0;
+        punto.co2_nivel = parseInt(l.co2_nivel) || 0;
+        punto.co_nivel = parseFloat(l.co_nivel) || 0;
+      }
+      return punto;
     });
 
   // Estadisticas
   const stats = (() => {
-    if (lecturas.length === 0) return { total: 0, tempProm: '0', humProm: '0', co2Prom: '0', tempMin: '-', tempMax: '-', co2Min: '-', co2Max: '-' };
+    const base = { total: lecturas.length };
+    if (lecturas.length === 0) return base;
     const t = lecturas.length;
-    const temps = lecturas.map(l => parseFloat(l.temperatura) || 0);
-    const hums = lecturas.map(l => parseFloat(l.humedad) || 0);
-    const co2s = lecturas.map(l => parseInt(l.co2_nivel) || 0);
-    return {
-      total: t,
-      tempProm: (temps.reduce((a,b) => a+b, 0) / t).toFixed(1),
-      humProm: (hums.reduce((a,b) => a+b, 0) / t).toFixed(1),
-      co2Prom: Math.round(co2s.reduce((a,b) => a+b, 0) / t),
-      tempMin: Math.min(...temps).toFixed(1),
-      tempMax: Math.max(...temps).toFixed(1),
-      co2Min: Math.min(...co2s),
-      co2Max: Math.max(...co2s)
-    };
+    if (variablesConfig) {
+      base.dynamic = {};
+      variablesConfig.forEach((v) => {
+        const vals = lecturas.map(l => {
+          const dyn = l.valores_dinamicos?.[v.codigo];
+          return dyn ? parseFloat(dyn.valor) || 0 : 0;
+        });
+        const sum = vals.reduce((a, b) => a + b, 0);
+        base.dynamic[v.codigo] = {
+          prom: (sum / t).toFixed(1),
+          min: Math.min(...vals).toFixed(1),
+          max: Math.max(...vals).toFixed(1),
+          nombre: v.nombre,
+          unidad: v.unidad,
+          color: v.color
+        };
+      });
+    } else {
+      const temps = lecturas.map(l => parseFloat(l.temperatura) || 0);
+      const hums = lecturas.map(l => parseFloat(l.humedad) || 0);
+      const co2s = lecturas.map(l => parseInt(l.co2_nivel) || 0);
+      base.tempProm = (temps.reduce((a,b) => a+b, 0) / t).toFixed(1);
+      base.humProm = (hums.reduce((a,b) => a+b, 0) / t).toFixed(1);
+      base.co2Prom = Math.round(co2s.reduce((a,b) => a+b, 0) / t);
+      base.tempMin = Math.min(...temps).toFixed(1);
+      base.tempMax = Math.max(...temps).toFixed(1);
+      base.co2Min = Math.min(...co2s);
+      base.co2Max = Math.max(...co2s);
+    }
+    return base;
   })();
 
   const lecturasRecientes = lecturas.slice(0, 30);
 
   const descargarCSV = () => {
     if (!isAuthenticated || lecturas.length === 0) return;
-    const header = 'Fecha,Hora,Temperatura,Humedad,CO2,CO,Latitud,Longitud';
-    const rows = lecturas.map((l) => {
-      const dt = new Date(l.lectura_datetime);
-      return `${dt.toLocaleDateString('es-PE')},${dt.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})},${l.temperatura??''},${l.humedad??''},${l.co2_nivel??''},${l.co_nivel??''},${l.latitud??''},${l.longitud??''}`;
-    });
+    let header, rows;
+    if (variablesConfig) {
+      const varHeaders = variablesConfig.map(v => v.nombre);
+      header = ['Fecha', 'Hora', ...varHeaders, 'Latitud', 'Longitud'].join(',');
+      rows = lecturas.map((l) => {
+        const dt = new Date(l.lectura_datetime);
+        const varValues = variablesConfig.map(v => {
+          const dyn = l.valores_dinamicos?.[v.codigo];
+          return dyn ? dyn.valor ?? '' : '';
+        });
+        return [dt.toLocaleDateString('es-PE'), dt.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',second:'2-digit'}), ...varValues, l.latitud??'', l.longitud??''].join(',');
+      });
+    } else {
+      header = 'Fecha,Hora,Temperatura,Humedad,CO2,CO,Latitud,Longitud';
+      rows = lecturas.map((l) => {
+        const dt = new Date(l.lectura_datetime);
+        return `${dt.toLocaleDateString('es-PE')},${dt.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit',second:'2-digit'})},${l.temperatura??''},${l.humedad??''},${l.co2_nivel??''},${l.co_nivel??''},${l.latitud??''},${l.longitud??''}`;
+      });
+    }
     const blob = new Blob([[header,...rows].join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -195,6 +241,27 @@ export default function SensorFicha() {
               <span className="flex items-center gap-1"><ClockIcon className="h-3.5 w-3.5" /> Última conexión: {fmt(sensor.last_seen)}</span>
               <span>Registrado: {fmt(sensor.created_at)}</span>
             </div>
+
+            {/* Formato CSV y variables configuradas */}
+            {variablesConfig && (
+              <div className="mt-4 pt-3 border-t border-gray-100">
+                {sensor.formato_csv && (
+                  <div className="mb-2">
+                    <span className="text-xs font-semibold text-gray-600">Formato CSV: </span>
+                    <code className="text-xs bg-gray-100 px-2 py-0.5 rounded text-gray-700">{sensor.formato_csv}</code>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs font-semibold text-gray-600">Variables:</span>
+                  {variablesConfig.map((v) => (
+                    <span key={v.id_variable} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                      <span className="w-2.5 h-2.5 rounded-full inline-block" style={{ backgroundColor: v.color }}></span>
+                      {v.nombre} ({v.unidad})
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Sitio o Campanas */}
@@ -232,6 +299,52 @@ export default function SensorFicha() {
         </div>
       </div>
 
+      {/* Mini mapa de ubicación del sensor */}
+      {(() => {
+        const lat = sensor.latitud || sensor.sitio?.latitud;
+        const lon = sensor.longitud || sensor.sitio?.longitud;
+        if (!lat || !lon) return null;
+        return (
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+              <MapPinIcon className="h-5 w-5 text-blue-600" />
+              Ubicación del Sensor
+            </h2>
+            <div className="rounded-lg overflow-hidden border border-gray-200" style={{ height: '250px' }}>
+              <MapContainer
+                center={[Number(lat), Number(lon)]}
+                zoom={16}
+                style={{ height: '100%', width: '100%' }}
+                scrollWheelZoom={false}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap'
+                />
+                <Marker
+                  position={[Number(lat), Number(lon)]}
+                  icon={L.divIcon({
+                    className: '',
+                    html: `<div style="background:${esMovil ? '#7c3aed' : '#16a34a'};width:14px;height:14px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+                    iconSize: [14, 14],
+                    iconAnchor: [7, 7]
+                  })}
+                >
+                  <Popup>
+                    <div className="text-sm">
+                      <p className="font-bold">{sensor.nombre_sensor}</p>
+                      <p className="text-xs text-gray-500">{sensor.id_sensor}</p>
+                      <p className="text-xs text-gray-400 mt-1">{Number(lat).toFixed(6)}, {Number(lon).toFixed(6)}</p>
+                      {sensor.sitio && <p className="text-xs text-blue-600 mt-1">Sitio: {sensor.sitio.nombre}</p>}
+                    </div>
+                  </Popup>
+                </Marker>
+              </MapContainer>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Lectura en tiempo real */}
       {ultimaLectura && (
         <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl border border-green-200 p-6">
@@ -241,22 +354,39 @@ export default function SensorFicha() {
             <span className="text-xs text-gray-500 ml-auto">{fmt(ultimaLectura.lectura_datetime)}</span>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-              <p className="text-[10px] text-gray-500 uppercase font-medium">Temperatura</p>
-              <p className="text-xl font-bold text-orange-600">{ultimaLectura.temperatura ? `${parseFloat(ultimaLectura.temperatura).toFixed(1)}°C` : '-'}</p>
-            </div>
-            <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-              <p className="text-[10px] text-gray-500 uppercase font-medium">Humedad</p>
-              <p className="text-xl font-bold text-blue-600">{ultimaLectura.humedad ? `${parseFloat(ultimaLectura.humedad).toFixed(1)}%` : '-'}</p>
-            </div>
-            <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-              <p className="text-[10px] text-gray-500 uppercase font-medium">CO2</p>
-              <p className="text-xl font-bold text-green-700">{ultimaLectura.co2_nivel ? `${ultimaLectura.co2_nivel} ppm` : '-'}</p>
-            </div>
-            <div className="bg-white rounded-lg p-3 text-center shadow-sm">
-              <p className="text-[10px] text-gray-500 uppercase font-medium">CO</p>
-              <p className="text-xl font-bold text-red-600">{ultimaLectura.co_nivel ? `${parseFloat(ultimaLectura.co_nivel).toFixed(2)} ppm` : '-'}</p>
-            </div>
+            {variablesConfig ? (
+              <>
+                {variablesConfig.map((v) => {
+                  const dyn = ultimaLectura.valores_dinamicos?.[v.codigo];
+                  const val = dyn ? dyn.valor : null;
+                  return (
+                    <div key={v.id_variable} className="bg-white rounded-lg p-3 text-center shadow-sm">
+                      <p className="text-[10px] text-gray-500 uppercase font-medium">{v.nombre}</p>
+                      <p className="text-xl font-bold" style={{ color: v.color }}>{val != null ? `${parseFloat(val).toFixed(1)} ${v.unidad}` : '-'}</p>
+                    </div>
+                  );
+                })}
+              </>
+            ) : (
+              <>
+                <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Temperatura</p>
+                  <p className="text-xl font-bold text-orange-600">{ultimaLectura.temperatura ? `${parseFloat(ultimaLectura.temperatura).toFixed(1)}°C` : '-'}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">Humedad</p>
+                  <p className="text-xl font-bold text-blue-600">{ultimaLectura.humedad ? `${parseFloat(ultimaLectura.humedad).toFixed(1)}%` : '-'}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">CO2</p>
+                  <p className="text-xl font-bold text-green-700">{ultimaLectura.co2_nivel ? `${ultimaLectura.co2_nivel} ppm` : '-'}</p>
+                </div>
+                <div className="bg-white rounded-lg p-3 text-center shadow-sm">
+                  <p className="text-[10px] text-gray-500 uppercase font-medium">CO</p>
+                  <p className="text-xl font-bold text-red-600">{ultimaLectura.co_nivel ? `${parseFloat(ultimaLectura.co_nivel).toFixed(2)} ppm` : '-'}</p>
+                </div>
+              </>
+            )}
             {ultimaLectura.latitud && ultimaLectura.longitud && (
               <>
                 <div className="bg-white rounded-lg p-3 text-center shadow-sm">
@@ -274,70 +404,106 @@ export default function SensorFicha() {
       )}
 
       {/* Estadisticas historicas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${variablesConfig ? `lg:grid-cols-${Math.min(variablesConfig.length + 1, 6)}` : 'lg:grid-cols-4'} gap-4`}>
         <div className="bg-white rounded-xl shadow-sm border p-5">
           <p className="text-xs text-gray-500 font-medium">Total lecturas</p>
           <p className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</p>
         </div>
-        <div className="bg-white rounded-xl shadow-sm border p-5">
-          <p className="text-xs text-gray-500 font-medium">Temperatura</p>
-          <p className="text-2xl font-bold text-orange-600 mt-1">{stats.tempProm}°C</p>
-          <p className="text-[10px] text-gray-400">Min {stats.tempMin}° / Max {stats.tempMax}°</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-5">
-          <p className="text-xs text-gray-500 font-medium">Humedad promedio</p>
-          <p className="text-2xl font-bold text-blue-600 mt-1">{stats.humProm}%</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm border p-5">
-          <p className="text-xs text-gray-500 font-medium">CO2</p>
-          <p className="text-2xl font-bold text-green-700 mt-1">{stats.co2Prom} ppm</p>
-          <p className="text-[10px] text-gray-400">Min {stats.co2Min} / Max {stats.co2Max}</p>
-        </div>
+        {variablesConfig && stats.dynamic ? (
+          variablesConfig.map((v) => {
+            const s = stats.dynamic[v.codigo];
+            if (!s) return null;
+            return (
+              <div key={v.id_variable} className="bg-white rounded-xl shadow-sm border p-5">
+                <p className="text-xs text-gray-500 font-medium">{s.nombre} promedio</p>
+                <p className="text-2xl font-bold mt-1" style={{ color: s.color }}>{s.prom} {s.unidad}</p>
+                <p className="text-[10px] text-gray-400">Min {s.min} / Max {s.max}</p>
+              </div>
+            );
+          })
+        ) : (
+          <>
+            <div className="bg-white rounded-xl shadow-sm border p-5">
+              <p className="text-xs text-gray-500 font-medium">Temperatura</p>
+              <p className="text-2xl font-bold text-orange-600 mt-1">{stats.tempProm ?? '0'}°C</p>
+              <p className="text-[10px] text-gray-400">Min {stats.tempMin ?? '-'}° / Max {stats.tempMax ?? '-'}°</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-5">
+              <p className="text-xs text-gray-500 font-medium">Humedad promedio</p>
+              <p className="text-2xl font-bold text-blue-600 mt-1">{stats.humProm ?? '0'}%</p>
+            </div>
+            <div className="bg-white rounded-xl shadow-sm border p-5">
+              <p className="text-xs text-gray-500 font-medium">CO2</p>
+              <p className="text-2xl font-bold text-green-700 mt-1">{stats.co2Prom ?? '0'} ppm</p>
+              <p className="text-[10px] text-gray-400">Min {stats.co2Min ?? '-'} / Max {stats.co2Max ?? '-'}</p>
+            </div>
+          </>
+        )}
       </div>
 
-      {/* Grafico Temperatura y Humedad */}
-      {chartData.length > 0 && (
+      {/* Graficos */}
+      {chartData.length > 0 && variablesConfig ? (
         <div className="bg-white rounded-xl shadow-sm border p-6">
           <div className="flex items-center gap-2 mb-4">
             <ChartBarIcon className="h-5 w-5 text-green-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Tendencia de Temperatura y Humedad</h2>
+            <h2 className="text-lg font-semibold text-gray-900">Tendencia de Variables</h2>
           </div>
-          <ResponsiveContainer width="100%" height={320}>
+          <ResponsiveContainer width="100%" height={360}>
             <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="fecha" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
-              <YAxis yAxisId="temp" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="hum" orientation="right" tick={{ fontSize: 11 }} />
+              <YAxis tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
               <Legend />
-              <Line yAxisId="temp" type="monotone" dataKey="temperatura" stroke="#f97316" strokeWidth={2} dot={false} name="Temperatura (°C)" />
-              <Line yAxisId="hum" type="monotone" dataKey="humedad" stroke="#3b82f6" strokeWidth={2} dot={false} name="Humedad (%)" />
+              {variablesConfig.map((v) => (
+                <Line key={v.id_variable} type="monotone" dataKey={v.codigo} stroke={v.color} strokeWidth={2} dot={false} name={`${v.nombre} (${v.unidad})`} />
+              ))}
             </LineChart>
           </ResponsiveContainer>
         </div>
-      )}
-
-      {/* Grafico CO2 y CO */}
-      {chartData.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm border p-6">
-          <div className="flex items-center gap-2 mb-4">
-            <ChartBarIcon className="h-5 w-5 text-green-600" />
-            <h2 className="text-lg font-semibold text-gray-900">Tendencia CO2 y CO</h2>
+      ) : chartData.length > 0 ? (
+        <>
+          {/* Grafico Temperatura y Humedad (legacy) */}
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ChartBarIcon className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Tendencia de Temperatura y Humedad</h2>
+            </div>
+            <ResponsiveContainer width="100%" height={320}>
+              <LineChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="fecha" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
+                <YAxis yAxisId="temp" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="hum" orientation="right" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                <Legend />
+                <Line yAxisId="temp" type="monotone" dataKey="temperatura" stroke="#f97316" strokeWidth={2} dot={false} name="Temperatura (°C)" />
+                <Line yAxisId="hum" type="monotone" dataKey="humedad" stroke="#3b82f6" strokeWidth={2} dot={false} name="Humedad (%)" />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
-          <ResponsiveContainer width="100%" height={320}>
-            <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="fecha" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
-              <YAxis yAxisId="co2" tick={{ fontSize: 11 }} />
-              <YAxis yAxisId="co" orientation="right" tick={{ fontSize: 11 }} />
-              <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-              <Legend />
-              <Area yAxisId="co2" type="monotone" dataKey="co2_nivel" stroke="#16a34a" fill="#bbf7d0" strokeWidth={2} name="CO2 (ppm)" />
-              <Area yAxisId="co" type="monotone" dataKey="co_nivel" stroke="#ef4444" fill="#fecaca" strokeWidth={2} name="CO (ppm)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+
+          {/* Grafico CO2 y CO (legacy) */}
+          <div className="bg-white rounded-xl shadow-sm border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ChartBarIcon className="h-5 w-5 text-green-600" />
+              <h2 className="text-lg font-semibold text-gray-900">Tendencia CO2 y CO</h2>
+            </div>
+            <ResponsiveContainer width="100%" height={320}>
+              <AreaChart data={chartData} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="fecha" tick={{ fontSize: 10 }} angle={-30} textAnchor="end" height={60} />
+                <YAxis yAxisId="co2" tick={{ fontSize: 11 }} />
+                <YAxis yAxisId="co" orientation="right" tick={{ fontSize: 11 }} />
+                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
+                <Legend />
+                <Area yAxisId="co2" type="monotone" dataKey="co2_nivel" stroke="#16a34a" fill="#bbf7d0" strokeWidth={2} name="CO2 (ppm)" />
+                <Area yAxisId="co" type="monotone" dataKey="co_nivel" stroke="#ef4444" fill="#fecaca" strokeWidth={2} name="CO (ppm)" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      ) : null}
 
       {/* Tabla de lecturas + CSV */}
       <div className="bg-white rounded-xl shadow-sm border p-6">
@@ -362,31 +528,49 @@ export default function SensorFicha() {
         {lecturasRecientes.length === 0 ? (
           <p className="text-gray-500 text-sm text-center py-8">No hay lecturas disponibles.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left py-3 px-3 font-semibold text-gray-600">Fecha/Hora</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Temp.</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Humedad</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">CO2</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">CO</th>
-                  <th className="text-right py-3 px-3 font-semibold text-gray-600">Coordenadas</th>
-                </tr>
-              </thead>
-              <tbody>
-                {lecturasRecientes.map((l, idx) => (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-2.5 px-3 text-gray-700">{fmt(l.lectura_datetime)}</td>
-                    <td className="py-2.5 px-3 text-right text-orange-600 font-medium">{l.temperatura != null ? `${parseFloat(l.temperatura).toFixed(1)}°C` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-blue-600 font-medium">{l.humedad != null ? `${parseFloat(l.humedad).toFixed(1)}%` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-green-700 font-medium">{l.co2_nivel != null ? `${l.co2_nivel} ppm` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-red-600 font-medium">{l.co_nivel != null ? `${parseFloat(l.co_nivel).toFixed(2)} ppm` : '-'}</td>
-                    <td className="py-2.5 px-3 text-right text-gray-500 text-xs">{l.latitud && l.longitud ? `${parseFloat(l.latitud).toFixed(5)}, ${parseFloat(l.longitud).toFixed(5)}` : '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {lecturasRecientes.map((l, idx) => {
+              // Usar valores_dinamicos del registro (lo que realmente se registró)
+              const dyn = l.valores_dinamicos || {};
+              const vars = Object.keys(dyn).length > 0
+                ? Object.entries(dyn).map(([codigo, v]) => ({
+                    codigo,
+                    nombre: v.nombre || codigo,
+                    unidad: v.unidad || '',
+                    color: v.color || '#6b7280',
+                    valor: v.valor
+                  }))
+                : [
+                    ...(l.temperatura != null ? [{ codigo: 'temperatura', nombre: 'Temperatura', unidad: '°C', color: '#f97316', valor: l.temperatura }] : []),
+                    ...(l.humedad != null ? [{ codigo: 'humedad', nombre: 'Humedad', unidad: '%', color: '#3b82f6', valor: l.humedad }] : []),
+                    ...(l.co2_nivel != null ? [{ codigo: 'co2', nombre: 'CO2', unidad: 'ppm', color: '#16a34a', valor: l.co2_nivel }] : []),
+                    ...(l.co_nivel != null ? [{ codigo: 'co', nombre: 'CO', unidad: 'ppm', color: '#ef4444', valor: l.co_nivel }] : [])
+                  ];
+
+              if (vars.length === 0) return null;
+
+              return (
+                <div key={idx} className="flex flex-col lg:flex-row bg-gray-50 rounded-lg border border-gray-100 hover:bg-gray-100 transition overflow-hidden">
+                  <div className="lg:w-48 flex-shrink-0 px-4 py-2.5 border-b lg:border-b-0 lg:border-r border-gray-200 bg-white">
+                    <p className="text-xs font-medium text-gray-700">{fmt(l.lectura_datetime)}</p>
+                    {l.latitud && l.longitud && (
+                      <p className="text-[10px] text-gray-400 mt-1">{parseFloat(l.latitud).toFixed(5)}, {parseFloat(l.longitud).toFixed(5)}</p>
+                    )}
+                  </div>
+                  <div className="flex-1 px-4 py-2.5 flex flex-wrap gap-3">
+                    {vars.map(v => (
+                      <div key={v.codigo} className="bg-white rounded-lg px-3 py-1.5 min-w-[100px] flex-1">
+                        <p className="text-[10px] text-gray-500 uppercase font-medium">{v.nombre}</p>
+                        <span className="text-lg font-bold" style={{ color: v.color }}>
+                          {v.valor != null ? parseFloat(v.valor).toFixed(1) : '-'}
+                        </span>
+                        <span className="text-xs text-gray-400 ml-1">{v.unidad}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

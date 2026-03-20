@@ -31,10 +31,14 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expirado o inválido
-      localStorage.removeItem(STORAGE_KEYS.TOKEN);
-      localStorage.removeItem(STORAGE_KEYS.USER);
-      window.location.href = '/login';
+      // Solo redirigir a login si el usuario tenía sesión activa (token expirado)
+      const token = localStorage.getItem(STORAGE_KEYS.TOKEN);
+      if (token) {
+        localStorage.removeItem(STORAGE_KEYS.TOKEN);
+        localStorage.removeItem(STORAGE_KEYS.USER);
+        window.location.href = '/login';
+      }
+      // Si no tenía token, no redirigir (es acceso público con X-Public-Key)
     }
     return Promise.reject(error);
   }
@@ -118,6 +122,23 @@ export const campanasAPI = {
   delete: (id) => api.delete(`/campanas/${id}`),
   agregarSensor: (id, id_sensor) => api.post(`/campanas/${id}/sensores`, { id_sensor }),
   quitarSensor: (id, id_sensor) => api.delete(`/campanas/${id}/sensores/${id_sensor}`)
+};
+
+// API de Variables
+export const variablesAPI = {
+  getAll: () => api.get('/variables'),
+  getById: (id) => api.get(`/variables/${id}`),
+  create: (data) => api.post('/variables', data),
+  update: (id, data) => api.patch(`/variables/${id}`, data),
+  delete: (id) => api.delete(`/variables/${id}`),
+  getSensorVariables: (id_sensor) => api.get(`/variables/sensor/${id_sensor}`),
+  setSensorVariables: (id_sensor, variables) => api.put(`/variables/sensor/${id_sensor}`, { variables })
+};
+
+// API de Logs (solo admins)
+export const apiLogsAPI = {
+  getLogs: (params) => api.get('/admin/logs', { params }),
+  getEndpoints: () => api.get('/admin/logs/endpoints')
 };
 
 export default api;

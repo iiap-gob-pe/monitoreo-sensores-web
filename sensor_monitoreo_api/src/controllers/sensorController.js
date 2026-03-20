@@ -1,6 +1,7 @@
 // src/controllers/sensorController.js - Controlador para gestión de sensores
 const { prisma } = require('../config/database');
 const crypto = require('crypto');
+const { filtroVisibilidad } = require('../middleware/visibilidad');
 
 function generarApiKey() {
   return crypto.randomBytes(32).toString('hex');
@@ -15,6 +16,11 @@ const sensorInclude = {
   sitio: { select: { id_sitio: true, nombre: true, zona: true, referencia_ubicacion: true, latitud: true, longitud: true } },
   campana_sensor: {
     include: { campana: { select: { id_campana: true, nombre: true, zona: true, estado: true, fecha_inicio: true, fecha_fin: true } } }
+  },
+  sensor_variable: {
+    where: { estado: 'activo' },
+    include: { variable: true },
+    orderBy: { orden_csv: 'asc' }
   }
 };
 
@@ -22,14 +28,26 @@ const sensorController = {
   obtenerTodos: async (req, res) => {
     try {
       const sensores = await prisma.sensores.findMany({
+        where: filtroVisibilidad(req),
         include: sensorInclude,
         orderBy: { created_at: 'desc' }
       });
-      // Aplanar campañas
       const data = sensores.map(s => ({
         ...s,
         campanas: s.campana_sensor.map(cs => cs.campana),
-        campana_sensor: undefined
+        variables_config: s.sensor_variable.map(sv => ({
+          id_variable: sv.variable.id_variable,
+          codigo: sv.variable.codigo,
+          nombre: sv.variable.nombre,
+          unidad: sv.variable.unidad,
+          color: sv.variable.color,
+          orden_csv: sv.orden_csv
+        })),
+        formato_csv: s.sensor_variable.length > 0
+          ? `Fecha;Hora;${s.sensor_variable.map(sv => sv.variable.codigo).join(';')}`
+          : 'Fecha;Hora;Temperatura;Humedad;CO2 (legacy)',
+        campana_sensor: undefined,
+        sensor_variable: undefined
       }));
       res.status(200).json({ success: true, data });
     } catch (error) {
@@ -49,7 +67,19 @@ const sensorController = {
       const data = {
         ...sensor,
         campanas: sensor.campana_sensor.map(cs => cs.campana),
-        campana_sensor: undefined
+        variables_config: sensor.sensor_variable.map(sv => ({
+          id_variable: sv.variable.id_variable,
+          codigo: sv.variable.codigo,
+          nombre: sv.variable.nombre,
+          unidad: sv.variable.unidad,
+          color: sv.variable.color,
+          orden_csv: sv.orden_csv
+        })),
+        formato_csv: sensor.sensor_variable.length > 0
+          ? `Fecha;Hora;${sensor.sensor_variable.map(sv => sv.variable.codigo).join(';')}`
+          : 'Fecha;Hora;Temperatura;Humedad;CO2 (legacy)',
+        campana_sensor: undefined,
+        sensor_variable: undefined
       };
       res.status(200).json({ success: true, data });
     } catch (error) {
@@ -61,7 +91,7 @@ const sensorController = {
   // Crear sensor (auto-genera API Key)
   crear: async (req, res) => {
     try {
-      const { id_sensor, nombre_sensor, is_movil, description, id_sitio, zona, latitud, longitud, altitud } = req.body;
+      const { id_sensor, nombre_sensor, is_movil, description, id_sitio, zona, latitud, longitud, altitud, visibilidad } = req.body;
 
       if (!id_sensor || !nombre_sensor) {
         return res.status(400).json({ success: false, message: 'Campos requeridos: id_sensor, nombre_sensor' });
@@ -108,7 +138,8 @@ const sensorController = {
             latitud: latSensor,
             longitud: lonSensor,
             altitud: altSensor,
-            estado: 'Inactivo'
+            estado: 'Inactivo',
+            visibilidad: visibilidad || 'publico'
           }
         });
 
@@ -184,7 +215,7 @@ const sensorController = {
   actualizar: async (req, res) => {
     try {
       const { id } = req.params;
-      const { nombre_sensor, is_movil, description, estado, id_sitio, zona, latitud, longitud, altitud } = req.body;
+      const { nombre_sensor, is_movil, description, estado, id_sitio, zona, latitud, longitud, altitud, visibilidad } = req.body;
 
       const sensorExistente = await prisma.sensores.findUnique({ where: { id_sensor: id } });
       if (!sensorExistente) return res.status(404).json({ success: false, message: `Sensor ${id} no encontrado` });
@@ -200,7 +231,8 @@ const sensorController = {
           ...(zona !== undefined && { zona }),
           ...(latitud !== undefined && { latitud: latitud ? parseFloat(latitud) : null }),
           ...(longitud !== undefined && { longitud: longitud ? parseFloat(longitud) : null }),
-          ...(altitud !== undefined && { altitud: altitud ? parseFloat(altitud) : null })
+          ...(altitud !== undefined && { altitud: altitud ? parseFloat(altitud) : null }),
+          ...(visibilidad && { visibilidad })
         },
         include: sensorInclude
       });

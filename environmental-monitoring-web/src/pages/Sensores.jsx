@@ -1,10 +1,11 @@
 // src/pages/Sensores.jsx
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sensoresAPI, sitiosAPI } from '../services/api';
+import { sensoresAPI, sitiosAPI, variablesAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmModal';
+import Pagination from '../components/common/Pagination';
 import {
   MagnifyingGlassIcon,
   PlusIcon,
@@ -38,6 +39,8 @@ export default function Sensores() {
   const [sensoresRecientes, setSensoresRecientes] = useState([]);
   const [sensorSeleccionado, setSensorSeleccionado] = useState(null);
   const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 12;
 
   useEffect(() => {
     cargarSensores();
@@ -100,6 +103,15 @@ const calcularTiempoDesde = (fecha) => {
 
     return cumpleBusqueda && cumpleTipo && cumpleZona && cumpleEstado;
   });
+
+  // Reset pagina cuando cambian filtros
+  useEffect(() => {
+    setPagina(1);
+  }, [busqueda, filtroTipo, filtroZona, filtroEstado]);
+
+  // Paginación
+  const totalPaginas = Math.ceil(sensoresFiltrados.length / porPagina);
+  const sensoresPaginados = sensoresFiltrados.slice((pagina - 1) * porPagina, pagina * porPagina);
 
   // Calcular estadísticas
   const stats = {
@@ -434,8 +446,8 @@ const calcularTiempoDesde = (fecha) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {sensoresFiltrados.length > 0 ? (
-                sensoresFiltrados.map((sensor) => (
+              {sensoresPaginados.length > 0 ? (
+                sensoresPaginados.map((sensor) => (
                   <tr key={sensor.id_sensor} className="hover:bg-gray-50 transition-colors">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
@@ -475,6 +487,11 @@ const calcularTiempoDesde = (fecha) => {
                           : 'bg-red-100 text-red-800'
                       }`}>
                         {sensor.estado}
+                      </span>
+                      <span className={`ml-1 px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                        sensor.visibilidad === 'privado' ? 'bg-gray-800 text-white' : 'bg-green-100 text-green-700'
+                      }`}>
+                        {sensor.visibilidad === 'privado' ? 'Privado' : 'Público'}
                       </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
@@ -562,6 +579,15 @@ const calcularTiempoDesde = (fecha) => {
             </tbody>
           </table>
         </div>
+        {totalPaginas > 1 && (
+          <Pagination
+            paginaActual={pagina}
+            totalPaginas={totalPaginas}
+            onChange={setPagina}
+            totalItems={sensoresFiltrados.length}
+            porPagina={porPagina}
+          />
+        )}
       </div>
 
       {/* Modales */}
@@ -600,9 +626,12 @@ function ModalCrearSensor({ onClose, onSuccess }) {
     latitud: '',
     longitud: '',
     altitud: '',
-    description: ''
+    description: '',
+    visibilidad: 'publico'
   });
   const [sitios, setSitios] = useState([]);
+  const [variablesDisponibles, setVariablesDisponibles] = useState([]);
+  const [variablesSeleccionadas, setVariablesSeleccionadas] = useState([]);
   const [cargandoSitios, setCargandoSitios] = useState(false);
   const [guardando, setGuardando] = useState(false);
   const [apiKeyResult, setApiKeyResult] = useState(null);
@@ -610,7 +639,41 @@ function ModalCrearSensor({ onClose, onSuccess }) {
 
   useEffect(() => {
     cargarSitios();
+    cargarVariables();
   }, []);
+
+  const cargarVariables = async () => {
+    try {
+      const res = await variablesAPI.getAll();
+      const vars = (res.data.data || []).filter(v => v.estado === 'activo');
+      setVariablesDisponibles(vars);
+      // Pre-seleccionar las 4 default con orden
+      const defaults = ['temperatura', 'humedad', 'co2', 'co'];
+      const presel = vars.filter(v => defaults.includes(v.codigo)).map((v, idx) => ({ id_variable: v.id_variable, orden_csv: idx + 1, nombre: v.nombre, codigo: v.codigo, unidad: v.unidad }));
+      setVariablesSeleccionadas(presel);
+    } catch (err) {
+      console.error('Error cargando variables:', err);
+    }
+  };
+
+  const agregarVariable = (id_variable) => {
+    const v = variablesDisponibles.find(x => x.id_variable === parseInt(id_variable));
+    if (!v || variablesSeleccionadas.find(x => x.id_variable === v.id_variable)) return;
+    setVariablesSeleccionadas([...variablesSeleccionadas, { id_variable: v.id_variable, orden_csv: variablesSeleccionadas.length + 1, nombre: v.nombre, codigo: v.codigo, unidad: v.unidad }]);
+  };
+
+  const quitarVariable = (id_variable) => {
+    const nuevas = variablesSeleccionadas.filter(v => v.id_variable !== id_variable).map((v, idx) => ({ ...v, orden_csv: idx + 1 }));
+    setVariablesSeleccionadas(nuevas);
+  };
+
+  const moverVariable = (idx, dir) => {
+    const arr = [...variablesSeleccionadas];
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    setVariablesSeleccionadas(arr.map((v, i) => ({ ...v, orden_csv: i + 1 })));
+  };
 
   const cargarSitios = async () => {
     try {
@@ -633,7 +696,8 @@ function ModalCrearSensor({ onClose, onSuccess }) {
         id_sensor: formData.id_sensor,
         nombre_sensor: formData.nombre_sensor,
         is_movil: formData.is_movil,
-        description: formData.description || undefined
+        description: formData.description || undefined,
+        visibilidad: formData.visibilidad
       };
 
       // Estacionario: incluir sitio y ubicación
@@ -646,6 +710,14 @@ function ModalCrearSensor({ onClose, onSuccess }) {
 
       const response = await sensoresAPI.create(payload);
       const data = response.data;
+
+      // Guardar configuración de variables del sensor
+      if (variablesSeleccionadas.length > 0) {
+        await variablesAPI.setSensorVariables(formData.id_sensor, variablesSeleccionadas.map(v => ({
+          id_variable: v.id_variable,
+          orden_csv: v.orden_csv
+        }))).catch(err => console.error('Error configurando variables:', err));
+      }
 
       // Extraer la API key de la respuesta
       const apiKeyPlain = data.api_key?.api_key_plain || data.data?.api_key?.api_key_plain || null;
@@ -915,10 +987,66 @@ function ModalCrearSensor({ onClose, onSuccess }) {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={3}
+                rows={2}
                 placeholder="Descripción opcional del sensor..."
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
+            </div>
+
+            {/* Configuración de variables que mide el sensor */}
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Variables que mide el sensor
+                <span className="text-xs text-gray-400 ml-1">(el orden define las columnas del CSV)</span>
+              </label>
+
+              {/* Variables seleccionadas con orden */}
+              {variablesSeleccionadas.length > 0 && (
+                <div className="space-y-1.5 mb-3">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium">Formato CSV: Fecha;Hora;{variablesSeleccionadas.map(v => v.codigo).join(';')}</p>
+                  {variablesSeleccionadas.map((v, idx) => (
+                    <div key={v.id_variable} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border">
+                      <span className="text-xs font-bold text-gray-400 w-5">{v.orden_csv}</span>
+                      <span className="text-sm font-medium text-gray-800 flex-1">{v.nombre} <span className="text-gray-400">({v.unidad})</span></span>
+                      <button type="button" onClick={() => moverVariable(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">▲</button>
+                      <button type="button" onClick={() => moverVariable(idx, 1)} disabled={idx === variablesSeleccionadas.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">▼</button>
+                      <button type="button" onClick={() => quitarVariable(v.id_variable)} className="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Agregar variable */}
+              <select
+                onChange={(e) => { agregarVariable(e.target.value); e.target.value = ''; }}
+                className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-primary"
+                defaultValue=""
+              >
+                <option value="" disabled>+ Agregar variable...</option>
+                {variablesDisponibles.filter(v => !variablesSeleccionadas.find(s => s.id_variable === v.id_variable)).map(v => (
+                  <option key={v.id_variable} value={v.id_variable}>{v.nombre} ({v.unidad})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Visibilidad</label>
+                <p className="text-xs text-gray-500">
+                  {formData.visibilidad === 'publico' ? 'Visible para todos los visitantes' : 'Solo visible para usuarios autenticados'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, visibilidad: formData.visibilidad === 'publico' ? 'privado' : 'publico'})}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                  formData.visibilidad === 'publico' ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                  formData.visibilidad === 'publico' ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
 
             <div className="flex space-x-3 pt-4">
@@ -965,17 +1093,58 @@ function ModalEditarSensor({ sensor, onClose, onSuccess }) {
     latitud: sensor.latitud || '',
     longitud: sensor.longitud || '',
     altitud: sensor.altitud || '',
-    description: sensor.description || ''
+    description: sensor.description || '',
+    visibilidad: sensor.visibilidad || 'publico'
   });
   const [sitios, setSitios] = useState([]);
+  const [variablesDisponibles, setVariablesDisponibles] = useState([]);
+  const [variablesSeleccionadas, setVariablesSeleccionadas] = useState([]);
   const [cargandoSitios, setCargandoSitios] = useState(false);
   const [guardando, setGuardando] = useState(false);
 
   useEffect(() => {
-    if (!formData.is_movil) {
-      cargarSitios();
+    if (!formData.is_movil) cargarSitios();
+    cargarVariablesConfig();
+  }, []);
+
+  const cargarVariablesConfig = async () => {
+    try {
+      const [varsRes, configRes] = await Promise.all([
+        variablesAPI.getAll(),
+        variablesAPI.getSensorVariables(sensor.id_sensor)
+      ]);
+      const vars = (varsRes.data.data || []).filter(v => v.estado === 'activo');
+      setVariablesDisponibles(vars);
+      const config = (configRes.data.data || []).map(sv => ({
+        id_variable: sv.variable.id_variable,
+        orden_csv: sv.orden_csv,
+        nombre: sv.variable.nombre,
+        codigo: sv.variable.codigo,
+        unidad: sv.variable.unidad
+      }));
+      setVariablesSeleccionadas(config);
+    } catch (err) {
+      console.error('Error cargando variables:', err);
     }
-  }, [formData.is_movil]);
+  };
+
+  const agregarVariableEdit = (id_variable) => {
+    const v = variablesDisponibles.find(x => x.id_variable === parseInt(id_variable));
+    if (!v || variablesSeleccionadas.find(x => x.id_variable === v.id_variable)) return;
+    setVariablesSeleccionadas([...variablesSeleccionadas, { id_variable: v.id_variable, orden_csv: variablesSeleccionadas.length + 1, nombre: v.nombre, codigo: v.codigo, unidad: v.unidad }]);
+  };
+
+  const quitarVariableEdit = (id_variable) => {
+    setVariablesSeleccionadas(variablesSeleccionadas.filter(v => v.id_variable !== id_variable).map((v, i) => ({ ...v, orden_csv: i + 1 })));
+  };
+
+  const moverVariableEdit = (idx, dir) => {
+    const arr = [...variablesSeleccionadas];
+    const newIdx = idx + dir;
+    if (newIdx < 0 || newIdx >= arr.length) return;
+    [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+    setVariablesSeleccionadas(arr.map((v, i) => ({ ...v, orden_csv: i + 1 })));
+  };
 
   const cargarSitios = async () => {
     try {
@@ -998,7 +1167,8 @@ function ModalEditarSensor({ sensor, onClose, onSuccess }) {
         nombre_sensor: formData.nombre_sensor,
         zona: formData.zona,
         is_movil: formData.is_movil,
-        description: formData.description
+        description: formData.description,
+        visibilidad: formData.visibilidad
       };
 
       // Estacionario: incluir sitio y ubicación
@@ -1012,6 +1182,13 @@ function ModalEditarSensor({ sensor, onClose, onSuccess }) {
       }
 
       await sensoresAPI.update(sensor.id_sensor, payload);
+
+      // Guardar configuración de variables
+      await variablesAPI.setSensorVariables(sensor.id_sensor, variablesSeleccionadas.map(v => ({
+        id_variable: v.id_variable,
+        orden_csv: v.orden_csv
+      }))).catch(err => console.error('Error guardando variables:', err));
+
       toast.success('Sensor actualizado exitosamente');
       onSuccess();
       onClose();
@@ -1148,9 +1325,57 @@ function ModalEditarSensor({ sensor, onClose, onSuccess }) {
               <textarea
                 value={formData.description}
                 onChange={(e) => setFormData({...formData, description: e.target.value})}
-                rows={3}
+                rows={2}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
               />
+            </div>
+
+            {/* Configuración de variables */}
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Variables que mide
+                <span className="text-xs text-gray-400 ml-1">(el orden define columnas del CSV)</span>
+              </label>
+              {variablesSeleccionadas.length > 0 && (
+                <div className="space-y-1.5 mb-3">
+                  <p className="text-[10px] text-gray-400 uppercase font-medium">Formato: Fecha;Hora;{variablesSeleccionadas.map(v => v.codigo).join(';')}</p>
+                  {variablesSeleccionadas.map((v, idx) => (
+                    <div key={v.id_variable} className="flex items-center gap-2 bg-white rounded-lg px-3 py-1.5 border">
+                      <span className="text-xs font-bold text-gray-400 w-5">{v.orden_csv}</span>
+                      <span className="text-sm font-medium text-gray-800 flex-1">{v.nombre} <span className="text-gray-400">({v.unidad})</span></span>
+                      <button type="button" onClick={() => moverVariableEdit(idx, -1)} disabled={idx === 0} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">▲</button>
+                      <button type="button" onClick={() => moverVariableEdit(idx, 1)} disabled={idx === variablesSeleccionadas.length - 1} className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-xs">▼</button>
+                      <button type="button" onClick={() => quitarVariableEdit(v.id_variable)} className="text-red-400 hover:text-red-600 text-xs ml-1">✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <select onChange={(e) => { agregarVariableEdit(e.target.value); e.target.value = ''; }} className="w-full px-3 py-1.5 border border-gray-300 rounded-lg text-sm" defaultValue="">
+                <option value="" disabled>+ Agregar variable...</option>
+                {variablesDisponibles.filter(v => !variablesSeleccionadas.find(s => s.id_variable === v.id_variable)).map(v => (
+                  <option key={v.id_variable} value={v.id_variable}>{v.nombre} ({v.unidad})</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Visibilidad</label>
+                <p className="text-xs text-gray-500">
+                  {formData.visibilidad === 'publico' ? 'Visible para todos los visitantes' : 'Solo visible para usuarios autenticados'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, visibilidad: formData.visibilidad === 'publico' ? 'privado' : 'publico'})}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                  formData.visibilidad === 'publico' ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                  formData.visibilidad === 'publico' ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
 
             <div className="flex space-x-3 pt-4">

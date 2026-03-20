@@ -1,11 +1,13 @@
 // src/controllers/sitiosController.js - Controlador para gestión de sitios
 const { prisma } = require('../config/database');
+const { filtroVisibilidad } = require('../middleware/visibilidad');
 
 const sitiosController = {
   obtenerTodos: async (req, res) => {
     try {
       const sitios = await prisma.sitios.findMany({
-        include: { sensores: { select: { id_sensor: true, nombre_sensor: true, estado: true } } },
+        where: filtroVisibilidad(req),
+        include: { sensores: { select: { id_sensor: true, nombre_sensor: true, estado: true, is_movil: true, latitud: true, longitud: true, altitud: true, last_seen: true } } },
         orderBy: { created_at: 'desc' }
       });
       res.status(200).json({ success: true, data: sitios });
@@ -20,7 +22,7 @@ const sitiosController = {
       const { id } = req.params;
       const sitio = await prisma.sitios.findUnique({
         where: { id_sitio: parseInt(id) },
-        include: { sensores: { select: { id_sensor: true, nombre_sensor: true, estado: true } } }
+        include: { sensores: { select: { id_sensor: true, nombre_sensor: true, estado: true, is_movil: true, latitud: true, longitud: true, altitud: true, last_seen: true } } }
       });
       if (!sitio) return res.status(404).json({ success: false, message: 'Sitio no encontrado' });
       res.status(200).json({ success: true, data: sitio });
@@ -32,7 +34,7 @@ const sitiosController = {
 
   crear: async (req, res) => {
     try {
-      const { nombre, descripcion, referencia_ubicacion, latitud, longitud, altitud, zona } = req.body;
+      const { nombre, descripcion, referencia_ubicacion, latitud, longitud, altitud, zona, visibilidad } = req.body;
       if (!nombre || !zona || !latitud || !longitud) {
         return res.status(400).json({ success: false, message: 'Campos requeridos: nombre, zona, latitud, longitud' });
       }
@@ -44,7 +46,8 @@ const sitiosController = {
           latitud: latitud ? parseFloat(latitud) : null,
           longitud: longitud ? parseFloat(longitud) : null,
           altitud: altitud ? parseFloat(altitud) : null,
-          zona
+          zona,
+          visibilidad: visibilidad || 'publico'
         }
       });
       res.status(201).json({ success: true, message: 'Sitio creado exitosamente', data: sitio });
@@ -57,7 +60,7 @@ const sitiosController = {
   actualizar: async (req, res) => {
     try {
       const { id } = req.params;
-      const { nombre, descripcion, referencia_ubicacion, latitud, longitud, altitud, zona, estado } = req.body;
+      const { nombre, descripcion, referencia_ubicacion, latitud, longitud, altitud, zona, estado, visibilidad } = req.body;
       const sitio = await prisma.sitios.update({
         where: { id_sitio: parseInt(id) },
         data: {
@@ -68,7 +71,8 @@ const sitiosController = {
           ...(longitud !== undefined && { longitud: longitud ? parseFloat(longitud) : null }),
           ...(altitud !== undefined && { altitud: altitud ? parseFloat(altitud) : null }),
           ...(zona && { zona }),
-          ...(estado && { estado })
+          ...(estado && { estado }),
+          ...(visibilidad && { visibilidad })
         }
       });
       res.status(200).json({ success: true, message: 'Sitio actualizado', data: sitio });

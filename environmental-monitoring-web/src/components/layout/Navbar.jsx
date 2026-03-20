@@ -101,6 +101,9 @@ export default function Navbar() {
             <Link to="/campaigns" className={`${linkClass('/campaigns')} px-3 py-2`}>
               Campañas
             </Link>
+            <Link to="/variables" className={`${linkClass('/variables')} px-3 py-2`}>
+              Variables
+            </Link>
           </div>
 
           {/* Acciones Desktop */}
@@ -160,6 +163,13 @@ export default function Navbar() {
                       >
                         <KeyIcon className="w-5 h-5 text-gray-500" />
                         <span>Gestión API Keys</span>
+                      </Link>
+                      <Link
+                        to="/api-logs"
+                        className="w-full flex items-center space-x-3 px-3 py-2.5 text-sm text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+                      >
+                        <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" /></svg>
+                        <span>Monitor de API</span>
                       </Link>
                       <button
                         onClick={handleLogout}
@@ -225,6 +235,9 @@ export default function Navbar() {
             <Link to="/campaigns" className={mobileLinkClass('/campaigns')} onClick={toggleMenuMovil}>
               Campañas
             </Link>
+            <Link to="/variables" className={mobileLinkClass('/variables')} onClick={toggleMenuMovil}>
+              Variables
+            </Link>
 
             {isAuthenticated ? (
               <>
@@ -235,7 +248,10 @@ export default function Navbar() {
                       Configuración
                     </Link>
                     <Link to="/api-keys" className={mobileLinkClass('/api-keys')} onClick={toggleMenuMovil}>
-                      🔑 Gestión API Keys
+                      Gestión API Keys
+                    </Link>
+                    <Link to="/api-logs" className={mobileLinkClass('/api-logs')} onClick={toggleMenuMovil}>
+                      Monitor de API
                     </Link>
                   </>
                 )}

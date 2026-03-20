@@ -5,6 +5,7 @@ import { campanasAPI, sensoresAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../components/common/Toast';
 import { useConfirm } from '../components/common/ConfirmModal';
+import Pagination from '../components/common/Pagination';
 import {
   PlusIcon,
   PencilIcon,
@@ -31,6 +32,8 @@ export default function Campanas() {
   const [modalAbierto, setModalAbierto] = useState(false);
   const [modalTipo, setModalTipo] = useState(''); // 'crear', 'editar', 'ver'
   const [campanaSeleccionada, setCampanaSeleccionada] = useState(null);
+  const [pagina, setPagina] = useState(1);
+  const porPagina = 12;
 
   useEffect(() => {
     cargarDatos();
@@ -62,6 +65,15 @@ export default function Campanas() {
     const cumpleZona = filtroZona === 'todos' || c.zona === filtroZona;
     return cumpleBusqueda && cumpleEstado && cumpleZona;
   });
+
+  // Reset pagina cuando cambian filtros
+  useEffect(() => {
+    setPagina(1);
+  }, [busqueda, filtroEstado, filtroZona]);
+
+  // Paginación
+  const totalPaginas = Math.ceil(campanasFiltradas.length / porPagina);
+  const campanasPaginadas = campanasFiltradas.slice((pagina - 1) * porPagina, pagina * porPagina);
 
   // Estadisticas
   const stats = {
@@ -105,7 +117,7 @@ export default function Campanas() {
     const ok = await confirm(`¿Estas seguro de que deseas eliminar la campaña "${campana.nombre}"? Esta acción no se puede deshacer.`, { title: 'Confirmar', type: 'danger' });
     if (ok) {
       try {
-        await campanasAPI.delete(campana.id);
+        await campanasAPI.delete(campana.id_campana);
         cargarDatos();
         toast.success('Campaña eliminada exitosamente');
       } catch (err) {
@@ -258,8 +270,8 @@ export default function Campanas() {
 
       {/* Lista de Campanas */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {campanasFiltradas.length > 0 ? (
-          campanasFiltradas.map((campana) => (
+        {campanasPaginadas.length > 0 ? (
+          campanasPaginadas.map((campana) => (
             <div
               key={campana.id}
               className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-lg transition-all duration-300 overflow-hidden"
@@ -270,9 +282,16 @@ export default function Campanas() {
                   <h3 className="text-lg font-semibold text-gray-900 truncate flex-1 mr-2">
                     {campana.nombre}
                   </h3>
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${estadoBadge(campana.estado)}`}>
-                    {campana.estado}
-                  </span>
+                  <div className="flex items-center space-x-1">
+                    <span className={`px-3 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${estadoBadge(campana.estado)}`}>
+                      {campana.estado}
+                    </span>
+                    <span className={`px-2 py-0.5 text-[10px] font-medium rounded-full ${
+                      campana.visibilidad === 'privado' ? 'bg-gray-800 text-white' : 'bg-green-100 text-green-700'
+                    }`}>
+                      {campana.visibilidad === 'privado' ? 'Privado' : 'Público'}
+                    </span>
+                  </div>
                 </div>
 
                 {/* Descripcion */}
@@ -343,6 +362,16 @@ export default function Campanas() {
         )}
       </div>
 
+      {totalPaginas > 1 && (
+        <Pagination
+          paginaActual={pagina}
+          totalPaginas={totalPaginas}
+          onChange={setPagina}
+          totalItems={campanasFiltradas.length}
+          porPagina={porPagina}
+        />
+      )}
+
       {/* Modal Crear/Editar */}
       {modalAbierto && (modalTipo === 'crear' || modalTipo === 'editar') && (
         <ModalFormCampana
@@ -368,7 +397,8 @@ function ModalFormCampana({ campana, sensoresMoviles, onClose, onSuccess }) {
     zona: campana?.zona || '',
     fecha_inicio: campana?.fecha_inicio ? campana.fecha_inicio.slice(0, 10) : '',
     fecha_fin: campana?.fecha_fin ? campana.fecha_fin.slice(0, 10) : '',
-    sensores_ids: campana?.sensores?.map(s => s.id_sensor) || []
+    sensores_ids: campana?.sensores?.map(s => s.id_sensor) || [],
+    visibilidad: campana?.visibilidad || 'publico'
   });
   const [guardando, setGuardando] = useState(false);
 
@@ -399,11 +429,12 @@ function ModalFormCampana({ campana, sensoresMoviles, onClose, onSuccess }) {
         zona: formData.zona,
         fecha_inicio: formData.fecha_inicio,
         fecha_fin: formData.fecha_fin || null,
-        sensores_ids: formData.sensores_ids
+        sensores_ids: formData.sensores_ids,
+        visibilidad: formData.visibilidad
       };
 
       if (esEditar) {
-        await campanasAPI.update(campana.id, payload);
+        await campanasAPI.update(campana.id_campana, payload);
         toast.success('Campaña actualizada exitosamente');
       } else {
         await campanasAPI.create(payload);
@@ -563,6 +594,26 @@ function ModalFormCampana({ campana, sensoresMoviles, onClose, onSuccess }) {
               <p className="mt-1 text-xs text-gray-500">
                 {formData.sensores_ids.length} sensor(es) seleccionado(s)
               </p>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+              <div>
+                <label className="block text-sm font-medium text-gray-700">Visibilidad</label>
+                <p className="text-xs text-gray-500">
+                  {formData.visibilidad === 'publico' ? 'Visible para todos los visitantes' : 'Solo visible para usuarios autenticados'}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setFormData({...formData, visibilidad: formData.visibilidad === 'publico' ? 'privado' : 'publico'})}
+                className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${
+                  formData.visibilidad === 'publico' ? 'bg-green-500' : 'bg-gray-300'
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition duration-200 ${
+                  formData.visibilidad === 'publico' ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
             </div>
 
             {/* Botones */}
